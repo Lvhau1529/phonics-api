@@ -1,7 +1,7 @@
 import { z } from 'zod';
-import { Id } from './common/ids';
-import { PermissionCode } from './permissions';
-import { AvatarKey, DisplayName, Email, Password, User } from './users';
+import { Id } from './common/ids.js';
+import { PermissionCode } from './permissions.js';
+import { AvatarKey, DisplayName, Email, Password, User } from './users.js';
 
 /**
  * Cách nhận refresh token:

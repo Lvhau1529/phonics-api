@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { IsoDate } from './dates';
+import { IsoDate } from './dates.js';
 
 /**
  * Khoảng thời gian cho điểm / xếp hạng / thống kê.

@@ -1,8 +1,8 @@
 import { z } from 'zod';
-import { IsoDateTime } from './common/dates';
-import { Id } from './common/ids';
-import { PageQuery } from './common/pagination';
-import { EndedBy, GameId } from './games';
+import { IsoDateTime } from './common/dates.js';
+import { Id } from './common/ids.js';
+import { PageQuery } from './common/pagination.js';
+import { EndedBy, GameId } from './games.js';
 
 /** Luật quy đổi điểm (API là nguồn sự thật; client chỉ dùng để hiện ước lượng) */
 export const POINT_RULES = {

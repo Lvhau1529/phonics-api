@@ -1,0 +1,22 @@
+# BuildKit đọc file này (cùng tên với Dockerfile) khi build với `-f apps/api/Dockerfile`;
+# đường dẫn tính từ build context = thư mục gốc repo.
+.git
+**/node_modules
+**/dist
+**/dev-dist
+**/coverage
+**/.turbo
+**/*.tsbuildinfo
+# Secret: chỉ giữ *.env.example
+**/.env
+**/.env.*
+!**/.env.example
+# Prisma client sinh lại khi build (pnpm --filter @phonics/api build → prisma generate)
+apps/api/src/generated
+apps/api/test
+# Không cần cho API
+apps/game
+apps/admin
+_source
+tools
+docs

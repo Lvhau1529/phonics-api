@@ -1,9 +1,9 @@
 import { z } from 'zod';
-import { ParentContact } from './auth';
-import { IsoDateTime } from './common/dates';
-import { Id } from './common/ids';
-import { PageQuery } from './common/pagination';
-import { AvatarKey, DisplayName, Email, Password, StudentClassRef, UserStatus } from './users';
+import { ParentContact } from './auth.js';
+import { IsoDateTime } from './common/dates.js';
+import { Id } from './common/ids.js';
+import { PageQuery } from './common/pagination.js';
+import { AvatarKey, DisplayName, Email, Password, StudentClassRef, UserStatus } from './users.js';
 
 export const StudentSummary = z.object({
   id: Id,

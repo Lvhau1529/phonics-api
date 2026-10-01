@@ -1,0 +1,359 @@
+// Mô hình dữ liệu Phonics Arcade. Xem docs/architecture/erd.md.
+// Prisma 7: URL kết nối nằm ở prisma.config.ts (CLI) và PrismaService (runtime, driver adapter pg).
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  ADMIN
+  TEACHER
+  STUDENT
+}
+
+enum UserStatus {
+  ACTIVE
+  DISABLED
+}
+
+enum AuthProvider {
+  LOCAL
+  GOOGLE
+}
+
+enum PermissionEffect {
+  GRANT
+  REVOKE
+}
+
+enum PointKind {
+  GAME
+  BONUS
+}
+
+enum UnlockSource {
+  GEMS
+  ADMIN
+}
+
+enum GameEventType {
+  VIEW
+  PLAY
+}
+
+enum NotificationType {
+  BONUS_AWARDED
+  RANK_CHANGED
+  CLASS_CHANGED
+  GAME_UNLOCKED
+  SYSTEM
+}
+
+/// Tài khoản chung cho admin / giáo viên / học sinh
+model User {
+  id            String       @id @default(uuid()) @db.Uuid
+  /// Lưu chữ thường, đã trim
+  email         String       @unique
+  emailVerified Boolean      @default(false) @map("email_verified")
+  /// null với tài khoản chỉ đăng nhập Google
+  passwordHash  String?      @map("password_hash")
+  googleSub     String?      @unique @map("google_sub")
+  provider      AuthProvider @default(LOCAL)
+  role          Role
+  status        UserStatus   @default(ACTIVE)
+  displayName   String       @map("display_name")
+  /// Key avatar preset (contracts AVATARS)
+  avatarKey     String       @default("pip") @map("avatar_key")
+  /// Tăng để vô hiệu mọi access token đang có
+  tokenVersion  Int          @default(0) @map("token_version")
+  lastLoginAt   DateTime?    @map("last_login_at")
+  createdAt     DateTime     @default(now()) @map("created_at")
+  updatedAt     DateTime     @updatedAt @map("updated_at")
+
+  studentProfile   StudentProfile?
+  teachingClasses  ClassTeacher[]
+  permissions      UserPermission[]   @relation("UserPermissions")
+  grantedPerms     UserPermission[]   @relation("GrantedBy")
+  refreshTokens    RefreshToken[]
+  notifications    Notification[]
+  pointEntriesMade PointEntry[]       @relation("PointEntryCreatedBy")
+  unlocksGranted   StudentGameUnlock[] @relation("UnlockGrantedBy")
+  auditLogs        AuditLog[]
+  gameEvents       GameEvent[]
+
+  @@index([role, status])
+  @@map("users")
+}
+
+/// Thông tin riêng của học sinh (liên hệ phụ huynh)
+model StudentProfile {
+  userId      String   @id @map("user_id") @db.Uuid
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  parentName  String?  @map("parent_name")
+  parentEmail String?  @map("parent_email")
+  parentPhone String?  @map("parent_phone")
+  /// Ghi chú nội bộ của admin
+  notes       String?
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  memberships  ClassMembership[]
+  gameResults  GameResult[]
+  pointEntries PointEntry[]
+  gameUnlocks  StudentGameUnlock[]
+
+  @@map("student_profiles")
+}
+
+model Class {
+  id          String    @id @default(uuid()) @db.Uuid
+  name        String
+  /// "K2", "Lớp 1"… — text tự do, lọc được
+  grade       String
+  /// "2026-2027"
+  schoolYear  String    @map("school_year")
+  /// Hiện ở danh sách lớp khi học sinh đăng ký
+  joinVisible Boolean   @default(true) @map("join_visible")
+  archivedAt  DateTime? @map("archived_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  teachers     ClassTeacher[]
+  memberships  ClassMembership[]
+  pointEntries PointEntry[]
+  gameResults  GameResult[]
+
+  @@unique([name, schoolYear])
+  @@index([joinVisible, archivedAt])
+  @@map("classes")
+}
+
+/// Giáo viên dạy lớp (nhiều-nhiều)
+model ClassTeacher {
+  classId    String   @map("class_id") @db.Uuid
+  teacherId  String   @map("teacher_id") @db.Uuid
+  assignedAt DateTime @default(now()) @map("assigned_at")
+  class      Class    @relation(fields: [classId], references: [id], onDelete: Cascade)
+  teacher    User     @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+
+  @@id([classId, teacherId])
+  @@index([teacherId])
+  @@map("class_teachers")
+}
+
+/// Học sinh thuộc lớp. Mỗi học sinh chỉ có MỘT membership đang hoạt động (left_at IS NULL):
+/// partial unique index `class_memberships_active_student` được thêm tay trong migration SQL.
+model ClassMembership {
+  id         String    @id @default(uuid()) @db.Uuid
+  studentId  String    @map("student_id") @db.Uuid
+  classId    String    @map("class_id") @db.Uuid
+  joinedAt   DateTime  @default(now()) @map("joined_at")
+  leftAt     DateTime? @map("left_at")
+  /// Hạng (tổng điểm, mọi thời gian) ở lần tính gần nhất — để phát hiện đổi hạng
+  lastRank   Int?      @map("last_rank")
+  lastRankAt DateTime? @map("last_rank_at")
+  student    StudentProfile @relation(fields: [studentId], references: [userId], onDelete: Cascade)
+  class      Class          @relation(fields: [classId], references: [id], onDelete: Cascade)
+
+  @@index([classId, leftAt])
+  @@index([studentId, leftAt])
+  @@map("class_memberships")
+}
+
+/// Override quyền theo user; catalog quyền nằm trong packages/contracts (PERMISSIONS)
+model UserPermission {
+  id          String           @id @default(uuid()) @db.Uuid
+  userId      String           @map("user_id") @db.Uuid
+  permission  String
+  effect      PermissionEffect
+  grantedById String?          @map("granted_by_id") @db.Uuid
+  note        String?
+  createdAt   DateTime         @default(now()) @map("created_at")
+  user        User             @relation("UserPermissions", fields: [userId], references: [id], onDelete: Cascade)
+  grantedBy   User?            @relation("GrantedBy", fields: [grantedById], references: [id], onDelete: SetNull)
+
+  @@unique([userId, permission])
+  @@map("user_permissions")
+}
+
+/// Catalog game: id = manifest.id ở app game. Seed từ contracts GAME_IDS.
+model Game {
+  id         String   @id
+  title      String
+  enabled    Boolean  @default(true)
+  comingSoon Boolean  @default(false) @map("coming_soon")
+  /// Số kim cương để mở khoá; null = miễn phí
+  price      Int?
+  sortOrder  Int      @default(0) @map("sort_order")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  unlocks StudentGameUnlock[]
+  events  GameEvent[]
+  results GameResult[]
+  points  PointEntry[]
+
+  @@map("games")
+}
+
+/// Học sinh đã mở khoá game (bằng kim cương ở client hoặc admin cấp). revoked_at != null = bị thu hồi.
+model StudentGameUnlock {
+  studentId   String       @map("student_id") @db.Uuid
+  gameId      String       @map("game_id")
+  source      UnlockSource
+  gemsSpent   Int?         @map("gems_spent")
+  grantedById String?      @map("granted_by_id") @db.Uuid
+  note        String?
+  unlockedAt  DateTime     @default(now()) @map("unlocked_at")
+  revokedAt   DateTime?    @map("revoked_at")
+  student     StudentProfile @relation(fields: [studentId], references: [userId], onDelete: Cascade)
+  game        Game           @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  grantedBy   User?          @relation("UnlockGrantedBy", fields: [grantedById], references: [id], onDelete: SetNull)
+
+  @@id([studentId, gameId])
+  @@index([gameId, revokedAt])
+  @@map("student_game_unlocks")
+}
+
+/// Lượt xem (click thẻ game) / lượt chơi (hoàn thành ván), ẩn danh theo client_id; user_id nếu đã đăng nhập
+model GameEvent {
+  id         String        @id @default(uuid()) @db.Uuid
+  gameId     String        @map("game_id")
+  type       GameEventType
+  userId     String?       @map("user_id") @db.Uuid
+  clientId   String        @map("client_id") @db.Uuid
+  /// 'solo' | 'class'
+  mode       String?
+  /// Làm tròn giây (dedupe)
+  occurredAt DateTime      @map("occurred_at")
+  createdAt  DateTime      @default(now()) @map("created_at")
+  game       Game          @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  user       User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@unique([clientId, gameId, type, occurredAt])
+  @@index([gameId, type, occurredAt])
+  @@index([userId, occurredAt])
+  @@map("game_events")
+}
+
+/// Kết quả một ván SOLO do game client gửi
+model GameResult {
+  id              String   @id @default(uuid()) @db.Uuid
+  studentId       String   @map("student_id") @db.Uuid
+  /// Lớp tại thời điểm chơi (null nếu chưa vào lớp)
+  classId         String?  @map("class_id") @db.Uuid
+  gameId          String   @map("game_id")
+  mode            String   @default("solo")
+  levelId         String   @map("level_id")
+  packId          String?  @map("pack_id")
+  correct         Int
+  total           Int
+  score           Int
+  durationMs      Int?     @map("duration_ms")
+  endedBy         String   @map("ended_by")
+  playedAt        DateTime @map("played_at")
+  /// Khoá idempotent do client sinh
+  clientSessionId String   @map("client_session_id") @db.Uuid
+  pointsAwarded   Int      @default(0) @map("points_awarded")
+  pointsReason    String?  @map("points_reason")
+  details         Json     @default("{}")
+  createdAt       DateTime @default(now()) @map("created_at")
+  student         StudentProfile @relation(fields: [studentId], references: [userId], onDelete: Cascade)
+  class           Class?         @relation(fields: [classId], references: [id], onDelete: SetNull)
+  game            Game           @relation(fields: [gameId], references: [id], onDelete: Restrict)
+  pointEntry      PointEntry?
+
+  @@unique([studentId, clientSessionId])
+  @@index([studentId, playedAt])
+  @@index([gameId, playedAt])
+  @@map("game_results")
+}
+
+/// Sổ điểm (ledger). Tổng điểm học sinh = SUM(points); điểm đi theo học sinh khi đổi lớp.
+model PointEntry {
+  id           String    @id @default(uuid()) @db.Uuid
+  studentId    String    @map("student_id") @db.Uuid
+  /// Lớp tại thời điểm cộng (để báo cáo), có thể null
+  classId      String?   @map("class_id") @db.Uuid
+  /// GAME: bắt buộc; BONUS: tuỳ chọn (thưởng theo game)
+  gameId       String?   @map("game_id")
+  kind         PointKind
+  /// BONUS có thể âm (sửa điểm)
+  points       Int
+  note         String?
+  gameResultId String?   @unique @map("game_result_id") @db.Uuid
+  /// null = hệ thống (game)
+  createdById  String?   @map("created_by_id") @db.Uuid
+  createdAt    DateTime  @default(now()) @map("created_at")
+  student      StudentProfile @relation(fields: [studentId], references: [userId], onDelete: Cascade)
+  class        Class?         @relation(fields: [classId], references: [id], onDelete: SetNull)
+  game         Game?          @relation(fields: [gameId], references: [id], onDelete: SetNull)
+  gameResult   GameResult?    @relation(fields: [gameResultId], references: [id], onDelete: SetNull)
+  createdBy    User?          @relation("PointEntryCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([studentId, createdAt])
+  @@index([classId, createdAt])
+  @@index([gameId, createdAt])
+  @@index([kind, createdAt])
+  @@map("point_entries")
+}
+
+model Notification {
+  id        String           @id @default(uuid()) @db.Uuid
+  userId    String           @map("user_id") @db.Uuid
+  type      NotificationType
+  title     String
+  body      String
+  data      Json?
+  readAt    DateTime?        @map("read_at")
+  createdAt DateTime         @default(now()) @map("created_at")
+  updatedAt DateTime         @updatedAt @map("updated_at")
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, readAt, createdAt(sort: Desc)])
+  @@map("notifications")
+}
+
+/// Refresh token: lưu hash, xoay vòng mỗi lần dùng, phát hiện dùng lại theo family
+model RefreshToken {
+  id           String    @id @default(uuid()) @db.Uuid
+  userId       String    @map("user_id") @db.Uuid
+  tokenHash    String    @unique @map("token_hash")
+  familyId     String    @map("family_id") @db.Uuid
+  expiresAt    DateTime  @map("expires_at")
+  revokedAt    DateTime? @map("revoked_at")
+  replacedById String?   @map("replaced_by_id") @db.Uuid
+  userAgent    String?   @map("user_agent")
+  ip           String?
+  createdAt    DateTime  @default(now()) @map("created_at")
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([familyId])
+  @@index([expiresAt])
+  @@map("refresh_tokens")
+}
+
+/// Nhật ký hành động của admin / giáo viên
+model AuditLog {
+  id         String   @id @default(uuid()) @db.Uuid
+  actorId    String?  @map("actor_id") @db.Uuid
+  action     String
+  targetType String   @map("target_type")
+  targetId   String?  @map("target_id")
+  before     Json?
+  after      Json?
+  ip         String?
+  createdAt  DateTime @default(now()) @map("created_at")
+  actor      User?    @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([targetType, targetId])
+  @@index([actorId, createdAt])
+  @@index([action, createdAt])
+  @@map("audit_logs")
+}

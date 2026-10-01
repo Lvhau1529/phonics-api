@@ -1,6 +1,6 @@
 import { z } from 'zod';
-import { IsoDateTime } from './common/dates';
-import { Id } from './common/ids';
+import { IsoDateTime } from './common/dates.js';
+import { Id } from './common/ids.js';
 
 /**
  * Id game = `manifest.id` trong apps/game/src/games/<id>/manifest.ts (không đổi sau khi phát hành).

@@ -1,7 +1,7 @@
 import { z } from 'zod';
-import { IsoDateTime } from './common/dates';
-import { Id } from './common/ids';
-import { Role } from './users';
+import { IsoDateTime } from './common/dates.js';
+import { Id } from './common/ids.js';
+import { Role } from './users.js';
 
 /**
  * Catalog quyền: nằm trong code (không có bảng), DB chỉ lưu override theo user (GRANT / REVOKE).

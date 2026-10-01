@@ -1,6 +1,6 @@
 import { z } from 'zod';
-import { RangeQuery } from './common/range';
-import { GameId } from './games';
+import { RangeQuery } from './common/range.js';
+import { GameId } from './games.js';
 
 /** Query chung cho các endpoint xuất file (xlsx / pdf) */
 export const ReportQuery = RangeQuery.extend({ gameId: GameId.optional() });

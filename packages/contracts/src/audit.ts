@@ -1,7 +1,7 @@
 import { z } from 'zod';
-import { IsoDate, IsoDateTime } from './common/dates';
-import { Id } from './common/ids';
-import { PageQuery } from './common/pagination';
+import { IsoDate, IsoDateTime } from './common/dates.js';
+import { Id } from './common/ids.js';
+import { PageQuery } from './common/pagination.js';
 
 /** Hành động được ghi nhật ký (xem AuditService ở API) */
 export const AuditAction = z.enum([

@@ -1,6 +1,6 @@
 import { z } from 'zod';
-import { IsoDateTime } from './common/dates';
-import { GameId, PlayMode } from './games';
+import { IsoDateTime } from './common/dates.js';
+import { GameId, PlayMode } from './games.js';
 
 /**
  * Sự kiện ẩn danh của game (lượt xem = click thẻ game, lượt chơi = hoàn thành ván).

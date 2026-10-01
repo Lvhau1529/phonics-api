@@ -1,0 +1,25 @@
+# Chạy API trên VPS (sau reverse proxy nginx / Caddy làm TLS). Từ thư mục apps/api:
+#   cp .env.example .env.production   # điền giá trị thật (NODE_ENV=production)
+#   docker compose pull && docker compose up -d        # ảnh từ GHCR
+#   docker compose up -d --build                       # hoặc build tại chỗ (context = gốc repo)
+# Biến: TAG (tag ảnh, mặc định latest), GHCR_OWNER (chủ GHCR, chữ thường).
+services:
+  api:
+    image: ghcr.io/${GHCR_OWNER:-lvhau1529}/phonics-api:${TAG:-latest}
+    build:
+      context: ../..
+      dockerfile: apps/api/Dockerfile
+    env_file: .env.production
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+    ports:
+      # Chỉ lắng nghe loopback; reverse proxy trên host trỏ tới 127.0.0.1:3000
+      - '127.0.0.1:3000:3000'
+    restart: unless-stopped
+    init: true
+    logging:
+      driver: json-file
+      options:
+        max-size: '10m'
+        max-file: '5'

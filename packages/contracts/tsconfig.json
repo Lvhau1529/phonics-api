@@ -1,6 +1,13 @@
 {
-  "extends": "@phonics/config/tsconfig/node-lib.json",
+  "extends": "@phonics/config/tsconfig/base.json",
   "compilerOptions": {
+    // NodeNext: ép import tương đối có đuôi .js để .d.ts dùng được từ cả ESM (Vite) lẫn CJS (NestJS, NodeNext)
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "lib": ["ES2022"],
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
     "rootDir": "src",
     "outDir": "dist/esm"
   },

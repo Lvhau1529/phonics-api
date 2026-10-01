@@ -1,10 +1,10 @@
 import { z } from 'zod';
-import { IsoDateTime } from './common/dates';
-import { Id } from './common/ids';
-import { PageQuery } from './common/pagination';
-import { RangeQuery } from './common/range';
-import { GameId } from './games';
-import { AvatarKey, DisplayName } from './users';
+import { IsoDateTime } from './common/dates.js';
+import { Id } from './common/ids.js';
+import { PageQuery } from './common/pagination.js';
+import { RangeQuery } from './common/range.js';
+import { GameId } from './games.js';
+import { AvatarKey, DisplayName } from './users.js';
 
 export const PointKind = z.enum(['GAME', 'BONUS']);
 export type PointKind = z.infer<typeof PointKind>;

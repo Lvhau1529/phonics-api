@@ -1,6 +1,6 @@
 import { z } from 'zod';
-import { IsoDateTime } from './common/dates';
-import { Id } from './common/ids';
+import { IsoDateTime } from './common/dates.js';
+import { Id } from './common/ids.js';
 
 export const Role = z.enum(['ADMIN', 'TEACHER', 'STUDENT']);
 export type Role = z.infer<typeof Role>;

@@ -1,10 +1,10 @@
 import { z } from 'zod';
-import { IsoDate, IsoDateTime } from './common/dates';
-import { Id } from './common/ids';
-import { RangeQuery } from './common/range';
-import { GameId } from './games';
-import { PointKind } from './points';
-import { AvatarKey, DisplayName } from './users';
+import { IsoDate, IsoDateTime } from './common/dates.js';
+import { Id } from './common/ids.js';
+import { RangeQuery } from './common/range.js';
+import { GameId } from './games.js';
+import { PointKind } from './points.js';
+import { AvatarKey, DisplayName } from './users.js';
 
 export const Bucket = z.enum(['day', 'week']);
 export type Bucket = z.infer<typeof Bucket>;

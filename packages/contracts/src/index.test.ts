@@ -9,7 +9,7 @@ import {
   ROLE_DEFAULT_PERMISSIONS,
   UpdateProfileBody,
   parseSort,
-} from './index';
+} from './index.js';
 
 describe('GameResultBody', () => {
   const valid = {

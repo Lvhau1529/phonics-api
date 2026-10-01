@@ -1,7 +1,7 @@
 import { z } from 'zod';
-import { IsoDateTime } from './common/dates';
-import { Id } from './common/ids';
-import { PageQuery } from './common/pagination';
+import { IsoDateTime } from './common/dates.js';
+import { Id } from './common/ids.js';
+import { PageQuery } from './common/pagination.js';
 
 export const NotificationType = z.enum([
   'BONUS_AWARDED',

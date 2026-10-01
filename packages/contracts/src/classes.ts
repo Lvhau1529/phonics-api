@@ -1,8 +1,8 @@
 import { z } from 'zod';
-import { IsoDateTime } from './common/dates';
-import { Id } from './common/ids';
-import { PageQuery } from './common/pagination';
-import { AvatarKey, DisplayName, Email } from './users';
+import { IsoDateTime } from './common/dates.js';
+import { Id } from './common/ids.js';
+import { PageQuery } from './common/pagination.js';
+import { AvatarKey, DisplayName, Email } from './users.js';
 
 export const ClassName = z.string().trim().min(1).max(60);
 export const Grade = z.string().trim().min(1).max(20);

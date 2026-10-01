@@ -1,9 +1,9 @@
 import { z } from 'zod';
-import { PublicClass } from './classes';
-import { IsoDateTime } from './common/dates';
-import { Id } from './common/ids';
-import { PageQuery } from './common/pagination';
-import { AuthProvider, AvatarKey, DisplayName, Email, Password, UserStatus } from './users';
+import { PublicClass } from './classes.js';
+import { IsoDateTime } from './common/dates.js';
+import { Id } from './common/ids.js';
+import { PageQuery } from './common/pagination.js';
+import { AuthProvider, AvatarKey, DisplayName, Email, Password, UserStatus } from './users.js';
 
 export const TeacherSummary = z.object({
   id: Id,
