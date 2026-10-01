@@ -19,5 +19,8 @@ await bundle.close();
 
 run('tsc -p tsconfig.json');
 if (watch) {
-  spawn('tsc', ['-p', 'tsconfig.json', '--watch', '--preserveWatchOutput'], { stdio: 'inherit', shell: true });
+  spawn('tsc', ['-p', 'tsconfig.json', '--watch', '--preserveWatchOutput'], {
+    stdio: 'inherit',
+    shell: true,
+  });
 }
