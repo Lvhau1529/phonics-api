@@ -1,0 +1,14 @@
+.git
+**/node_modules
+**/dist
+**/coverage
+**/*.tsbuildinfo
+# Secret: chỉ giữ *.env.example
+**/.env
+**/.env.*
+!**/.env.example
+# Prisma client sinh lại khi build
+src/generated
+test
+docs
+.claude

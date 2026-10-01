@@ -1,5 +1,5 @@
 {
-  "extends": "@phonics/config/tsconfig/base.json",
+  "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     // NodeNext: ép import tương đối có đuôi .js để .d.ts dùng được từ cả ESM (Vite) lẫn CJS (NestJS, NodeNext)
     "module": "NodeNext",

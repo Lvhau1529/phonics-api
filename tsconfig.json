@@ -1,5 +1,5 @@
 {
-  "extends": "@phonics/config/tsconfig/base.json",
+  "extends": "./tsconfig.base.json",
   "compilerOptions": {
     // NestJS cần decorator metadata → TypeScript 6 (classic); TS 7 chưa có compiler API cho nest build
     "module": "NodeNext",

@@ -1,0 +1,26 @@
+# Repo API: gốc = app NestJS, packages/contracts = gói @lvhau1529/phonics-contracts (game / admin cài qua GitHub Packages).
+packages:
+  - packages/*
+
+# pnpm 11+: gói có build script phải được cho phép / chặn rõ ràng (bỏ qua ngầm = lỗi khi cài).
+allowBuilds:
+  # argon2 / swc có binary prebuilt nhưng vẫn khai báo rõ; Prisma generate chạy tay (pnpm prisma:generate)
+  argon2: true
+  '@swc/core': true
+  '@prisma/client': false
+  '@prisma/engines': false
+  prisma: false
+  esbuild: true
+  '@scarf/scarf': false
+
+minimumReleaseAgeExclude:
+  - globals@17.13.0
+  - dotenv@18.0.5
+  - pg-cloudflare@1.4.1
+  - pg-connection-string@2.14.1
+  - pg-protocol@1.16.1
+  - pg@8.23.1
+
+# @swc/core >= 1.16 từ chối nạp binding khi thư mục cache (AppData\Local) có ACL lạ trên máy Windows dev → ghim bản cũ hơn
+overrides:
+  '@swc/core': 1.15.47

@@ -1,8 +1,16 @@
 {
-  "name": "@phonics/contracts",
-  "version": "0.0.0",
-  "private": true,
-  "description": "Hợp đồng API dùng chung (zod schema, type, hằng số) cho game, admin và api",
+  "name": "@lvhau1529/phonics-contracts",
+  "version": "1.0.0",
+  "description": "Hợp đồng API Phonics Arcade (zod schema, type, hằng số) dùng chung cho game, admin và api",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Lvhau1529/phonics-api.git",
+    "directory": "packages/contracts"
+  },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com",
+    "access": "restricted"
+  },
   "type": "module",
   "sideEffects": false,
   "main": "./dist/cjs/index.js",
@@ -29,10 +37,9 @@
     "zod": "^4.6.0"
   },
   "devDependencies": {
-    "@phonics/config": "workspace:*",
-    "typescript": "catalog:",
-    "vitest": "catalog:",
-    "zod": "catalog:",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.0",
+    "zod": "^4.6.5",
     "rolldown": "^1.2.11"
   }
 }

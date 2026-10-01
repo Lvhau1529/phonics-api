@@ -1,0 +1,35 @@
+# Phát hành @lvhau1529/phonics-contracts lên GitHub Packages khi push tag `contracts-v<version>`
+# (version trong packages/contracts/package.json phải trùng tag):
+#   git tag contracts-v1.0.0 && git push origin contracts-v1.0.0
+name: Publish contracts
+
+on:
+  push:
+    tags: ['contracts-v*']
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: pnpm
+          registry-url: https://npm.pkg.github.com
+          scope: '@lvhau1529'
+      - run: pnpm install --frozen-lockfile
+      - name: Tag khớp version
+        run: |
+          VERSION=$(node -p "require('./packages/contracts/package.json').version")
+          test "contracts-v$VERSION" = "$GITHUB_REF_NAME" || { echo "Tag $GITHUB_REF_NAME != contracts-v$VERSION"; exit 1; }
+      - run: pnpm --filter ./packages/contracts run test
+      - run: pnpm --filter ./packages/contracts run build
+      - run: pnpm --filter ./packages/contracts publish --no-git-checks
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

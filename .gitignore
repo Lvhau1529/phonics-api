@@ -1,0 +1,15 @@
+node_modules
+dist
+dev-dist
+coverage
+*.tsbuildinfo
+*.local
+.DS_Store
+# Secret: chỉ commit *.env.example
+.env
+.env.*
+!.env.example
+# Prisma client sinh ra (pnpm prisma:generate)
+src/generated
+# neon link (trỏ DB production)
+.neon

@@ -1,0 +1,15 @@
+# Repo lưu LF; checkout LF trên mọi máy (tránh cảnh báo CRLF của Windows). Prettier endOfLine = lf.
+* text=auto eol=lf
+
+*.png binary
+*.webp binary
+*.jpg binary
+*.ico binary
+*.ogg binary
+*.mp3 binary
+*.wav binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.pdf binary
+*.xlsx binary

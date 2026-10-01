@@ -1,16 +1,20 @@
-# @phonics/api — Phonics Arcade API
+# phonics-api — Phonics Arcade API
 
-NestJS 11 + Prisma 7 (PostgreSQL / Neon). Phục vụ app game (`apps/game`) và trang quản trị (`apps/admin`):
+NestJS 11 + Prisma 7 (PostgreSQL / Neon). Phục vụ app game ([phonics-game](https://github.com/Lvhau1529/phonics-game)) và
+trang quản trị ([phonics-admin](https://github.com/Lvhau1529/phonics-admin)):
 tài khoản (local + Google), lớp học, học sinh, giáo viên, điểm / xếp hạng, thông báo, catalog game,
 sự kiện xem / chơi, thống kê và xuất báo cáo (xlsx / pdf). Hợp đồng dữ liệu (zod) nằm ở
-`packages/contracts`; mọi response của API trả đúng shape trong đó.
+`packages/contracts` (gói `@lvhau1529/phonics-contracts`, xem [Contracts](#contracts)); mọi response của API trả đúng
+shape trong đó. Tài liệu hệ thống (kiến trúc, ADR, deploy cả 3 app): repo **phonics-workspace**.
 
 ## Cấu trúc
 
-Ba tầng, phụ thuộc một chiều `modules → common / core → config` (ADR 0015):
+Ba tầng, phụ thuộc một chiều `modules → common / core → config` (ADR 0015 trong phonics-workspace):
 
 ```
-apps/api
+phonics-api
+├── packages/contracts/     gói hợp đồng zod dùng chung (phát hành lên GitHub Packages)
+├── docs/                   api.md (bảng endpoint), erd.md
 ├── prisma/                 schema.prisma, migrations/, seed.ts
 ├── prisma.config.ts        Prisma CLI: DIRECT_URL (kết nối thẳng), lệnh seed
 ├── src/
@@ -55,26 +59,26 @@ endpoint không đổi thì cho controller v1 phục vụ cả hai version (`ver
 ## Chạy dev
 
 ```bash
-cp apps/api/.env.example apps/api/.env       # điền DATABASE_URL / DIRECT_URL (Neon), secret ≥ 32 ký tự
+cp .env.example .env      # điền DATABASE_URL / DIRECT_URL (Neon), secret ≥ 32 ký tự
 pnpm install
-pnpm --filter @phonics/api prisma:generate   # sinh client vào src/generated
-pnpm --filter @phonics/api prisma:migrate    # prisma migrate dev (dùng DIRECT_URL)
-pnpm --filter @phonics/api db:seed           # admin + catalog game (+ dữ liệu demo nếu SEED_DEMO=true)
-pnpm dev:api                                 # từ gốc repo: build contracts rồi nest start --watch
+pnpm prisma:generate      # sinh client vào src/generated
+pnpm prisma:migrate       # prisma migrate dev (dùng DIRECT_URL)
+pnpm db:seed              # admin + catalog game (+ dữ liệu demo nếu SEED_DEMO=true)
+pnpm dev                  # build contracts rồi nest start --watch
 ```
 
-- API: `http://localhost:3000/api/v1`, health `http://localhost:3000/api/health`, Swagger UI: `http://localhost:3000/api/docs` (JSON: `/api/docs-json`),
-  tắt bằng `SWAGGER_ENABLED=false`.
-- Lệnh khác trong `apps/api`: `pnpm typecheck`, `pnpm lint`, `pnpm build` (prisma generate + nest build bằng SWC,
-  ra `dist/`), `pnpm start` (chạy `dist/main.js`), `pnpm prisma:studio`.
+- API: `http://localhost:3000/api/v1`, health `http://localhost:3000/api/health`, Swagger UI:
+  `http://localhost:3000/api/docs` (JSON: `/api/docs-json`), tắt bằng `SWAGGER_ENABLED=false`.
+- Lệnh khác: `pnpm typecheck`, `pnpm lint`, `pnpm format`, `pnpm build` (contracts + prisma generate + nest build
+  bằng SWC, ra `dist/`), `pnpm start` (chạy `dist/main.js`), `pnpm prisma:studio`.
 - Mọi lỗi trả về envelope `ApiErrorBody` (`statusCode`, `code`, `message`, `details?`, `requestId`); mọi response có
   header `X-Request-Id` (giữ nguyên nếu client / proxy gửi lên) — trùng với `reqId` trong log.
 
 ## Test
 
 ```bash
-pnpm --filter @phonics/api test        # unit (src/**/*.spec.ts), không cần DB
-pnpm --filter @phonics/api test:e2e    # e2e (test/e2e/**/*.e2e-spec.ts), cần DATABASE_URL_TEST
+pnpm test        # unit (src/**/*.spec.ts) + test của contracts, không cần DB
+pnpm test:e2e    # e2e (test/e2e/**/*.e2e-spec.ts), cần DATABASE_URL_TEST
 ```
 
 e2e dùng một DB Postgres **riêng** (bị `TRUNCATE` trước mỗi file test): đặt `DATABASE_URL_TEST`
@@ -84,14 +88,14 @@ biến bắt buộc còn thiếu (secret, admin) bằng giá trị test, nên CI
 
 ## Deploy bằng Docker
 
-Ảnh multi-stage (`apps/api/Dockerfile`, `node:24-alpine`, pnpm qua corepack). Build context là **gốc repo**
-vì cần lockfile + workspace (`packages/contracts`); BuildKit đọc `apps/api/Dockerfile.dockerignore`.
+Ảnh multi-stage (`Dockerfile`, `node:24-alpine`, pnpm qua corepack), build context = gốc repo (`.dockerignore`).
+Contracts được build cùng ảnh từ `packages/contracts` (không cần GitHub Packages).
 
 ```bash
 # build tại chỗ
-docker build -f apps/api/Dockerfile -t ghcr.io/<owner>/phonics-api:latest .
-# chạy trên VPS (apps/api/docker-compose.yml): cổng 127.0.0.1:3000, reverse proxy làm TLS
-cd apps/api && cp .env.example .env.production && docker compose up -d
+docker build -t ghcr.io/<owner>/phonics-api:latest .
+# chạy trên VPS (docker-compose.yml): cổng 127.0.0.1:3000, reverse proxy làm TLS
+cp .env.example .env.production && docker compose up -d
 ```
 
 - Entrypoint (`docker-entrypoint.sh`): `prisma migrate deploy` (DIRECT_URL) rồi `node dist/main.js`.
@@ -99,7 +103,7 @@ cd apps/api && cp .env.example .env.production && docker compose up -d
 - `docker-compose.yml`: ảnh `ghcr.io/${GHCR_OWNER}/phonics-api:${TAG}` (mặc định `lvhau1529` / `latest`),
   có `build` để dựng tại chỗ, `env_file: .env.production`, `restart: unless-stopped`, log json-file 5 × 10 MB.
 - Seed trên production (chỉ admin + catalog, `SEED_DEMO` để trống): ảnh production không có `tsx`
-  (devDependency) nên chạy từ máy dev: `DIRECT_URL=<prod> ADMIN_EMAIL=… ADMIN_PASSWORD=… pnpm --filter @phonics/api db:seed`.
+  (devDependency) nên chạy từ máy dev: `DIRECT_URL=<prod> ADMIN_EMAIL=… ADMIN_PASSWORD=… pnpm db:seed`.
 
 ## Biến môi trường
 
@@ -127,9 +131,28 @@ Nguồn sự thật: `src/config/env.schema.ts` (zod; thiếu / sai thì API kh�
 | `LOG_LEVEL`                 |          | `info`             | `trace` / `debug` / `info` / `warn` / `error`                           |
 | `DATABASE_URL_TEST`         |          |                    | Chỉ cho `test:e2e` (DB riêng, bị truncate)                              |
 
+## Contracts
+
+`packages/contracts` là nguồn sự thật của wire format (zod schema, type, `ENDPOINTS`, `API_PREFIX`, hằng số nghiệp vụ),
+phát hành thành `@lvhau1529/phonics-contracts` trên GitHub Packages. API dùng bản trong repo
+(`"@phonics/contracts": "workspace:@lvhau1529/phonics-contracts@*"`); game / admin cài bản đã phát hành qua alias
+`"@phonics/contracts": "npm:@lvhau1529/phonics-contracts@^1"` nên code mọi nơi vẫn `import … from '@phonics/contracts'`.
+
+Phát hành bản mới:
+
+1. Sửa schema trong `packages/contracts/src`, `pnpm test` (gồm test contracts) + `pnpm typecheck`.
+2. Tăng `version` trong `packages/contracts/package.json` theo semver — đổi không tương thích = tăng major
+   (thường đi kèm version API mới `/api/v2`).
+3. Commit, rồi `git tag contracts-v<version> && git push origin contracts-v<version>` → workflow
+   `publish-contracts.yml` test, build và publish.
+4. Ở phonics-game / phonics-admin: `pnpm up @phonics/contracts` và commit lockfile.
+
+Khi phát triển cùng lúc nhiều repo, dùng phonics-workspace: contracts được liên kết thẳng từ mã nguồn, không cần
+phát hành mỗi lần sửa.
+
 ## Seed và tài khoản demo
 
-`pnpm --filter @phonics/api db:seed` (= `tsx prisma/seed.ts`, idempotent):
+`pnpm db:seed` (= `tsx prisma/seed.ts`, idempotent):
 
 - Luôn: admin từ `ADMIN_EMAIL` / `ADMIN_PASSWORD` (không đổi mật khẩu admin đã có trừ khi
   `SEED_RESET_ADMIN_PASSWORD=true`); catalog `games` từ contracts `GAME_IDS` (Bread Catcher, Food Stream).

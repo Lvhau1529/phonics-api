@@ -1,10 +1,25 @@
-# Quy tắc cho `apps/api` (NestJS + Prisma)
+# Quy tắc cho phonics-api (NestJS + Prisma)
 
-Đọc thêm [README.md](README.md) (chạy, env, deploy) và [docs/architecture](../../docs/architecture/README.md).
+Đọc thêm [README.md](README.md) (chạy, env, deploy, phát hành contracts). Kiến trúc hệ thống + ADR: repo
+phonics-workspace (`docs/`). Rule riêng của gói hợp đồng: [packages/contracts/CLAUDE.md](packages/contracts/CLAUDE.md).
+
+## Git
+
+- **Không tự `git push`.** Chỉ push khi người dùng yêu cầu rõ ràng. Làm xong thì commit (nếu phù hợp) và báo lại.
+- Trước mỗi lần push: `pnpm build` (gồm typecheck) phải qua; đóng server dev / preview mình đã mở.
+- Commit message **không** có dòng ghi công Claude. Subject tiếng Anh, body có thể tiếng Việt.
+- Dùng **pnpm**; thêm / đổi package thì commit kèm `pnpm-lock.yaml` (deploy cài bằng `--frozen-lockfile`).
+- Secret chỉ trong `.env` (gitignored); mẫu ở `.env.example`. Không ghi secret vào docs / commit / log.
+
+## Dev cùng các repo khác
+
+Repo này độc lập (clone, cài, build, deploy riêng). Muốn chạy cả hệ thống (API + game + admin) và sửa
+`@phonics/contracts` thấy ngay ở mọi app: dùng repo **phonics-workspace** (README ở đó). Trong workspace, chạy lệnh
+từ gốc workspace (`pnpm --filter <app> ...`), không `cd` vào repo rồi `pnpm install` (sẽ ghi đè liên kết contracts local).
 
 ## Kiến trúc
 
-Cấu trúc thư mục + versioning: ADR 0015 và [README > Cấu trúc](README.md#cấu-trúc). Phụ thuộc một chiều
+Cấu trúc thư mục + versioning: [README > Cấu trúc](README.md#cấu-trúc) (ADR 0015). Phụ thuộc một chiều
 `modules → common / core → config`; `common/` và `core/` **không** import ngược từ `modules/` (trừ kiểu
 `AuthUser` và `PermissionsService` mà guard cần).
 
@@ -40,14 +55,15 @@ Cấu trúc thư mục + versioning: ADR 0015 và [README > Cấu trúc](README.
 
 ## Thêm một endpoint
 
-1. Thêm / sửa schema trong `packages/contracts` (+ `ENDPOINTS`), `pnpm --filter @phonics/contracts build`.
+1. Thêm / sửa schema trong `packages/contracts` (+ `ENDPOINTS`), `pnpm build:contracts`. Game / admin chỉ thấy schema
+   mới sau khi phát hành bản contracts mới (README > Contracts) — hoặc ngay lập tức nếu chạy trong phonics-workspace.
 2. DTO trong `modules/<module>/v1/dto.ts`, method service, method controller trong `v1/` (thin: DTO → service →
    view đúng shape contracts, `Date` → `.toISOString()`), decorator `@Roles` / `@RequirePermission` / `@Public` phù hợp.
    Controller mới phải khai báo `version: API_V1`.
 3. Kiểm tra scope trong service; audit nếu nhạy cảm; thông báo (`NotificationsService`) nếu học sinh cần biết.
 4. Unit test cạnh service (`*.spec.ts`, Vitest + `vitest-mock-extended`, khởi tạo service bằng tay); e2e trong
    `test/e2e` nếu là luồng chính.
-5. `pnpm typecheck && pnpm lint && pnpm test` trong `apps/api`; xem Swagger `/api/docs`.
+5. `pnpm typecheck && pnpm lint && pnpm test`; xem Swagger `/api/docs`.
 
 ## Đổi schema DB
 
