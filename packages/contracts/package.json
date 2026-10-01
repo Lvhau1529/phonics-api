@@ -1,0 +1,38 @@
+{
+  "name": "@phonics/contracts",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Hợp đồng API dùng chung (zod schema, type, hằng số) cho game, admin và api",
+  "type": "module",
+  "sideEffects": false,
+  "main": "./dist/cjs/index.js",
+  "module": "./dist/esm/index.js",
+  "types": "./dist/esm/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/esm/index.d.ts",
+      "import": "./dist/esm/index.js",
+      "require": "./dist/cjs/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "dev": "node scripts/build.mjs --watch",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "lint": "eslint ."
+  },
+  "peerDependencies": {
+    "zod": "^4.6.0"
+  },
+  "devDependencies": {
+    "@phonics/config": "workspace:*",
+    "typescript": "catalog:",
+    "vitest": "catalog:",
+    "zod": "catalog:",
+    "rolldown": "^1.2.11"
+  }
+}
