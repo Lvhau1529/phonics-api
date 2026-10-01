@@ -70,10 +70,59 @@ export const PermissionOverride = z.object({
 });
 export type PermissionOverride = z.infer<typeof PermissionOverride>;
 
+/**
+ * Nhóm quyền (vai trò tuỳ biến): admin tự tạo từ danh sách chức năng (PERMISSIONS) và gán cho user.
+ * Quyền hiệu lực = mặc định theo role ∪ quyền của các nhóm được gán ∪ GRANT − REVOKE.
+ */
+export const PermissionGroupName = z.string().trim().min(1).max(60);
+export const PermissionGroupRef = z.object({
+  id: Id,
+  name: PermissionGroupName,
+  permissions: z.array(PermissionCode),
+});
+export type PermissionGroupRef = z.infer<typeof PermissionGroupRef>;
+
+export const PermissionGroup = PermissionGroupRef.extend({
+  description: z.string().nullable(),
+  /** Nhóm hệ thống (seed) — không xoá được, vẫn sửa được quyền */
+  isSystem: z.boolean(),
+  memberCount: z.int().min(0),
+  createdAt: IsoDateTime,
+  updatedAt: IsoDateTime,
+});
+export type PermissionGroup = z.infer<typeof PermissionGroup>;
+
+export const PermissionGroupsResponse = z.object({ items: z.array(PermissionGroup) });
+export type PermissionGroupsResponse = z.infer<typeof PermissionGroupsResponse>;
+
+export const CreatePermissionGroupBody = z.strictObject({
+  name: PermissionGroupName,
+  description: z.string().trim().max(200).optional(),
+  permissions: z.array(PermissionCode).max(50),
+});
+export type CreatePermissionGroupBody = z.infer<typeof CreatePermissionGroupBody>;
+
+export const UpdatePermissionGroupBody = z
+  .strictObject({
+    name: PermissionGroupName,
+    description: z.string().trim().max(200).nullable(),
+    permissions: z.array(PermissionCode).max(50),
+  })
+  .partial()
+  .refine((b) => Object.keys(b).length > 0, { message: 'Cần ít nhất một trường' });
+export type UpdatePermissionGroupBody = z.infer<typeof UpdatePermissionGroupBody>;
+
+/** Thay toàn bộ nhóm quyền của một user */
+export const SetUserPermissionGroupsBody = z.strictObject({ groupIds: z.array(Id).max(20) });
+export type SetUserPermissionGroupsBody = z.infer<typeof SetUserPermissionGroupsBody>;
+
 export const UserPermissionsResponse = z.object({
   userId: Id,
   role: Role,
   defaults: z.array(PermissionCode),
+  groups: z.array(PermissionGroupRef),
+  /** Quyền có được nhờ nhóm (ngoài mặc định) */
+  fromGroups: z.array(PermissionCode),
   overrides: z.array(PermissionOverride),
   effective: z.array(PermissionCode),
 });

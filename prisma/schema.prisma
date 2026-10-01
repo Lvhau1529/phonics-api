@@ -78,6 +78,7 @@ model User {
   studentProfile   StudentProfile?
   teachingClasses  ClassTeacher[]
   permissions      UserPermission[]   @relation("UserPermissions")
+  permissionGroups UserPermissionGroup[]
   grantedPerms     UserPermission[]   @relation("GrantedBy")
   refreshTokens    RefreshToken[]
   notifications    Notification[]
@@ -179,6 +180,35 @@ model UserPermission {
 
   @@unique([userId, permission])
   @@map("user_permissions")
+}
+
+/// Nhóm quyền do admin tạo từ catalog PERMISSIONS (contracts); gán cho user qua user_permission_groups
+model PermissionGroup {
+  id          String   @id @default(uuid()) @db.Uuid
+  name        String   @unique
+  description String?
+  /// Mã quyền (contracts PermissionCode); mã lạ bị bỏ qua khi tính quyền hiệu lực
+  permissions String[] @default([])
+  /// Seed sẵn: không xoá được
+  isSystem    Boolean  @default(false) @map("is_system")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  members UserPermissionGroup[]
+
+  @@map("permission_groups")
+}
+
+model UserPermissionGroup {
+  userId     String   @map("user_id") @db.Uuid
+  groupId    String   @map("group_id") @db.Uuid
+  assignedAt DateTime @default(now()) @map("assigned_at")
+  user       User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  group      PermissionGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@id([userId, groupId])
+  @@index([groupId])
+  @@map("user_permission_groups")
 }
 
 /// Catalog game: id = manifest.id ở app game. Seed từ contracts GAME_IDS.

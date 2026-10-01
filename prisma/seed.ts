@@ -121,6 +121,30 @@ async function seedGames(prisma: PrismaClient): Promise<void> {
   console.log(`[seed] games: ${GAME_IDS.join(', ')}`);
 }
 
+/** Nhóm quyền mẫu (hệ thống): admin có thể sửa quyền, không xoá được */
+async function seedPermissionGroups(prisma: PrismaClient): Promise<void> {
+  const groups = [
+    {
+      name: 'Giáo viên chủ nhiệm',
+      description: 'Được chuyển lớp học sinh, xem liên hệ phụ huynh và mở khoá game cho lớp mình',
+      permissions: ['class.changeStudentClass', 'students.viewParentContact', 'games.unlock'],
+    },
+    {
+      name: 'Quản lý game',
+      description: 'Sửa catalog game và mở khoá game',
+      permissions: ['games.manage', 'games.unlock'],
+    },
+  ];
+  for (const g of groups) {
+    await prisma.permissionGroup.upsert({
+      where: { name: g.name },
+      update: {},
+      create: { ...g, isSystem: true },
+    });
+  }
+  console.log(`[seed] permission groups: ${groups.map((g) => g.name).join(', ')}`);
+}
+
 /** SQL xếp hạng — bản sao của src/points/ranking.service.ts (rankClass, không lọc thời gian / game) */
 async function rankClass(
   tx: Prisma.TransactionClient,
@@ -350,6 +374,7 @@ async function main(): Promise<void> {
   try {
     await seedAdmin(prisma);
     await seedGames(prisma);
+    await seedPermissionGroups(prisma);
     if (process.env.SEED_DEMO === 'true') {
       if (process.env.NODE_ENV === 'production') console.log('[seed] demo: bỏ qua vì NODE_ENV=production');
       else await seedDemo(prisma);
