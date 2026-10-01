@@ -7,8 +7,8 @@ Gói này là **hợp đồng wire** giữa game, admin và api. Mọi request /
   Prisma, React, Phaser hay bất kỳ runtime nào ngoài `zod` (peer dependency, để cả 3 app dùng chung một instance).
 - Body nhận vào dùng `z.strictObject` (từ chối field lạ). Response dùng `z.object`. Ngày giờ trên wire là ISO
   string (`IsoDateTime` / `IsoDate`), id là `Id` (uuid).
-- Mỗi nhóm endpoint một file (`auth.ts`, `classes.ts`, `games.ts`…); `endpoints.ts` giữ đường dẫn (không prefix
-  `/api`); `index.ts` re-export tất cả. Import tương đối **phải có đuôi `.js`** (`./common/ids.js`) vì build
+- Mỗi nhóm endpoint một file (`auth.ts`, `classes.ts`, `games.ts`…); `endpoints.ts` giữ đường dẫn (không prefix) +
+  `API_PREFIX` = `/api/v1` (`API_ROOT` + `API_VERSION`); `index.ts` re-export tất cả. Import tương đối **phải có đuôi `.js`** (`./common/ids.js`) vì build
   NodeNext.
 - Hằng số nghiệp vụ dùng chung: `POINT_RULES` (điểm), `PERMISSIONS` / `ROLE_DEFAULT_PERMISSIONS` (phân quyền),
   `AVATARS`, `GAME_IDS`, `ErrorCode`. Thêm quyền / game / avatar = sửa ở đây trước.

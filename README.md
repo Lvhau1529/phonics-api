@@ -7,36 +7,50 @@ sự kiện xem / chơi, thống kê và xuất báo cáo (xlsx / pdf). Hợp đ
 
 ## Cấu trúc
 
+Ba tầng, phụ thuộc một chiều `modules → common / core → config` (ADR 0015):
+
 ```
 apps/api
-├── prisma/            schema.prisma, migrations/, seed.ts
-├── prisma.config.ts   Prisma CLI: DIRECT_URL (kết nối thẳng), lệnh seed
+├── prisma/                 schema.prisma, migrations/, seed.ts
+├── prisma.config.ts        Prisma CLI: DIRECT_URL (kết nối thẳng), lệnh seed
 ├── src/
-│   ├── main.ts        bootstrap: prefix /api, helmet, cookie-parser, CORS, Swagger
-│   ├── app.module.ts  guard toàn cục: Throttler → JwtAuth → Roles → Permissions
-│   ├── config/        env.schema.ts (zod, nguồn sự thật biến môi trường), constants.ts
-│   ├── common/        access (phạm vi lớp), decorators, errors (AppError), filters, guards, pagination, time
-│   ├── prisma/        PrismaService (driver adapter pg)
-│   ├── generated/     Prisma client (gitignored, `pnpm prisma:generate`)
-│   ├── auth/          đăng ký / đăng nhập / Google / refresh token xoay vòng / đổi mật khẩu
-│   ├── users/         /me/profile
-│   ├── permissions/   quyền theo role + override từng user (admin)
-│   ├── classes/       lớp, giáo viên của lớp, học sinh của lớp
-│   ├── teachers/      admin quản lý giáo viên
-│   ├── students/      admin / GV quản lý học sinh
-│   ├── games/         catalog game, mở khoá game cho học sinh
-│   ├── events/        sự kiện VIEW / PLAY (ẩn danh theo client_id)
-│   ├── game-results/  game client gửi kết quả ván → cộng điểm
-│   ├── points/        sổ điểm, điểm thưởng, RankingService (SQL xếp hạng duy nhất)
-│   ├── notifications/ thông báo cho học sinh
-│   ├── stats/         thống kê tổng quan / theo lớp / theo game
-│   ├── reports/       xuất xlsx (exceljs) và pdf (pdfmake)
-│   ├── audit/         nhật ký hành động admin / GV
-│   └── health/        GET /api/health
+│   ├── main.ts             khởi động: configureApp + Swagger + listen
+│   ├── app.module.ts       ghép CoreModule + module nghiệp vụ; pipe / guard toàn cục
+│   ├── bootstrap/          configure-app.ts (prefix /api, versioning, middleware, CORS, filter — dùng chung với e2e),
+│   │                       swagger.ts
+│   ├── config/             env.schema.ts (zod, nguồn sự thật biến môi trường), env.module.ts, constants.ts,
+│   │                       api-version.ts (API_V1)
+│   ├── core/               HẠ TẦNG (@Global, không nghiệp vụ) — core.module.ts gom lại
+│   │   ├── database/       PrismaModule, PrismaService (driver adapter pg), kiểu Tx
+│   │   ├── logger/         pino (redact secret, mã request)
+│   │   ├── time/           TimeService (APP_TIMEZONE)
+│   │   └── access/         AccessService — phạm vi dữ liệu theo vai trò (GV chỉ lớp mình)
+│   ├── common/             KHỐI DÙNG CHUNG cho request pipeline (không chứa nghiệp vụ)
+│   │   ├── middleware/     request-id (X-Request-Id)
+│   │   ├── guards/         JwtAuthGuard, RolesGuard, PermissionsGuard
+│   │   ├── decorators/     @Public, @OptionalAuth, @Roles, @RequirePermission, @CurrentUser
+│   │   ├── filters/        AllExceptionsFilter → envelope ApiErrorBody
+│   │   ├── errors/         AppError (mã lỗi theo ErrorCode của contracts)
+│   │   ├── dto/            DTO query dùng chung (phân trang, khoảng thời gian)
+│   │   └── utils/          paginate
+│   ├── modules/            NGHIỆP VỤ — mỗi bounded context một thư mục:
+│   │   └── <module>/
+│   │       ├── <module>.module.ts
+│   │       ├── <module>.service.ts (+ .spec.ts)   luật nghiệp vụ, dùng chung mọi version
+│   │       └── v1/                                 controller + DTO (wire format) của API v1
+│   │   auth · users · permissions · classes · teachers · students · games · events · game-results ·
+│   │   points (+ RankingService) · notifications · stats · reports (+ writers/ xlsx, pdf) · audit ·
+│   │   health (không version: /api/health)
+│   └── generated/          Prisma client (gitignored, `pnpm prisma:generate`)
 └── test/
-    ├── helpers/       create-test-app.ts (boot AppModule cho e2e, truncateAll)
-    └── e2e/           *.e2e-spec.ts (cần DATABASE_URL_TEST)
+    ├── helpers/            create-test-app.ts (boot AppModule + configureApp cho e2e, truncateAll)
+    └── e2e/                *.e2e-spec.ts (cần DATABASE_URL_TEST)
 ```
+
+**Versioning:** route theo URI `/api/v1/...` (client lấy `API_PREFIX` từ contracts). Thêm v2 = tạo
+`modules/<module>/v2/` (controller + DTO mới, `@Controller({ path, version: API_V2 })`), service giữ nguyên;
+endpoint không đổi thì cho controller v1 phục vụ cả hai version (`version: [API_V1, API_V2]`).
+`/api/health` và Swagger `/api/docs` không có version.
 
 ## Chạy dev
 
@@ -49,11 +63,12 @@ pnpm --filter @phonics/api db:seed           # admin + catalog game (+ dữ li�
 pnpm dev:api                                 # từ gốc repo: build contracts rồi nest start --watch
 ```
 
-- API: `http://localhost:3000/api`, Swagger UI: `http://localhost:3000/api/docs` (JSON: `/api/docs-json`),
+- API: `http://localhost:3000/api/v1`, health `http://localhost:3000/api/health`, Swagger UI: `http://localhost:3000/api/docs` (JSON: `/api/docs-json`),
   tắt bằng `SWAGGER_ENABLED=false`.
 - Lệnh khác trong `apps/api`: `pnpm typecheck`, `pnpm lint`, `pnpm build` (prisma generate + nest build bằng SWC,
   ra `dist/`), `pnpm start` (chạy `dist/main.js`), `pnpm prisma:studio`.
-- Mọi lỗi trả về envelope `ApiErrorBody` (`statusCode`, `code`, `message`, `details?`, `requestId`).
+- Mọi lỗi trả về envelope `ApiErrorBody` (`statusCode`, `code`, `message`, `details?`, `requestId`); mọi response có
+  header `X-Request-Id` (giữ nguyên nếu client / proxy gửi lên) — trùng với `reqId` trong log.
 
 ## Test
 

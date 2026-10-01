@@ -1,6 +1,6 @@
 /**
- * Khởi động AppModule cho e2e với cùng cấu hình toàn cục như src/main.ts (prefix /api, trust proxy,
- * cookie-parser, AllExceptionsFilter). DB test lấy từ DATABASE_URL_TEST — gọi `useTestDatabase()` ở đầu file
+ * Khởi động AppModule cho e2e với cùng cấu hình HTTP như src/main.ts (`configureApp`: prefix /api, versioning
+ * /api/v1, middleware, CORS, AllExceptionsFilter). DB test lấy từ DATABASE_URL_TEST — gọi `useTestDatabase()` ở đầu file
  * test (trước khi import AppModule) để đặt DATABASE_URL; không có biến này thì test tự skip.
  */
 import 'reflect-metadata';
@@ -8,16 +8,15 @@ import { execFileSync } from 'node:child_process';
 import path from 'node:path';
 import { type NestExpressApplication } from '@nestjs/platform-express';
 import { Test } from '@nestjs/testing';
-import { API_PREFIX } from '@phonics/contracts';
-import cookieParser from 'cookie-parser';
-import { type PrismaService } from '../../src/prisma/prisma.service';
+import { type Env } from '../../src/config/env.schema';
+import { type PrismaService } from '../../src/core/database/prisma.service';
 
 const API_ROOT = path.resolve(__dirname, '../..');
 
 export interface TestApp {
   app: NestExpressApplication;
   prisma: PrismaService;
-  /** Server HTTP cho supertest: `request(t.server).get('/api/health')` */
+  /** Server HTTP cho supertest: `request(t.server).post(`${API_PREFIX}/auth/login`)` */
   server: ReturnType<NestExpressApplication['getHttpServer']>;
   close(): Promise<void>;
 }
@@ -60,20 +59,15 @@ export function applyMigrations(): void {
 
 export async function createTestApp(): Promise<TestApp> {
   // Import động để env (useTestDatabase) được đặt trước khi EnvModule đọc process.env
-  const [{ AppModule }, { AllExceptionsFilter }, { PrismaService }, { ENV }] = await Promise.all([
+  const [{ AppModule }, { configureApp }, { PrismaService }, { ENV }] = await Promise.all([
     import('../../src/app.module.js'),
-    import('../../src/common/filters/all-exceptions.filter.js'),
-    import('../../src/prisma/prisma.service.js'),
+    import('../../src/bootstrap/configure-app.js'),
+    import('../../src/core/database/prisma.service.js'),
     import('../../src/config/env.module.js'),
   ]);
   const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
   const app = moduleRef.createNestApplication<NestExpressApplication>({ bufferLogs: false, logger: false });
-  const env = app.get(ENV) as { COOKIE_SECRET: string };
-
-  app.setGlobalPrefix(API_PREFIX.slice(1));
-  app.set('trust proxy', 1);
-  app.use(cookieParser(env.COOKIE_SECRET));
-  app.useGlobalFilters(new AllExceptionsFilter(false));
+  configureApp(app, app.get(ENV) as Env);
   await app.init();
 
   const prisma = app.get(PrismaService);

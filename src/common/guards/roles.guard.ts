@@ -1,7 +1,7 @@
 import { type CanActivate, type ExecutionContext, Injectable } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { type Role } from '@phonics/contracts';
-import { type AuthUser } from '../../auth/auth.types';
+import { type AuthUser } from '../../modules/auth/auth.types';
 import { ROLES_KEY } from '../decorators/roles.decorator';
 import { AppError } from '../errors/app-error';
 

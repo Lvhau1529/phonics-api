@@ -1,10 +1,16 @@
 /**
- * Đường dẫn API (không có prefix `/api`). Client ghép `${API_URL}/api${path}`.
+ * Đường dẫn API (không có prefix). Client ghép `${API_URL}${API_PREFIX}${path}` → `/api/v1/auth/login`.
  * Hàm nhận id để tránh ghép chuỗi tay ở client.
+ *
+ * Versioning theo URI (ADR 0015): server phục vụ song song nhiều version (`/api/v1`, `/api/v2`...);
+ * `API_VERSION` là version mà client trong monorepo đang dùng. Riêng `/api/health` không có version.
  */
-export const API_PREFIX = '/api';
+export const API_ROOT = '/api';
+export const API_VERSION = 'v1';
+export const API_PREFIX = `${API_ROOT}/${API_VERSION}`;
 
 export const ENDPOINTS = {
+  /** Không có version: `${API_ROOT}/health` */
   health: '/health',
   auth: {
     register: '/auth/register',

@@ -4,10 +4,22 @@
 
 ## Kiến trúc
 
-- Một module Nest cho mỗi bounded context: `auth`, `users`, `permissions`, `classes`, `teachers`, `students`,
-  `games`, `events`, `game-results`, `points` (+ `ranking.service.ts`), `notifications`, `reports`, `stats`,
-  `audit`, `health`. `common/` chỉ chứa code cắt ngang (guard, filter, decorator, pagination, time, access, errors).
-- Module hạ tầng là `@Global()` (Env, Prisma, Time, Access, Notifications, Permissions, Auth) — inject thẳng, không
+Cấu trúc thư mục + versioning: ADR 0015 và [README > Cấu trúc](README.md#cấu-trúc). Phụ thuộc một chiều
+`modules → common / core → config`; `common/` và `core/` **không** import ngược từ `modules/` (trừ kiểu
+`AuthUser` và `PermissionsService` mà guard cần).
+
+- `core/`: hạ tầng `@Global` không nghiệp vụ (database, logger, time, access) — gom trong `CoreModule`.
+- `common/`: khối của request pipeline — `middleware/`, `guards/`, `decorators/`, `filters/`, `errors/`, `dto/`,
+  `utils/`. Thêm interceptor / pipe riêng thì tạo `common/interceptors/`, `common/pipes/`.
+- `bootstrap/configure-app.ts`: prefix, versioning, middleware (`app.use`), CORS, filter — dùng chung cho `main.ts`
+  và e2e. Không cấu hình HTTP rải rác trong `main.ts`.
+- `modules/<module>/`: một bounded context (`auth`, `users`, `permissions`, `classes`, `teachers`, `students`,
+  `games`, `events`, `game-results`, `points` (+ `ranking.service.ts`), `notifications`, `reports`, `stats`, `audit`,
+  `health`). Gốc module = `*.module.ts` + service + spec (luật nghiệp vụ, **không** phụ thuộc version);
+  `v1/` = controller + `dto.ts` của API v1. Service không import từ `v1/` (schema riêng của module → `<module>.schemas.ts`).
+- Versioning URI: `@Controller({ path: 'x', version: API_V1 })` (`config/api-version.ts`) → `/api/v1/x`.
+  Controller thiếu `version` sẽ không có prefix version — chỉ dùng cho health (`VERSION_NEUTRAL`).
+- Module `@Global()`: Env, Prisma, Time, Access (core) và Notifications, Permissions, Auth — inject thẳng, không
   cần import. Các module khác phải `imports: [...]` (vd `PointsModule` để dùng `RankingService`).
 - Guard toàn cục theo thứ tự: Throttler → `JwtAuthGuard` (gắn `req.user: AuthUser`) → `RolesGuard`
   (`@Roles`) → `PermissionsGuard` (`@RequirePermission`). ADMIN pass mọi permission. **Phạm vi** (GV chỉ lớp mình)
@@ -16,7 +28,8 @@
   trong API). `ZodValidationPipe` toàn cục. Mọi lỗi ra ngoài qua `AllExceptionsFilter` → envelope `ApiErrorBody`;
   lỗi nghiệp vụ ném `new AppError('CODE', status, { message?, details? })` với `CODE` thuộc `ErrorCode` của contracts.
 - Prisma 7: client sinh ra ở `src/generated/prisma` (gitignored; `pnpm prisma:generate`). Import
-  `{ Prisma }` từ `../generated/prisma/client`. Transaction: `prisma.$transaction(async (tx) => …)`, kiểu `Tx`.
+  `{ Prisma }` từ `src/generated/prisma/client` (tương đối, vd `../../generated/prisma/client` từ module). Transaction:
+  `prisma.$transaction(async (tx) => …)`, kiểu `Tx` (`core/database/types.ts`).
   Bảng / cột snake_case qua `@@map` — SQL raw (`$queryRaw`) dùng tên snake_case.
 - Thời gian: mọi "hôm nay / tuần / tháng" qua `TimeService` (APP_TIMEZONE), không dùng `new Date()` trần.
 - Điểm: chỉ `GameResultsService` và `PointsService` được tạo `point_entries`; sau mỗi bút toán phải gọi
@@ -28,8 +41,9 @@
 ## Thêm một endpoint
 
 1. Thêm / sửa schema trong `packages/contracts` (+ `ENDPOINTS`), `pnpm --filter @phonics/contracts build`.
-2. DTO trong `<module>/dto.ts`, method service, method controller (thin: DTO → service → view đúng shape contracts,
-   `Date` → `.toISOString()`), decorator `@Roles` / `@RequirePermission` / `@Public` phù hợp.
+2. DTO trong `modules/<module>/v1/dto.ts`, method service, method controller trong `v1/` (thin: DTO → service →
+   view đúng shape contracts, `Date` → `.toISOString()`), decorator `@Roles` / `@RequirePermission` / `@Public` phù hợp.
+   Controller mới phải khai báo `version: API_V1`.
 3. Kiểm tra scope trong service; audit nếu nhạy cảm; thông báo (`NotificationsService`) nếu học sinh cần biết.
 4. Unit test cạnh service (`*.spec.ts`, Vitest + `vitest-mock-extended`, khởi tạo service bằng tay); e2e trong
    `test/e2e` nếu là luồng chính.
