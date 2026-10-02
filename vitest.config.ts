@@ -13,7 +13,21 @@ export default defineConfig({
     projects: [
       {
         plugins: [swcPlugin],
-        test: { name: 'unit', include: ['src/**/*.spec.ts'], environment: 'node' },
+        test: {
+          name: 'unit',
+          include: ['src/**/*.spec.ts'],
+          environment: 'node',
+          // Unit test mock Prisma, không cần secret thật; EnvModule vẫn validate env khi import → giá trị test cố định
+          // (CI không có .env; dotenv không ghi đè biến đã có)
+          env: {
+            NODE_ENV: 'test',
+            DATABASE_URL: 'postgresql://unit:unit@localhost:5432/unit',
+            JWT_ACCESS_SECRET: 'unit-test-access-secret-unit-test-access',
+            COOKIE_SECRET: 'unit-test-cookie-secret-unit-test-cookie',
+            ADMIN_EMAIL: 'admin@unit.test',
+            ADMIN_PASSWORD: 'unit-test-password',
+          },
+        },
       },
       {
         plugins: [swcPlugin],

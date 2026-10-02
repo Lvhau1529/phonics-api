@@ -4,7 +4,7 @@ import { ConfigModule } from '@nestjs/config';
 import { config as loadDotenv } from 'dotenv';
 import { type Env, validateEnv } from './env.schema';
 
-/** `.env` nằm ở apps/api (cạnh package.json) — nạp theo vị trí file này để không phụ thuộc cwd (turbo chạy từ root) */
+/** `.env` nằm ở gốc repo (cạnh package.json) — nạp theo vị trí file này để không phụ thuộc cwd */
 const ENV_FILE = resolve(__dirname, '../../.env');
 loadDotenv({ path: ENV_FILE, quiet: true });
 
