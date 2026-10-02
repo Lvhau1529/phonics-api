@@ -94,10 +94,20 @@ Contracts được build cùng ảnh từ `packages/contracts` (không cần Git
 ```bash
 # build tại chỗ
 docker build -t ghcr.io/<owner>/phonics-api:latest .
-# chạy trên VPS (docker-compose.yml): cổng 127.0.0.1:3000, reverse proxy làm TLS
-cp .env.example .env.production && docker compose up -d
+# chạy trên VPS (docker-compose.yml): API + Caddy (HTTPS tự động cho API_DOMAIN)
+cp .env.example .env.production            # biến của API
+echo "API_DOMAIN=api.example.vn" > .env    # biến của compose: domain API (DNS trỏ về VPS, mở cổng 80 / 443)
+docker compose up -d --build
 ```
 
+- Caddy (`Caddyfile`, service `caddy`): nhận 80 / 443, xin chứng chỉ Let's Encrypt cho `API_DOMAIN`, proxy tới
+  `api:3000`. Chứng chỉ lưu ở volume `caddy_data`. Không chạy thêm Caddy / nginx trên host (tranh cổng 80 / 443).
+- Đổi biến trong `.env.production` / `.env` → `docker compose up -d --force-recreate` (`restart` không đọc lại env).
+- Deploy tự động (job `deploy` trong `.github/workflows/ci.yml`): push vào `main` → CI qua → SSH vào VPS, `git reset
+  --hard origin/main`, `docker compose up -d --build`, chờ `/api/health`. Cấu hình ở GitHub repo > Settings > Secrets
+  and variables > Actions: variable `VPS_HOST` (bật job), tuỳ chọn `VPS_USER` (`root`), `VPS_PORT` (`22`),
+  `VPS_APP_DIR` (`/opt/phonics-api`); secret `VPS_SSH_KEY` = private key có public key trong `authorized_keys` của VPS.
+  VPS cần clone sẵn repo (đọc được `origin`, vd deploy key) cùng `.env.production` và `.env`.
 - Entrypoint (`docker-entrypoint.sh`): `prisma migrate deploy` (DIRECT_URL) rồi `node dist/main.js`.
   Schema engine của Prisma được tải sẵn lúc build; runtime chạy user `node`, `HEALTHCHECK` gọi `/api/health`.
 - `docker-compose.yml`: ảnh `ghcr.io/${GHCR_OWNER}/phonics-api:${TAG}` (mặc định `lvhau1529` / `latest`),

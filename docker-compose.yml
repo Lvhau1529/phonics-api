@@ -1,8 +1,10 @@
-# Chạy API trên VPS (sau reverse proxy nginx / Caddy làm TLS). Từ gốc repo:
+# Chạy API + Caddy (reverse proxy, HTTPS tự động) trên VPS. Từ gốc repo:
 #   cp .env.example .env.production   # điền giá trị thật (NODE_ENV=production)
-#   docker compose pull && docker compose up -d        # ảnh từ GHCR
-#   docker compose up -d --build                       # hoặc build tại chỗ
-# Biến: TAG (tag ảnh, mặc định latest), GHCR_OWNER (chủ GHCR, chữ thường).
+#   echo "API_DOMAIN=api.example.vn" > .env   # domain của API (Caddy xin chứng chỉ cho domain này)
+#   docker compose up -d --build                       # build tại chỗ
+#   docker compose pull && docker compose up -d        # hoặc ảnh từ GHCR
+# Biến (file .env, chỉ dùng cho compose): API_DOMAIN (bắt buộc), TAG (tag ảnh, mặc định latest),
+# GHCR_OWNER (chủ GHCR, chữ thường). Biến của API nằm trong .env.production.
 services:
   api:
     image: ghcr.io/${GHCR_OWNER:-lvhau1529}/phonics-api:${TAG:-latest}
@@ -13,7 +15,7 @@ services:
       NODE_ENV: production
       PORT: 3000
     ports:
-      # Chỉ lắng nghe loopback; reverse proxy trên host trỏ tới 127.0.0.1:3000
+      # Chỉ loopback (curl kiểm tra từ host); bên ngoài đi qua Caddy → api:3000 trong mạng compose
       - '127.0.0.1:3000:3000'
     restart: unless-stopped
     init: true
@@ -22,3 +24,29 @@ services:
       options:
         max-size: '10m'
         max-file: '5'
+
+  caddy:
+    image: caddy:2-alpine
+    depends_on:
+      - api
+    environment:
+      API_DOMAIN: ${API_DOMAIN:?Thiếu API_DOMAIN trong file .env cạnh docker-compose.yml (vd api.example.vn)}
+    ports:
+      - '80:80'
+      - '443:443'
+      - '443:443/udp'
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      # Chứng chỉ TLS: giữ qua các lần tạo lại container (tránh xin lại, dính rate limit Let's Encrypt)
+      - caddy_data:/data
+      - caddy_config:/config
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: '10m'
+        max-file: '5'
+
+volumes:
+  caddy_data:
+  caddy_config:

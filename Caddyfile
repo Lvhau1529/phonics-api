@@ -1,0 +1,7 @@
+# Reverse proxy + HTTPS tự động (Let's Encrypt) cho API — service `caddy` trong docker-compose.yml.
+# API_DOMAIN đặt trong file .env cạnh docker-compose.yml trên VPS (vd api.example.vn, api.1-2-3-4.sslip.io).
+# DNS của domain phải trỏ về IP VPS và cổng 80 / 443 phải mở thì Caddy mới lấy được chứng chỉ.
+{$API_DOMAIN} {
+	encode gzip
+	reverse_proxy api:3000
+}
