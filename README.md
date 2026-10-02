@@ -5,11 +5,11 @@ trang quản trị ([phonics-admin](https://github.com/Lvhau1529/phonics-admin))
 tài khoản (local + Google), lớp học, học sinh, giáo viên, điểm / xếp hạng, thông báo, catalog game,
 sự kiện xem / chơi, thống kê và xuất báo cáo (xlsx / pdf). Hợp đồng dữ liệu (zod) nằm ở
 `packages/contracts` (gói `@lvhau1529/phonics-contracts`, xem [Contracts](#contracts)); mọi response của API trả đúng
-shape trong đó. Tài liệu hệ thống (kiến trúc, ADR, deploy cả 3 app): repo **phonics-workspace**.
+shape trong đó. Tài liệu hệ thống (kiến trúc, ADR, deploy cả 3 app): repo **phonics-dev**.
 
 ## Cấu trúc
 
-Ba tầng, phụ thuộc một chiều `modules → common / core → config` (ADR 0015 trong phonics-workspace):
+Ba tầng, phụ thuộc một chiều `modules → common / core → config` (ADR 0015 trong phonics-dev):
 
 ```
 phonics-api
@@ -147,8 +147,8 @@ Phát hành bản mới:
    `publish-contracts.yml` test, build và publish.
 4. Ở phonics-game / phonics-admin: `pnpm up @phonics/contracts` và commit lockfile.
 
-Khi phát triển cùng lúc nhiều repo, dùng phonics-workspace: contracts được liên kết thẳng từ mã nguồn, không cần
-phát hành mỗi lần sửa.
+Khi chạy cả hệ thống bằng launcher phonics-dev (`pnpm dev`), game / admin đọc contracts thẳng từ mã nguồn repo này,
+không cần phát hành mỗi lần sửa.
 
 ## Seed và tài khoản demo
 

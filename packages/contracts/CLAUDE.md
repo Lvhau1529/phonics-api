@@ -15,7 +15,7 @@ GitHub Packages (README gốc > Contracts); game / admin import qua alias `@phon
   `AVATARS`, `GAME_IDS`, `ErrorCode`. Thêm quyền / game / avatar = sửa ở đây trước.
 - Build: `pnpm build` → `dist/esm` (tsc, kèm `.d.ts`) + `dist/cjs/index.js` (rolldown, cho NestJS). Sửa xong `pnpm typecheck`
   ở gốc repo (build lại contracts rồi typecheck API); game / admin bắt lỗi khi nâng version (hoặc ngay trong
-  phonics-workspace).
+  phonics-dev).
 - Version theo semver trong `package.json` (tag `contracts-v<version>` để phát hành). Đổi không tương thích (đổi tên
   field, bỏ field, đổi kiểu): tăng major + `CONTRACTS_VERSION`, API giữ route cũ ở v1 và thêm v2 nếu client cũ còn
   dùng; game / admin nâng version trong PR riêng của từng repo.

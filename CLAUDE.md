@@ -1,7 +1,7 @@
 # Quy tắc cho phonics-api (NestJS + Prisma)
 
 Đọc thêm [README.md](README.md) (chạy, env, deploy, phát hành contracts). Kiến trúc hệ thống + ADR: repo
-phonics-workspace (`docs/`). Rule riêng của gói hợp đồng: [packages/contracts/CLAUDE.md](packages/contracts/CLAUDE.md).
+phonics-dev (`docs/`). Rule riêng của gói hợp đồng: [packages/contracts/CLAUDE.md](packages/contracts/CLAUDE.md).
 
 ## Git
 
@@ -13,9 +13,10 @@ phonics-workspace (`docs/`). Rule riêng của gói hợp đồng: [packages/con
 
 ## Dev cùng các repo khác
 
-Repo này độc lập (clone, cài, build, deploy riêng). Muốn chạy cả hệ thống (API + game + admin) và sửa
-`@phonics/contracts` thấy ngay ở mọi app: dùng repo **phonics-workspace** (README ở đó). Trong workspace, chạy lệnh
-từ gốc workspace (`pnpm --filter <app> ...`), không `cd` vào repo rồi `pnpm install` (sẽ ghi đè liên kết contracts local).
+Repo này độc lập (clone, cài, build, deploy riêng). Muốn chạy cả hệ thống cùng lúc (API + game + admin): đặt 3 repo
+nằm cạnh nhau cùng repo **phonics-dev** rồi `pnpm dev` trong phonics-dev (README ở đó). Khi chạy qua phonics-dev, game /
+admin đọc `@phonics/contracts` thẳng từ mã nguồn `../phonics-api/packages/contracts` (biến `PHONICS_CONTRACTS_SRC`,
+xem `vite.config.ts` của game / admin) — sửa contracts thấy ngay, không cần phát hành.
 
 ## Kiến trúc
 
@@ -56,7 +57,7 @@ Cấu trúc thư mục + versioning: [README > Cấu trúc](README.md#cấu-trú
 ## Thêm một endpoint
 
 1. Thêm / sửa schema trong `packages/contracts` (+ `ENDPOINTS`), `pnpm build:contracts`. Game / admin chỉ thấy schema
-   mới sau khi phát hành bản contracts mới (README > Contracts) — hoặc ngay lập tức nếu chạy trong phonics-workspace.
+   mới sau khi phát hành bản contracts mới (README > Contracts) — hoặc ngay lập tức nếu chạy qua launcher phonics-dev (`pnpm dev`).
 2. DTO trong `modules/<module>/v1/dto.ts`, method service, method controller trong `v1/` (thin: DTO → service →
    view đúng shape contracts, `Date` → `.toISOString()`), decorator `@Roles` / `@RequirePermission` / `@Public` phù hợp.
    Controller mới phải khai báo `version: API_V1`.
