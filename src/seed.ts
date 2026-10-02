@@ -1,5 +1,6 @@
 /**
- * Seed (prisma db seed → `tsx prisma/seed.ts`). Không dùng Nest: PrismaClient + adapter pg trực tiếp.
+ * Seed (`prisma db seed`): dev → `tsx src/seed.ts`; production → `node dist/seed.js` (nest build biên dịch file này).
+ * Không dùng Nest: PrismaClient + adapter pg trực tiếp.
  *
  * Luôn chạy (idempotent):
  *   - ADMIN từ ADMIN_EMAIL / ADMIN_PASSWORD (không ghi đè mật khẩu admin đã có, trừ khi SEED_RESET_ADMIN_PASSWORD=true)
@@ -13,7 +14,7 @@ import { randomUUID } from 'node:crypto';
 import { AVATARS, GAME_IDS, type GameId } from '@phonics/contracts';
 import { PrismaPg } from '@prisma/adapter-pg';
 import argon2 from 'argon2';
-import { type Prisma, PrismaClient } from '../src/generated/prisma/client';
+import { type Prisma, PrismaClient } from './generated/prisma/client';
 
 const GAME_TITLES: Record<GameId, string> = {
   'bread-catcher': 'Bread Catcher',

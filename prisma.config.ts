@@ -7,11 +7,15 @@ import { defineConfig } from 'prisma/config';
 // migrate / seed thiếu biến này vẫn báo lỗi.
 const directUrl = process.env.DIRECT_URL;
 
+// `prisma db seed`: dev chạy thẳng TS bằng tsx; ảnh production (NODE_ENV=production) không có tsx / src
+// → chạy bản đã build `dist/seed.js` (nest build biên dịch src/seed.ts).
+const seedCommand = process.env.NODE_ENV === 'production' ? 'node dist/seed.js' : 'tsx src/seed.ts';
+
 export default defineConfig({
   schema: 'prisma/schema.prisma',
   migrations: {
     path: 'prisma/migrations',
-    seed: 'tsx prisma/seed.ts',
+    seed: seedCommand,
   },
   ...(directUrl ? { datasource: { url: directUrl } } : {}),
 });

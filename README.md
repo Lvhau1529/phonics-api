@@ -15,7 +15,7 @@ Ba tầng, phụ thuộc một chiều `modules → common / core → config` (A
 phonics-api
 ├── packages/contracts/     gói hợp đồng zod dùng chung (phát hành lên GitHub Packages)
 ├── docs/                   api.md (bảng endpoint), erd.md
-├── prisma/                 schema.prisma, migrations/, seed.ts
+├── prisma/                 schema.prisma, migrations/ (seed ở src/seed.ts)
 ├── prisma.config.ts        Prisma CLI: DIRECT_URL (kết nối thẳng), lệnh seed
 ├── src/
 │   ├── main.ts             khởi động: configureApp + Swagger + listen
@@ -102,8 +102,10 @@ cp .env.example .env.production && docker compose up -d
   Schema engine của Prisma được tải sẵn lúc build; runtime chạy user `node`, `HEALTHCHECK` gọi `/api/health`.
 - `docker-compose.yml`: ảnh `ghcr.io/${GHCR_OWNER}/phonics-api:${TAG}` (mặc định `lvhau1529` / `latest`),
   có `build` để dựng tại chỗ, `env_file: .env.production`, `restart: unless-stopped`, log json-file 5 × 10 MB.
-- Seed trên production (chỉ admin + catalog, `SEED_DEMO` để trống): ảnh production không có `tsx`
-  (devDependency) nên chạy từ máy dev: `DIRECT_URL=<prod> ADMIN_EMAIL=… ADMIN_PASSWORD=… pnpm db:seed`.
+- Seed trên production (chỉ admin + catalog; demo luôn bị bỏ qua vì `NODE_ENV=production`): `nest build` biên dịch
+  `src/seed.ts` thành `dist/seed.js`; `prisma.config.ts` chọn lệnh seed theo `NODE_ENV` (production →
+  `node dist/seed.js`, còn lại → `tsx src/seed.ts`). Chạy trong container đang chạy (đọc biến từ `.env.production`):
+  `docker compose exec api node_modules/.bin/prisma db seed`.
 
 ## Biến môi trường
 
@@ -152,7 +154,7 @@ không cần phát hành mỗi lần sửa.
 
 ## Seed và tài khoản demo
 
-`pnpm db:seed` (= `tsx prisma/seed.ts`, idempotent):
+`pnpm db:seed` / `prisma db seed` (dev: `tsx src/seed.ts`; `NODE_ENV=production`: `node dist/seed.js`; idempotent):
 
 - Luôn: admin từ `ADMIN_EMAIL` / `ADMIN_PASSWORD` (không đổi mật khẩu admin đã có trừ khi
   `SEED_RESET_ADMIN_PASSWORD=true`); catalog `games` từ contracts `GAME_IDS` (Bread Catcher, Food Stream).
