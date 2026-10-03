@@ -181,7 +181,7 @@ async function seedDemo(prisma: PrismaClient): Promise<void> {
           { email: DEMO_TEACHER2, displayName: 'Mr. Nam' },
         ].map((t) =>
           tx.user.create({
-            data: { ...t, emailVerified: true, passwordHash, role: 'TEACHER', avatarKey: 'pip' },
+            data: { ...t, emailVerified: true, passwordHash, role: 'TEACHER', avatarKey: 'lion' },
             select: { id: true },
           }),
         ),

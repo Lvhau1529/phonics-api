@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { AvatarKey, type UpdateProfileBody, type User } from '@phonics/contracts';
+import { AvatarKey, DEFAULT_AVATAR, type UpdateProfileBody, type User } from '@phonics/contracts';
 import { AppError, notFound } from '../../common/errors/app-error';
 import { PrismaService } from '../../core/database/prisma.service';
 import { type Prisma } from '../../generated/prisma/client';
@@ -31,7 +31,7 @@ export function toUserView(row: UserRow): User {
     status: row.status,
     provider: row.provider,
     displayName: row.displayName,
-    avatarKey: AvatarKey.safeParse(row.avatarKey).data ?? 'pip',
+    avatarKey: AvatarKey.safeParse(row.avatarKey).data ?? DEFAULT_AVATAR,
     class: membership ? { ...membership.class, joinedAt: membership.joinedAt.toISOString() } : null,
     createdAt: row.createdAt.toISOString(),
   };

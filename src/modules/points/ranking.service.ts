@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { type RankingEntry } from '@phonics/contracts';
+import { AvatarKey, DEFAULT_AVATAR, type RankingEntry } from '@phonics/contracts';
 import { RANK_NOTIFY_POLICY } from '../../config/constants';
 import { PrismaService } from '../../core/database/prisma.service';
 import { type Tx } from '../../core/database/types';
@@ -85,7 +85,7 @@ export class RankingService {
         rank: r.rank,
         studentId: r.studentId,
         displayName: u?.displayName ?? '?',
-        avatarKey: (u?.avatarKey as RankingEntry['avatarKey']) ?? 'pip',
+        avatarKey: AvatarKey.safeParse(u?.avatarKey).data ?? DEFAULT_AVATAR,
         points: r.points,
         isMe: r.studentId === meId,
       };

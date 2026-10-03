@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
+  AVATARS,
+  AvatarKey,
   AwardBonusBody,
+  DEFAULT_AVATAR,
   EventBatchBody,
   GameResultBody,
   MarkReadBody,
@@ -102,5 +105,27 @@ describe('ROLE_DEFAULT_PERMISSIONS', () => {
   it('giáo viên mặc định không được chuyển lớp, được cộng điểm', () => {
     expect(ROLE_DEFAULT_PERMISSIONS.TEACHER).not.toContain('class.changeStudentClass');
     expect(ROLE_DEFAULT_PERMISSIONS.TEACHER).toContain('points.award');
+  });
+});
+
+describe('AvatarKey / AVATARS', () => {
+  it('picker chỉ gồm 8 con vật, mặc định nằm trong picker', () => {
+    expect(AVATARS.map((a) => a.key)).toEqual([
+      'tiger',
+      'elephant',
+      'lion',
+      'monkey',
+      'dog',
+      'cat',
+      'panda',
+      'bunny',
+    ]);
+    expect(AVATARS.some((a) => a.key === DEFAULT_AVATAR)).toBe(true);
+  });
+
+  it('avatar cũ (pip / girl / boy) vẫn hợp lệ cho tài khoản đã chọn', () => {
+    for (const key of ['pip', 'girl', 'boy']) expect(AvatarKey.safeParse(key).success).toBe(true);
+    expect(UpdateProfileBody.safeParse({ avatarKey: 'dog' }).success).toBe(true);
+    expect(UpdateProfileBody.safeParse({ avatarKey: 'dragon' }).success).toBe(false);
   });
 });

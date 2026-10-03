@@ -14,19 +14,36 @@ export type AuthProvider = z.infer<typeof AuthProvider>;
 /**
  * Avatar là bộ preset (không upload): key → ảnh có sẵn trong app game (platform/account/avatars.ts).
  * Thêm avatar = thêm vào AvatarKey + AVATARS + map ảnh ở client.
+ *
+ * `pip`, `girl`, `boy`: avatar cũ — vẫn hợp lệ (tài khoản đã chọn giữ nguyên, DB default `pip`) nhưng không còn
+ * trong AVATARS nên không chọn mới được.
  */
-export const AvatarKey = z.enum(['pip', 'lion', 'tiger', 'panda', 'bunny', 'girl', 'boy']);
+export const AvatarKey = z.enum([
+  'tiger',
+  'elephant',
+  'lion',
+  'monkey',
+  'dog',
+  'cat',
+  'panda',
+  'bunny',
+  'pip',
+  'girl',
+  'boy',
+]);
 export type AvatarKey = z.infer<typeof AvatarKey>;
+/** Avatar chọn được (picker của game / admin) — 8 con vật của Animal Avatar sheet, theo thứ tự trên sheet */
 export const AVATARS: readonly { key: AvatarKey; label: string }[] = [
-  { key: 'pip', label: 'Pip' },
-  { key: 'lion', label: 'Lion' },
   { key: 'tiger', label: 'Tiger' },
+  { key: 'elephant', label: 'Elephant' },
+  { key: 'lion', label: 'Lion' },
+  { key: 'monkey', label: 'Monkey' },
+  { key: 'dog', label: 'Dog' },
+  { key: 'cat', label: 'Cat' },
   { key: 'panda', label: 'Panda' },
   { key: 'bunny', label: 'Bunny' },
-  { key: 'girl', label: 'Girl' },
-  { key: 'boy', label: 'Boy' },
 ];
-export const DEFAULT_AVATAR: AvatarKey = 'pip';
+export const DEFAULT_AVATAR: AvatarKey = 'bunny';
 
 export const DisplayName = z.string().trim().min(1).max(30);
 export const Email = z.string().trim().toLowerCase().max(254).pipe(z.email());
