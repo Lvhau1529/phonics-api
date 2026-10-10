@@ -37,6 +37,60 @@ export const ENDPOINTS = {
     unlockGame: (gameId: string) => `/me/games/${gameId}/unlock`,
     notifications: '/me/notifications',
     notificationsRead: '/me/notifications/read',
+    // Phiếu bài tập (học sinh)
+    assignments: '/me/assignments',
+    assignment: (id: string) => `/me/assignments/${id}`,
+    assignmentSubmissions: (id: string) => `/me/assignments/${id}/submissions`,
+    assignmentRanking: (id: string) => `/me/assignments/${id}/ranking`,
+    submission: (id: string) => `/me/submissions/${id}`,
+    submissionAnswers: (id: string) => `/me/submissions/${id}/answers`,
+    submit: (id: string) => `/me/submissions/${id}/submit`,
+    submissionComments: (id: string) => `/me/submissions/${id}/comments`,
+    worksheetStats: '/me/worksheet-stats',
+  },
+  media: {
+    presign: '/media/presign',
+    complete: (id: string) => `/media/${id}/complete`,
+    detail: (id: string) => `/media/${id}`,
+  },
+  questions: {
+    list: '/questions',
+    tags: '/questions/tags',
+    detail: (id: string) => `/questions/${id}`,
+    publish: (id: string) => `/questions/${id}/publish`,
+    archive: (id: string) => `/questions/${id}/archive`,
+    duplicate: (id: string) => `/questions/${id}/duplicate`,
+  },
+  worksheets: {
+    list: '/worksheets',
+    detail: (id: string) => `/worksheets/${id}`,
+    structure: (id: string) => `/worksheets/${id}/structure`,
+    publish: (id: string) => `/worksheets/${id}/publish`,
+    archive: (id: string) => `/worksheets/${id}/archive`,
+    duplicate: (id: string) => `/worksheets/${id}/duplicate`,
+  },
+  assignments: {
+    list: '/assignments',
+    dashboard: '/assignments/dashboard',
+    detail: (id: string) => `/assignments/${id}`,
+    close: (id: string) => `/assignments/${id}/close`,
+    reopen: (id: string) => `/assignments/${id}/reopen`,
+    submissions: (id: string) => `/assignments/${id}/submissions`,
+    ranking: (id: string) => `/assignments/${id}/ranking`,
+    stats: (id: string) => `/assignments/${id}/stats`,
+  },
+  submissions: {
+    detail: (id: string) => `/submissions/${id}`,
+    grade: (id: string) => `/submissions/${id}/grade`,
+    reopen: (id: string) => `/submissions/${id}/reopen`,
+    comments: (id: string) => `/submissions/${id}/comments`,
+  },
+  comments: {
+    detail: (id: string) => `/comments/${id}`,
+  },
+  worksheetStats: {
+    classOverview: (id: string) => `/worksheet-stats/classes/${id}/overview`,
+    student: (id: string) => `/worksheet-stats/students/${id}`,
   },
   game: {
     results: '/game/results',
@@ -79,6 +133,7 @@ export const ENDPOINTS = {
   reports: {
     classRanking: (id: string, format: 'xlsx' | 'pdf') => `/reports/classes/${id}/ranking.${format}`,
     classPoints: (id: string) => `/reports/classes/${id}/points.xlsx`,
+    assignmentResults: (id: string) => `/reports/assignments/${id}/results.xlsx`,
   },
   stats: {
     overview: '/stats/overview',

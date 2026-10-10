@@ -1,8 +1,8 @@
 import { type CanActivate, type ExecutionContext, Injectable } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { type Permission } from '@phonics/contracts';
-import { type AuthUser } from '../../modules/auth/auth.types';
-import { PermissionsService } from '../../modules/permissions/permissions.service';
+import { type AuthUser } from '../../modules/auth/types/auth.types';
+import { PermissionsService } from '../../modules/permissions/services/permissions.service';
 import { PERMISSION_KEY } from '../decorators/roles.decorator';
 import { AppError } from '../errors/app-error';
 

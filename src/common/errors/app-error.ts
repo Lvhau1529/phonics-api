@@ -25,6 +25,21 @@ const DEFAULT_MESSAGE: Record<ErrorCode, string> = {
   DETAILS_TOO_LARGE: 'Chi tiết ván chơi quá lớn',
   RATE_LIMITED: 'Thao tác quá nhanh, thử lại sau',
   INTERNAL: 'Lỗi hệ thống',
+  MEDIA_TYPE_UNSUPPORTED: 'Định dạng file không hỗ trợ',
+  MEDIA_TOO_LARGE: 'File quá lớn',
+  MEDIA_NOT_READY: 'File chưa tải lên xong hoặc không thuộc về bạn',
+  MEDIA_UPLOAD_INCOMPLETE: 'File chưa được tải lên đúng (thiếu, sai kích thước hoặc định dạng)',
+  MEDIA_STORAGE_DISABLED: 'Chưa cấu hình kho lưu trữ file',
+  QUESTION_NOT_PUBLISHED: 'Câu hỏi chưa được phát hành',
+  WORKSHEET_NOT_PUBLISHED: 'Phiếu bài tập chưa được phát hành',
+  WORKSHEET_EMPTY: 'Phiếu bài tập chưa có câu hỏi',
+  WORKSHEET_IN_USE: 'Câu hỏi đang được dùng trong phiếu bài tập',
+  ASSIGNMENT_NOT_OPEN: 'Bài tập chưa mở hoặc đã đóng',
+  ATTEMPTS_EXHAUSTED: 'Đã hết số lần làm bài',
+  SUBMISSION_NOT_EDITABLE: 'Bài làm đã nộp, không sửa được',
+  SUBMISSION_NOT_SUBMITTED: 'Bài làm chưa được nộp',
+  GRADING_INCOMPLETE: 'Còn câu chấm tay chưa có điểm',
+  ANSWER_TYPE_MISMATCH: 'Câu trả lời không đúng dạng câu hỏi',
 };
 
 /**

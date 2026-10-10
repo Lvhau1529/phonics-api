@@ -26,6 +26,19 @@ erDiagram
   users ||--o{ notifications : ""
   users ||--o{ refresh_tokens : ""
   users o|--o{ audit_logs : "actor"
+  users ||--o{ media_assets : "tải lên"
+  users ||--o{ questions : "tạo"
+  users ||--o{ worksheets : "tạo"
+  worksheets ||--o{ worksheet_sections : "Part"
+  worksheet_sections ||--o{ worksheet_items : ""
+  questions ||--o{ worksheet_items : "dùng trong"
+  worksheets ||--o{ assignments : "giao (snapshot)"
+  classes ||--o{ assignments : ""
+  assignments ||--o{ submissions : ""
+  student_profiles ||--o{ submissions : "làm bài"
+  submissions ||--o{ submission_answers : ""
+  submissions ||--o{ submission_comments : ""
+  submission_comments o|--o{ submission_comments : "trả lời"
 
   users {
     uuid id PK
@@ -162,6 +175,109 @@ erDiagram
     json before
     json after
   }
+  media_assets {
+    uuid id PK
+    uuid owner_id
+    enum kind "IMAGE | AUDIO"
+    string key UK "media/{owner}/{uuid}.{ext}"
+    string url "public, null khi PENDING"
+    string mime_type
+    int size_bytes
+    enum status "PENDING | READY"
+  }
+  questions {
+    uuid id PK
+    enum type "14 dạng"
+    enum grading_mode "AUTO | MANUAL"
+    string instruction
+    int points
+    string_array tags
+    json config
+    json answer_key
+    enum status "DRAFT | PUBLISHED | ARCHIVED"
+    enum visibility "PRIVATE | SHARED"
+    uuid created_by_id
+  }
+  worksheets {
+    uuid id PK
+    string title
+    enum subject "PHONICS | ESL"
+    string topic
+    string grade
+    int week
+    int day "1..5"
+    enum kind "EXTRA | HANDOUT | WORKSHEET"
+    enum status
+    enum visibility
+    uuid created_by_id
+  }
+  worksheet_sections {
+    uuid id PK
+    uuid worksheet_id
+    int order
+    string title "Part 1"
+    string instruction
+  }
+  worksheet_items {
+    uuid id PK "snapshot tham chiếu"
+    uuid worksheet_id
+    uuid section_id
+    uuid question_id
+    int order
+    int points_override
+  }
+  assignments {
+    uuid id PK
+    uuid worksheet_id
+    uuid class_id
+    uuid assigned_by_id
+    date scheduled_for "ngày trên lịch"
+    datetime available_from
+    datetime due_at
+    bool allow_late
+    int max_attempts
+    bool show_answers_after_submit
+    enum status "SCHEDULED | OPEN | CLOSED"
+    json snapshot "nội dung + answerKey đóng băng"
+    int max_score
+    bool has_manual_items
+  }
+  submissions {
+    uuid id PK
+    uuid assignment_id
+    uuid student_id
+    int attempt_no
+    enum status "IN_PROGRESS | SUBMITTED | GRADED"
+    datetime submitted_at
+    float auto_score
+    float manual_score
+    float total_score "chỉ khi GRADED"
+    int max_score
+    int duration_ms
+    bool late
+  }
+  submission_answers {
+    uuid id PK
+    uuid submission_id
+    uuid worksheet_item_id "không FK"
+    enum question_type
+    int max_points
+    json answer
+    bool is_correct
+    float auto_score
+    float manual_score
+    string teacher_note
+    json grade_detail
+  }
+  submission_comments {
+    uuid id PK
+    uuid submission_id
+    uuid worksheet_item_id "null = cả bài"
+    uuid author_id
+    uuid parent_id "một cấp"
+    string body
+    datetime deleted_at "xoá mềm"
+  }
 ```
 
 ## Quyết định dữ liệu
@@ -184,3 +300,12 @@ erDiagram
 - **Sự kiện** ẩn danh theo `client_id`; unique `(client_id, game_id, type, occurred_at)` để gửi lại không trùng.
 - **Refresh token**: chỉ lưu hash; `family_id` để phát hiện dùng lại ([ADR 0002](../adr/0002-api-separate-origin-jwt-refresh-transport.md)).
 - Xoá lớp = `archived_at` (mềm); xoá user là cascade (chỉ admin, hiếm).
+- **Phiếu bài tập** ([ADR 0017](../../phonics-dev/docs/adr/0017-worksheet-domain.md)): `questions.config` / `answer_key`
+  là JSON theo discriminated union của contracts; giao bài = **đóng băng snapshot** vào `assignments.snapshot`, nên
+  `submission_answers.worksheet_item_id` không có FK (phiếu / câu sửa sau không ảnh hưởng bài đã chấm). Partial unique
+  `submissions_one_in_progress (assignment_id, student_id) WHERE status = 'IN_PROGRESS'` và GIN index `questions_tags_gin`
+  thêm tay trong migration.
+- **Điểm phiếu tách khỏi `point_entries`** ([ADR 0019](../../phonics-dev/docs/adr/0019-worksheet-grading-ranking.md)):
+  `submissions.total_score` (float, một phần) chỉ có khi GRADED; xếp hạng theo bài giao = bài tốt nhất mỗi HS.
+- **Media** ([ADR 0018](../../phonics-dev/docs/adr/0018-media-object-storage.md)): `media_assets.key` bất biến trên bucket
+  public_read, lưu URL public; `PENDING` quá 24h bị cron xoá.

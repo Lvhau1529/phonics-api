@@ -23,6 +23,23 @@ export const AuditAction = z.enum([
   'game.update',
   'game.unlock',
   'game.unlockClass',
+  'question.create',
+  'question.update',
+  'question.publish',
+  'question.archive',
+  'worksheet.create',
+  'worksheet.update',
+  'worksheet.structure',
+  'worksheet.publish',
+  'worksheet.archive',
+  'assignment.create',
+  'assignment.update',
+  'assignment.close',
+  'assignment.reopen',
+  'assignment.delete',
+  'submission.grade',
+  'submission.reopen',
+  'comment.delete',
 ]);
 export type AuditAction = z.infer<typeof AuditAction>;
 

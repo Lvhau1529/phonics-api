@@ -8,8 +8,11 @@ import { defineConfig } from 'prisma/config';
 const directUrl = process.env.DIRECT_URL;
 
 // `prisma db seed`: dev chạy thẳng TS bằng tsx; ảnh production (NODE_ENV=production) không có tsx / src
-// → chạy bản đã build `dist/seed.js` (nest build biên dịch src/seed.ts).
-const seedCommand = process.env.NODE_ENV === 'production' ? 'node dist/seed.js' : 'tsx src/seed.ts';
+// → chạy bản đã build `dist/database/seeds/seed.js` (nest build biên dịch src/database/seeds/seed.ts).
+const seedCommand =
+  process.env.NODE_ENV === 'production'
+    ? 'node dist/database/seeds/seed.js'
+    : 'tsx src/database/seeds/seed.ts';
 
 export default defineConfig({
   schema: 'prisma/schema.prisma',

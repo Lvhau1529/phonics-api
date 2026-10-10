@@ -9,13 +9,14 @@ shape trong đó. Tài liệu hệ thống (kiến trúc, ADR, deploy cả 3 app
 
 ## Cấu trúc
 
-Ba tầng, phụ thuộc một chiều `modules → common / core → config` (ADR 0015 trong phonics-dev):
+Feature-based, phụ thuộc một chiều `modules → common / core / database / infrastructure → config`
+(ADR 0015, layout trong module theo ADR 0020 — phonics-dev):
 
 ```
 phonics-api
 ├── packages/contracts/     gói hợp đồng zod dùng chung (phát hành lên GitHub Packages)
 ├── docs/                   api.md (bảng endpoint), erd.md
-├── prisma/                 schema.prisma, migrations/ (seed ở src/seed.ts)
+├── prisma/                 schema.prisma, migrations/ (Prisma CLI + docker-entrypoint đọc ở đây)
 ├── prisma.config.ts        Prisma CLI: DIRECT_URL (kết nối thẳng), lệnh seed
 ├── src/
 │   ├── main.ts             khởi động: configureApp + Swagger + listen
@@ -24,11 +25,11 @@ phonics-api
 │   │                       swagger.ts
 │   ├── config/             env.schema.ts (zod, nguồn sự thật biến môi trường), env.module.ts, constants.ts,
 │   │                       api-version.ts (API_V1)
-│   ├── core/               HẠ TẦNG (@Global, không nghiệp vụ) — core.module.ts gom lại
-│   │   ├── database/       PrismaModule, PrismaService (driver adapter pg), kiểu Tx
-│   │   ├── logger/         pino (redact secret, mã request)
-│   │   ├── time/           TimeService (APP_TIMEZONE)
-│   │   └── access/         AccessService — phạm vi dữ liệu theo vai trò (GV chỉ lớp mình)
+│   ├── core/               HẠ TẦNG @Global không nghiệp vụ (core.module.ts): logger/ (pino), time/ (TimeService,
+│   │                       APP_TIMEZONE), access/ (AccessService — GV chỉ thấy lớp mình)
+│   ├── database/           PrismaModule, PrismaService (driver adapter pg), types.ts (kiểu Tx)
+│   │   └── seeds/          seed.ts (entry `prisma db seed`) + *.seed.ts theo miền (admin, games, nhóm quyền, demo)
+│   ├── infrastructure/     kết nối dịch vụ ngoài: storage/ (S3 client cho Neon Object Storage)
 │   ├── common/             KHỐI DÙNG CHUNG cho request pipeline (không chứa nghiệp vụ)
 │   │   ├── middleware/     request-id (X-Request-Id)
 │   │   ├── guards/         JwtAuthGuard, RolesGuard, PermissionsGuard
@@ -37,24 +38,36 @@ phonics-api
 │   │   ├── errors/         AppError (mã lỗi theo ErrorCode của contracts)
 │   │   ├── dto/            DTO query dùng chung (phân trang, khoảng thời gian)
 │   │   └── utils/          paginate
-│   ├── modules/            NGHIỆP VỤ — mỗi bounded context một thư mục:
+│   ├── modules/            NGHIỆP VỤ — mỗi bounded context một thư mục (chỉ tạo thư mục con khi cần):
 │   │   └── <module>/
 │   │       ├── <module>.module.ts
-│   │       ├── <module>.service.ts (+ .spec.ts)   luật nghiệp vụ, dùng chung mọi version
-│   │       └── v1/                                 controller + DTO (wire format) của API v1
+│   │       ├── controllers/     một controller / file, đặt tên theo actor: <module>.controller.ts (GV / admin),
+│   │       │                    <module>-me.controller.ts (/me — học sinh), <module>-admin.controller.ts,
+│   │       │                    <module>-public.controller.ts; mỗi controller khai báo `version: API_V1`
+│   │       ├── services/        một service / use case: *-reader (đọc), *-writer (ghi), *-student, *-lifecycle…
+│   │       │                    (+ .spec.ts cạnh service)
+│   │       ├── repositories/    bọc PrismaService: mọi truy vấn Prisma / $queryRaw của module
+│   │       ├── dto/requests/    DTO = createZodDto(schema contracts)
+│   │       ├── dto/responses/   hàm thuần row → view đúng shape contracts (toXView, toXSummary)
+│   │       ├── types/           include / payload Prisma, kiểu nội bộ, hằng sort field
+│   │       ├── utils/           hàm thuần (luật nghiệp vụ, tính toán) + .spec.ts
+│   │       └── jobs/ · grading/ · writers/   cron, bộ chấm, writer xlsx / pdf (riêng từng module)
 │   │   auth · users · permissions · classes · teachers · students · games · events · game-results ·
-│   │   points (+ RankingService) · notifications · stats · reports (+ writers/ xlsx, pdf) · audit ·
-│   │   health (không version: /api/health)
+│   │   points (+ RankingService) · notifications · stats · reports · audit · media · questions · worksheets ·
+│   │   assignments · submissions · comments · worksheet-stats · health (không version: /api/health)
 │   └── generated/          Prisma client (gitignored, `pnpm prisma:generate`)
 └── test/
     ├── helpers/            create-test-app.ts (boot AppModule + configureApp cho e2e, truncateAll)
     └── e2e/                *.e2e-spec.ts (cần DATABASE_URL_TEST)
 ```
 
-**Versioning:** route theo URI `/api/v1/...` (client lấy `API_PREFIX` từ contracts). Thêm v2 = tạo
-`modules/<module>/v2/` (controller + DTO mới, `@Controller({ path, version: API_V2 })`), service giữ nguyên;
-endpoint không đổi thì cho controller v1 phục vụ cả hai version (`version: [API_V1, API_V2]`).
-`/api/health` và Swagger `/api/docs` không có version.
+Không dùng TypeORM nên không có `entities/`: model nằm ở `prisma/schema.prisma`, kiểu row lấy bằng
+`Prisma.XGetPayload` trong `types/`. Module nhỏ (vd `audit`, `events`) chỉ có `controllers/` + `services/`.
+
+**Versioning:** route theo URI `/api/v1/...` (client lấy `API_PREFIX` từ contracts), version khai báo ở decorator
+`@Controller({ path, version: API_V1 })`. Thêm v2 = controller mới `controllers/<tên>.v2.controller.ts`
+(`version: API_V2`) + DTO trong `dto/requests/v2/`, service giữ nguyên; endpoint không đổi thì cho controller hiện có
+phục vụ cả hai version (`version: [API_V1, API_V2]`). `/api/health` và Swagger `/api/docs` không có version.
 
 ## Chạy dev
 
@@ -113,8 +126,8 @@ docker compose up -d --build
 - `docker-compose.yml`: ảnh `ghcr.io/${GHCR_OWNER}/phonics-api:${TAG}` (mặc định `lvhau1529` / `latest`),
   có `build` để dựng tại chỗ, `env_file: .env.production`, `restart: unless-stopped`, log json-file 5 × 10 MB.
 - Seed trên production (chỉ admin + catalog; demo luôn bị bỏ qua vì `NODE_ENV=production`): `nest build` biên dịch
-  `src/seed.ts` thành `dist/seed.js`; `prisma.config.ts` chọn lệnh seed theo `NODE_ENV` (production →
-  `node dist/seed.js`, còn lại → `tsx src/seed.ts`). Chạy trong container đang chạy (đọc biến từ `.env.production`):
+  `src/database/seeds/` thành `dist/database/seeds/`; `prisma.config.ts` chọn lệnh seed theo `NODE_ENV` (production →
+  `node dist/database/seeds/seed.js`, còn lại → `tsx src/database/seeds/seed.ts`). Chạy trong container đang chạy (đọc biến từ `.env.production`):
   `docker compose exec api node_modules/.bin/prisma db seed`.
 
 ## Biến môi trường
@@ -142,6 +155,18 @@ Nguồn sự thật: `src/config/env.schema.ts` (zod; thiếu / sai thì API kh�
 | `SWAGGER_ENABLED`           |          | `true`             | Bật `/api/docs`                                                         |
 | `LOG_LEVEL`                 |          | `info`             | `trace` / `debug` / `info` / `warn` / `error`                           |
 | `DATABASE_URL_TEST`         |          |                    | Chỉ cho `test:e2e` (DB riêng, bị truncate)                              |
+| `AWS_ACCESS_KEY_ID`         |          |                    | Neon Object Storage (`neon env pull`); thiếu cả 4 biến AWS_\* = tắt upload |
+| `AWS_SECRET_ACCESS_KEY`     |          |                    | —                                                                       |
+| `AWS_ENDPOINT_URL_S3`       |          |                    | Endpoint S3 của branch Neon                                             |
+| `AWS_REGION`                |          |                    | vd `us-east-2`                                                          |
+| `MEDIA_BUCKET`              |          | `resources`        | Bucket ảnh / audio phiếu bài tập (khai báo trong `neon.ts`)             |
+| `MEDIA_PUBLIC_BASE_URL`     |          |                    | CDN đứng trước bucket; mặc định `${AWS_ENDPOINT_URL_S3}/${MEDIA_BUCKET}` |
+| `MEDIA_PRESIGN_TTL_SEC`     |          | `900`              | Hạn URL PUT đã ký                                                       |
+
+Phiếu bài tập (ADR 0017 / 0018 / 0019): sau `neon deploy` cho mỗi branch, chạy `pnpm media:cors` một lần để bucket
+nhận PUT từ game / admin (`CORS_ORIGINS`).
+
+Lưu ý (đã kiểm chứng 10/2026): Neon Object Storage tự xử lý preflight `OPTIONS` cho presigned URL (trả `Access-Control-Allow-Origin: *`), nên upload từ trình duyệt chạy được ngay cả khi chưa đặt CORS; `PutBucketCors` trên bucket kế thừa của branch con có thể trả `NoSuchBucket` — khi đó bỏ qua script này. Lấy credential cho branch dev bằng `neon env pull --branch dev --service object-storage` (hoặc tạo credential scope `storage:read` + `storage:write` trong console) rồi điền 4 biến `AWS_*` vào `.env`.
 
 ## Contracts
 
@@ -164,7 +189,7 @@ không cần phát hành mỗi lần sửa.
 
 ## Seed và tài khoản demo
 
-`pnpm db:seed` / `prisma db seed` (dev: `tsx src/seed.ts`; `NODE_ENV=production`: `node dist/seed.js`; idempotent):
+`pnpm db:seed` / `prisma db seed` (dev: `tsx src/database/seeds/seed.ts`; `NODE_ENV=production`: `node dist/database/seeds/seed.js`; idempotent):
 
 - Luôn: admin từ `ADMIN_EMAIL` / `ADMIN_PASSWORD` (không đổi mật khẩu admin đã có trừ khi
   `SEED_RESET_ADMIN_PASSWORD=true`); catalog `games` từ contracts `GAME_IDS` (Bread Catcher, Food Stream).
@@ -181,5 +206,7 @@ Tài khoản demo (**chỉ dùng ở môi trường dev**, mật khẩu chung `D
 | `k2a.student01@demo.local` … `k2a.student08@demo.local` | STUDENT | lớp K2A (K2, hiện khi đăng ký)    |
 | `k2b.student01@demo.local` … `k2b.student08@demo.local` | STUDENT | lớp K2B (K2, hiện khi đăng ký)    |
 | `k1a.student01@demo.local` … `k1a.student08@demo.local` | STUDENT | lớp K1A (K1, `joinVisible=false`) |
+
+`SEED_DEMO` cũng tạo 4 câu hỏi SHARED đã phát hành + phiếu **"Letter Nn — Demo"** (của teacher1) để giao thử trên admin.
 
 Admin: theo `ADMIN_EMAIL` / `ADMIN_PASSWORD` trong `.env`.

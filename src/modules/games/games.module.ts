@@ -1,22 +1,25 @@
 import { Module } from '@nestjs/common';
 import { AuditModule } from '../audit/audit.module';
-import { GamesService } from './games.service';
-import { AdminGamesController } from './v1/admin-games.controller';
-import { ClassGamesController } from './v1/class-games.controller';
-import { MeGamesController } from './v1/me-games.controller';
-import { PublicGamesController } from './v1/public-games.controller';
-import { StudentGamesController } from './v1/student-games.controller';
+import { GamesAdminController } from './controllers/games-admin.controller';
+import { GamesClassController } from './controllers/games-class.controller';
+import { GamesMeController } from './controllers/games-me.controller';
+import { GamesPublicController } from './controllers/games-public.controller';
+import { GamesStudentController } from './controllers/games-student.controller';
+import { GameRepository } from './repositories/game.repository';
+import { GameCatalogService } from './services/game-catalog.service';
+import { GameUnlockService } from './services/game-unlock.service';
 
+/** Catalog game + mở khoá theo học sinh / lớp */
 @Module({
   imports: [AuditModule],
   controllers: [
-    PublicGamesController,
-    MeGamesController,
-    StudentGamesController,
-    ClassGamesController,
-    AdminGamesController,
+    GamesPublicController,
+    GamesMeController,
+    GamesStudentController,
+    GamesClassController,
+    GamesAdminController,
   ],
-  providers: [GamesService],
-  exports: [GamesService],
+  providers: [GameRepository, GameCatalogService, GameUnlockService],
+  exports: [GameUnlockService],
 })
 export class GamesModule {}

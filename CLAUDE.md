@@ -20,19 +20,35 @@ xem `vite.config.ts` của game / admin) — sửa contracts thấy ngay, không
 
 ## Kiến trúc
 
-Cấu trúc thư mục + versioning: [README > Cấu trúc](README.md#cấu-trúc) (ADR 0015). Phụ thuộc một chiều
-`modules → common / core → config`; `common/` và `core/` **không** import ngược từ `modules/` (trừ kiểu
-`AuthUser` và `PermissionsService` mà guard cần).
+Cấu trúc thư mục + versioning: [README > Cấu trúc](README.md#cấu-trúc) (ADR 0015, ADR 0020). Phụ thuộc một chiều
+`modules → common / core / database / infrastructure → config`; các tầng dưới **không** import ngược từ `modules/`
+(trừ kiểu `AuthUser` và `PermissionsService` mà guard cần).
 
-- `core/`: hạ tầng `@Global` không nghiệp vụ (database, logger, time, access) — gom trong `CoreModule`.
+- `core/`: hạ tầng `@Global` không nghiệp vụ (logger, time, access) — gom trong `CoreModule` (kèm `PrismaModule`).
+- `database/`: `PrismaModule`, `PrismaService`, kiểu `Tx` (`database/types.ts`); `database/seeds/` = seed theo miền.
+  Migration vẫn ở `prisma/migrations` (Prisma CLI + `docker-entrypoint.sh`).
+- `infrastructure/`: client dịch vụ ngoài (`storage/` — S3 / Neon Object Storage).
 - `common/`: khối của request pipeline — `middleware/`, `guards/`, `decorators/`, `filters/`, `errors/`, `dto/`,
   `utils/`. Thêm interceptor / pipe riêng thì tạo `common/interceptors/`, `common/pipes/`.
 - `bootstrap/configure-app.ts`: prefix, versioning, middleware (`app.use`), CORS, filter — dùng chung cho `main.ts`
   và e2e. Không cấu hình HTTP rải rác trong `main.ts`.
-- `modules/<module>/`: một bounded context (`auth`, `users`, `permissions`, `classes`, `teachers`, `students`,
-  `games`, `events`, `game-results`, `points` (+ `ranking.service.ts`), `notifications`, `reports`, `stats`, `audit`,
-  `health`). Gốc module = `*.module.ts` + service + spec (luật nghiệp vụ, **không** phụ thuộc version);
-  `v1/` = controller + `dto.ts` của API v1. Service không import từ `v1/` (schema riêng của module → `<module>.schemas.ts`).
+- `modules/<module>/`: một bounded context, layout feature-based (ADR 0020; chỉ tạo thư mục con khi cần):
+  - `<module>.module.ts`: `providers: [Repository, ...services]`, `exports` chỉ những service module khác cần.
+  - `controllers/`: **một controller / file**, tên theo actor — `<module>.controller.ts` (GV / admin),
+    `<module>-me.controller.ts` (`/me`, học sinh), `<module>-admin.controller.ts`, `<module>-public.controller.ts`.
+    Controller mỏng: DTO → service → trả view.
+  - `services/`: một service / use case — `<x>-reader.service.ts` (đọc), `<x>-writer.service.ts` (ghi),
+    `<x>-student.service.ts`, `<x>-lifecycle.service.ts`… Service **không** gọi Prisma trực tiếp khi module có
+    repository (ngoại lệ: `RankingService` / `AssignmentRankingService` — SQL xếp hạng dùng chung, nhận `tx` — và chỗ
+    truyền client cho `rankClass`); **không** import từ `controllers/` hay `dto/requests/`.
+  - `repositories/`: lớp `@Injectable()` bọc `PrismaService` — mọi `findMany` / `$queryRaw` / transaction của module.
+    Hàm nhận `tx: Tx` khi cần chạy trong transaction của service.
+  - `dto/requests/<module>.dto.ts`: `class XDto extends createZodDto(X)`. `dto/responses/<x>.view.ts`: hàm thuần
+    row → view đúng shape contracts (`Date` → `.toISOString()`).
+  - `types/`: `xInclude` + `XRow = Prisma.XGetPayload<…>`, hằng `X_SORT_FIELDS`, schema zod riêng của module.
+  - `utils/`: hàm thuần (luật nghiệp vụ / tính toán) + `.spec.ts`. Thư mục đặc thù: `jobs/` (cron), `grading/`,
+    `writers/`.
+  - Không có `entities/` (Prisma, không TypeORM): model ở `prisma/schema.prisma`.
 - Versioning URI: `@Controller({ path: 'x', version: API_V1 })` (`config/api-version.ts`) → `/api/v1/x`.
   Controller thiếu `version` sẽ không có prefix version — chỉ dùng cho health (`VERSION_NEUTRAL`).
 - Module `@Global()`: Env, Prisma, Time, Access (core) và Notifications, Permissions, Auth — inject thẳng, không
@@ -45,11 +61,11 @@ Cấu trúc thư mục + versioning: [README > Cấu trúc](README.md#cấu-trú
   lỗi nghiệp vụ ném `new AppError('CODE', status, { message?, details? })` với `CODE` thuộc `ErrorCode` của contracts.
 - Prisma 7: client sinh ra ở `src/generated/prisma` (gitignored; `pnpm prisma:generate`). Import
   `{ Prisma }` từ `src/generated/prisma/client` (tương đối, vd `../../generated/prisma/client` từ module). Transaction:
-  `prisma.$transaction(async (tx) => …)`, kiểu `Tx` (`core/database/types.ts`).
+  `prisma.$transaction(async (tx) => …)`, kiểu `Tx` (`database/types.ts`).
   Bảng / cột snake_case qua `@@map` — SQL raw (`$queryRaw`) dùng tên snake_case.
 - Thời gian: mọi "hôm nay / tuần / tháng" qua `TimeService` (APP_TIMEZONE), không dùng `new Date()` trần.
-- Điểm: chỉ `GameResultsService` và `PointsService` được tạo `point_entries`; sau mỗi bút toán phải gọi
-  `RankingService.recomputeAndNotify(tx, classId, actorStudentId?)` trong cùng transaction.
+- Điểm: chỉ `GameResultWriterService` và `PointBonusService` (qua repository của module) được tạo `point_entries`;
+  sau mỗi bút toán phải gọi `RankingService.recomputeAndNotify(tx, classId, actorStudentId?)` trong cùng transaction.
   Luật điểm nằm ở `POINT_RULES` (contracts) + `GAME_REGISTRY` (`config/constants.ts`).
 - Audit: gọi `AuditService.record(actor, action, targetType, targetId, before, after)` ở thao tác nhạy cảm;
   `action` phải thuộc `AuditAction` (contracts).
@@ -58,11 +74,13 @@ Cấu trúc thư mục + versioning: [README > Cấu trúc](README.md#cấu-trú
 
 1. Thêm / sửa schema trong `packages/contracts` (+ `ENDPOINTS`), `pnpm build:contracts`. Game / admin chỉ thấy schema
    mới sau khi phát hành bản contracts mới (README > Contracts) — hoặc ngay lập tức nếu chạy qua launcher phonics-dev (`pnpm dev`).
-2. DTO trong `modules/<module>/v1/dto.ts`, method service, method controller trong `v1/` (thin: DTO → service →
-   view đúng shape contracts, `Date` → `.toISOString()`), decorator `@Roles` / `@RequirePermission` / `@Public` phù hợp.
-   Controller mới phải khai báo `version: API_V1`.
+2. DTO trong `modules/<module>/dto/requests/<module>.dto.ts`; truy vấn mới trong `repositories/`; method ở service
+   đúng use case (`*-reader` / `*-writer`…); hàm view trong `dto/responses/`; method controller trong `controllers/`
+   đúng actor (thin: DTO → service → view đúng shape contracts), decorator `@Roles` / `@RequirePermission` / `@Public`
+   phù hợp. Controller mới phải khai báo `version: API_V1` và được đăng ký trong `<module>.module.ts`.
 3. Kiểm tra scope trong service; audit nếu nhạy cảm; thông báo (`NotificationsService`) nếu học sinh cần biết.
-4. Unit test cạnh service (`*.spec.ts`, Vitest + `vitest-mock-extended`, khởi tạo service bằng tay); e2e trong
+4. Unit test cạnh service (`*.spec.ts`, Vitest + `vitest-mock-extended`, khởi tạo service bằng tay — repository thật
+   bọc `mockDeep<PrismaService>()` để assert trên lời gọi Prisma); hàm thuần trong `utils/` test riêng; e2e trong
    `test/e2e` nếu là luồng chính.
 5. `pnpm typecheck && pnpm lint && pnpm test`; xem Swagger `/api/docs`.
 

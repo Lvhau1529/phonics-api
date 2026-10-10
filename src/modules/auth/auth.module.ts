@@ -5,11 +5,11 @@ import { ENV } from '../../config/env.module';
 import { type Env } from '../../config/env.schema';
 import { PointsModule } from '../points/points.module';
 import { UsersModule } from '../users/users.module';
-import { AuthService } from './auth.service';
-import { GoogleService } from './google.service';
-import { PasswordService } from './password.service';
-import { TokenService } from './token.service';
-import { AuthController } from './v1/auth.controller';
+import { AuthService } from './services/auth.service';
+import { GoogleService } from './services/google.service';
+import { PasswordService } from './services/password.service';
+import { TokenService } from './services/token.service';
+import { AuthController } from './controllers/auth.controller';
 
 /** Global: JwtModule / PasswordService / TokenService được guard và các module khác (students reset password) dùng */
 @Global()

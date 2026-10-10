@@ -6,6 +6,8 @@ export { POINT_RULES };
 export const GAME_REGISTRY: Record<string, { maxTotal: number; maxScore: number }> = {
   'bread-catcher': { maxTotal: 60, maxScore: 60_000 },
   'food-stream': { maxTotal: 30, maxScore: 100_000 },
+  // total = số từ cần để qua màn (12–15); điểm tối đa ~300 / từ + combo vần + vật phẩm
+  'phonics-ocean': { maxTotal: 30, maxScore: 50_000 },
 };
 
 /** Khi nào tạo thông báo đổi hạng: 'all' mọi thay đổi, 'improve' chỉ khi lên hạng */
@@ -25,4 +27,18 @@ export const THROTTLE = {
   auth: { ttl: 60_000, limit: 10 },
   gameResults: { ttl: 60_000, limit: 30 },
   events: { ttl: 60_000, limit: 60 },
+  /** Presign upload media (ảnh / ghi âm) */
+  media: { ttl: 60_000, limit: 30 },
+} as const;
+
+/** Phiếu bài tập (ADR 0017 / 0018 / 0019) */
+export const WORKSHEETS = {
+  /** Media PENDING (presign nhưng không complete) bị cron xoá sau số giờ này */
+  mediaPendingTtlHours: 24,
+  /** Cron mở / đóng bài giao */
+  assignmentTickCron: '*/5 * * * *',
+  /** Thời gian làm bài tối đa tính vào durationMs */
+  maxDurationMs: 6 * 3600 * 1000,
+  /** Cache-Control cho object trên bucket (key bất biến) */
+  mediaCacheControl: 'public, max-age=31536000, immutable',
 } as const;

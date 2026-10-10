@@ -2,8 +2,8 @@ import { type CanActivate, type ExecutionContext, Injectable } from '@nestjs/com
 import { Reflector } from '@nestjs/core';
 import { JwtService } from '@nestjs/jwt';
 import { type Request } from 'express';
-import { PrismaService } from '../../core/database/prisma.service';
-import { type AccessTokenPayload, type AuthUser } from '../../modules/auth/auth.types';
+import { PrismaService } from '../../database/prisma.service';
+import { type AccessTokenPayload, type AuthUser } from '../../modules/auth/types/auth.types';
 import { IS_PUBLIC_KEY, OPTIONAL_AUTH_KEY } from '../decorators/public.decorator';
 import { AppError } from '../errors/app-error';
 

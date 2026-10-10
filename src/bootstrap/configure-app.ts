@@ -19,6 +19,8 @@ import { type Env } from '../config/env.schema';
  */
 export function configureApp(app: NestExpressApplication, env: Env): void {
   app.setGlobalPrefix(API_ROOT.slice(1));
+  // Config câu hỏi (ô chữ, lưới tìm từ) và autosave câu trả lời lớn hơn mặc định 100 kB của Express
+  app.useBodyParser('json', { limit: '1mb' });
   // /api/v1/..., version khai báo ở từng controller (config/api-version.ts)
   app.enableVersioning({ type: VersioningType.URI });
   // Sau nginx / Caddy: lấy IP thật của client cho throttle + audit

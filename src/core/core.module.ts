@@ -4,7 +4,7 @@ import { ThrottlerModule } from '@nestjs/throttler';
 import { THROTTLE } from '../config/constants';
 import { EnvModule } from '../config/env.module';
 import { AccessModule } from './access/access.module';
-import { PrismaModule } from './database/prisma.module';
+import { PrismaModule } from '../database/prisma.module';
 import { LoggerModule } from './logger/logger.module';
 import { TimeModule } from './time/time.module';
 
