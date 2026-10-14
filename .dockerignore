@@ -12,5 +12,5 @@ src/generated
 test
 docs
 .claude
-storage
-backups
+/storage
+/backups
