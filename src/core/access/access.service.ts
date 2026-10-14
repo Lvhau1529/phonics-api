@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
-import { AppError } from '../../common/errors/app-error';
-import { type AuthUser } from '../../modules/auth/auth.types';
-import { PrismaService } from '../database/prisma.service';
+import { AppError } from '@/common/errors/app-error';
+import { type AuthUser } from '@/modules/auth/types/auth.types';
+import { PrismaService } from '@/database/prisma.service';
 
 /**
  * Kiểm tra phạm vi dữ liệu (resource scope) — khác với quyền (permission):

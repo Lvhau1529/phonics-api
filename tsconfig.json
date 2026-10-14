@@ -13,7 +13,11 @@
     "rootDir": "src",
     "sourceMap": true,
     "incremental": true,
-    "tsBuildInfoFile": "dist/.tsbuildinfo"
+    "tsBuildInfoFile": "dist/.tsbuildinfo",
+    // import '@/modules/...' thay cho '../../modules/...'; khai báo tương ứng ở .swcrc (build) và vitest.config.ts (test)
+    "paths": {
+      "@/*": ["./src/*"]
+    }
   },
   "include": ["src"],
   "exclude": ["src/**/*.spec.ts", "src/**/*.test.ts"]

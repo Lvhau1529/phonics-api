@@ -2,7 +2,7 @@ import path from 'node:path';
 import pdfmake from 'pdfmake';
 import robotoFonts from 'pdfmake/fonts/Roboto';
 import { type TableCell, type TDocumentDefinitions } from 'pdfmake/interfaces';
-import { type RankingRow, type ReportMeta } from './xlsx.writer';
+import { type RankingRow, type ReportMeta } from '@/modules/reports/writers/xlsx.writer';
 
 /**
  * pdfmake 0.3 (Node): instance toàn cục, font đọc từ file .ttf đi kèm gói (Roboto có đủ dấu tiếng Việt).

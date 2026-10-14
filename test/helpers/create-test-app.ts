@@ -8,8 +8,8 @@ import { execFileSync } from 'node:child_process';
 import path from 'node:path';
 import { type NestExpressApplication } from '@nestjs/platform-express';
 import { Test } from '@nestjs/testing';
-import { type Env } from '../../src/config/env.schema';
-import { type PrismaService } from '../../src/core/database/prisma.service';
+import { type Env } from '@/config/env.schema';
+import { type PrismaService } from '@/database/prisma.service';
 
 const API_ROOT = path.resolve(__dirname, '../..');
 
@@ -60,10 +60,10 @@ export function applyMigrations(): void {
 export async function createTestApp(): Promise<TestApp> {
   // Import động để env (useTestDatabase) được đặt trước khi EnvModule đọc process.env
   const [{ AppModule }, { configureApp }, { PrismaService }, { ENV }] = await Promise.all([
-    import('../../src/app.module.js'),
-    import('../../src/bootstrap/configure-app.js'),
-    import('../../src/core/database/prisma.service.js'),
-    import('../../src/config/env.module.js'),
+    import('@/app.module'),
+    import('@/bootstrap/configure-app'),
+    import('@/database/prisma.service'),
+    import('@/config/env.module'),
   ]);
   const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
   const app = moduleRef.createNestApplication<NestExpressApplication>({ bufferLogs: false, logger: false });
@@ -82,6 +82,17 @@ export async function createTestApp(): Promise<TestApp> {
 /** Xoá sạch dữ liệu mọi bảng (giữ schema + bảng _prisma_migrations) */
 export async function truncateAll(prisma: PrismaService): Promise<void> {
   const tables = [
+    'submission_comments',
+    'submission_answers',
+    'submissions',
+    'assignments',
+    'worksheet_items',
+    'worksheet_sections',
+    'worksheets',
+    'questions',
+    'media_assets',
+    'user_permission_groups',
+    'permission_groups',
     'audit_logs',
     'notifications',
     'refresh_tokens',

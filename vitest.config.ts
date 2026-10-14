@@ -1,3 +1,4 @@
+import { fileURLToPath, URL } from 'node:url';
 import swc from 'unplugin-swc';
 import { defineConfig } from 'vitest/config';
 
@@ -7,12 +8,17 @@ const swcPlugin = swc.vite({
   jsc: { transform: { legacyDecorator: true, decoratorMetadata: true } },
 });
 
+// import '@/...' → src (khai báo tương ứng trong tsconfig.json > paths)
+const resolve = { alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) } };
+
 export default defineConfig({
   plugins: [swcPlugin],
+  resolve,
   test: {
     projects: [
       {
         plugins: [swcPlugin],
+        resolve,
         test: {
           name: 'unit',
           include: ['src/**/*.spec.ts'],
@@ -31,6 +37,7 @@ export default defineConfig({
       },
       {
         plugins: [swcPlugin],
+        resolve,
         test: {
           name: 'e2e',
           include: ['test/e2e/**/*.e2e-spec.ts'],

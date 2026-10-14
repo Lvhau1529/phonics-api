@@ -3,11 +3,11 @@ import { NestFactory } from '@nestjs/core';
 import { type NestExpressApplication } from '@nestjs/platform-express';
 import { API_PREFIX } from '@phonics/contracts';
 import { Logger } from 'nestjs-pino';
-import { AppModule } from './app.module';
-import { configureApp } from './bootstrap/configure-app';
-import { SWAGGER_PATH, setupSwagger } from './bootstrap/swagger';
-import { ENV } from './config/env.module';
-import { type Env } from './config/env.schema';
+import { AppModule } from '@/app.module';
+import { configureApp } from '@/bootstrap/configure-app';
+import { SWAGGER_PATH, setupSwagger } from '@/bootstrap/swagger';
+import { ENV } from '@/config/env.module';
+import { type Env } from '@/config/env.schema';
 
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, { bufferLogs: true });

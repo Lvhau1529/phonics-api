@@ -6,7 +6,7 @@ import { Id } from './common/ids.js';
  * Id game = `manifest.id` trong apps/game/src/games/<id>/manifest.ts (không đổi sau khi phát hành).
  * Thêm game mới: thêm vào đây + GAME_REGISTRY của API (giới hạn điểm) + seed catalog.
  */
-export const GameId = z.enum(['bread-catcher', 'food-stream']);
+export const GameId = z.enum(['bread-catcher', 'food-stream', 'phonics-ocean']);
 export type GameId = z.infer<typeof GameId>;
 export const GAME_IDS: readonly GameId[] = GameId.options;
 

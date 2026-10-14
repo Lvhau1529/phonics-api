@@ -1,9 +1,9 @@
 import { Module } from '@nestjs/common';
-import { AuditModule } from '../audit/audit.module';
-import { StudentsModule } from '../students/students.module';
-import { ClassesService } from './classes.service';
-import { ClassesController } from './v1/classes.controller';
-import { PublicClassesController } from './v1/public-classes.controller';
+import { AuditModule } from '@/modules/audit/audit.module';
+import { StudentsModule } from '@/modules/students/students.module';
+import { ClassesService } from '@/modules/classes/services/classes.service';
+import { ClassesController } from '@/modules/classes/controllers/classes.controller';
+import { PublicClassesController } from '@/modules/classes/controllers/classes-public.controller';
 
 @Module({
   imports: [AuditModule, StudentsModule],

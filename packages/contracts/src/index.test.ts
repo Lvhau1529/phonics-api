@@ -32,6 +32,15 @@ describe('GameResultBody', () => {
     expect(r.details).toEqual({});
   });
 
+  it('nhận game Phonics Ocean (contracts 1.2.0)', () => {
+    const r = GameResultBody.parse({ ...valid, gameId: 'phonics-ocean', levelId: 'sound-reef', total: 12 });
+    expect(r.gameId).toBe('phonics-ocean');
+  });
+
+  it('từ chối game chưa đăng ký', () => {
+    expect(GameResultBody.safeParse({ ...valid, gameId: 'unknown-game' }).success).toBe(false);
+  });
+
   it('từ chối correct > total', () => {
     expect(GameResultBody.safeParse({ ...valid, correct: 6 }).success).toBe(false);
   });
@@ -127,5 +136,175 @@ describe('AvatarKey / AVATARS', () => {
     for (const key of ['pip', 'girl', 'boy']) expect(AvatarKey.safeParse(key).success).toBe(true);
     expect(UpdateProfileBody.safeParse({ avatarKey: 'dog' }).success).toBe(true);
     expect(UpdateProfileBody.safeParse({ avatarKey: 'dragon' }).success).toBe(false);
+  });
+});
+
+// ---------- Phiếu bài tập (contracts 1.2.0) ----------
+import {
+  CreateQuestionBody,
+  PresignMediaBody,
+  SaveAnswersBody,
+  UpdateQuestionBody,
+  blankCount,
+  collectMediaIds,
+  gradingModeOf,
+} from './index.js';
+
+const MEDIA_A = '11111111-1111-4111-8111-111111111111';
+const MEDIA_B = '22222222-2222-4222-8222-222222222222';
+const ITEM = '33333333-3333-4333-8333-333333333333';
+
+describe('CreateQuestionBody', () => {
+  const missingSound = {
+    type: 'MISSING_SOUND',
+    instruction: 'Write the missing sound. Then write the word.',
+    config: { type: 'MISSING_SOUND', imageMediaId: MEDIA_A, pattern: 'm-a-_' },
+    answerKey: { type: 'MISSING_SOUND', letters: ['p'], word: 'map' },
+  };
+
+  it('nhận MISSING_SOUND hợp lệ, điền mặc định points / tags / visibility', () => {
+    const r = CreateQuestionBody.parse(missingSound);
+    expect(r.points).toBe(1);
+    expect(r.tags).toEqual([]);
+    expect(r.visibility).toBe('SHARED');
+    expect(blankCount('m-a-_')).toBe(1);
+  });
+
+  it('từ chối số chữ khác số ô trống', () => {
+    const r = CreateQuestionBody.safeParse({
+      ...missingSound,
+      answerKey: { type: 'MISSING_SOUND', letters: ['a', 'p'], word: 'map' },
+    });
+    expect(r.success).toBe(false);
+    if (!r.success) expect(r.error.issues[0].path).toEqual(['answerKey', 'letters']);
+  });
+
+  it('từ chối config.type khác type', () => {
+    const r = CreateQuestionBody.safeParse({
+      ...missingSound,
+      config: { type: 'SPEAK', prompt: 'Say: map' },
+    });
+    expect(r.success).toBe(false);
+  });
+
+  it('WORD_ORDER: accepted phải là hoán vị', () => {
+    const base = {
+      type: 'WORD_ORDER',
+      instruction: 'Put the words in order.',
+      config: { type: 'WORD_ORDER', words: ['hear', 'I', 'the hammer.'] },
+    };
+    expect(
+      CreateQuestionBody.safeParse({ ...base, answerKey: { type: 'WORD_ORDER', accepted: [[1, 0, 2]] } })
+        .success,
+    ).toBe(true);
+    expect(
+      CreateQuestionBody.safeParse({ ...base, answerKey: { type: 'WORD_ORDER', accepted: [[1, 1, 2]] } })
+        .success,
+    ).toBe(false);
+  });
+
+  it('NUMBER_PICTURES: mỗi số gán cho đúng một ảnh', () => {
+    const body = {
+      type: 'NUMBER_PICTURES',
+      instruction: 'Number the pictures.',
+      config: {
+        type: 'NUMBER_PICTURES',
+        words: [
+          { number: 1, word: 'moon' },
+          { number: 2, word: 'milk' },
+        ],
+        images: [
+          { id: 'a', mediaId: MEDIA_A },
+          { id: 'b', mediaId: MEDIA_B },
+        ],
+      },
+      answerKey: {
+        type: 'NUMBER_PICTURES',
+        numbers: [
+          { imageId: 'a', number: 1 },
+          { imageId: 'b', number: 1 },
+        ],
+      },
+    };
+    expect(CreateQuestionBody.safeParse(body).success).toBe(false);
+    const ok = {
+      ...body,
+      answerKey: {
+        type: 'NUMBER_PICTURES',
+        numbers: [
+          { imageId: 'a', number: 1 },
+          { imageId: 'b', number: 2 },
+        ],
+      },
+    };
+    const r = CreateQuestionBody.parse(ok);
+    expect(r.config.type === 'NUMBER_PICTURES' && r.config.writeWord).toBe(false);
+  });
+
+  it('SPEAK là dạng chấm tay', () => {
+    expect(gradingModeOf('SPEAK')).toBe('MANUAL');
+    expect(gradingModeOf('MULTIPLE_CHOICE')).toBe('AUTO');
+  });
+});
+
+describe('UpdateQuestionBody', () => {
+  it('config và answerKey phải đi cùng nhau', () => {
+    expect(UpdateQuestionBody.safeParse({ instruction: 'x' }).success).toBe(true);
+    expect(UpdateQuestionBody.safeParse({ config: { type: 'SPEAK', prompt: 'Say: map' } }).success).toBe(
+      false,
+    );
+    expect(UpdateQuestionBody.safeParse({}).success).toBe(false);
+  });
+});
+
+describe('PresignMediaBody', () => {
+  it('từ chối mime không hỗ trợ và file quá lớn', () => {
+    expect(
+      PresignMediaBody.safeParse({ kind: 'IMAGE', mimeType: 'image/gif', sizeBytes: 10, fileName: 'a.gif' })
+        .success,
+    ).toBe(false);
+    expect(
+      PresignMediaBody.safeParse({
+        kind: 'AUDIO',
+        mimeType: 'audio/webm;codecs=opus',
+        sizeBytes: 11 * 1024 * 1024,
+        fileName: 'a.webm',
+      }).success,
+    ).toBe(false);
+    expect(
+      PresignMediaBody.safeParse({
+        kind: 'AUDIO',
+        mimeType: 'audio/webm;codecs=opus',
+        sizeBytes: 1000,
+        fileName: 'a.webm',
+      }).success,
+    ).toBe(true);
+  });
+});
+
+describe('collectMediaIds', () => {
+  it('gom mọi khoá *MediaId / *MediaIds / mediaId, bỏ qua id khác', () => {
+    const ids = collectMediaIds({
+      imageMediaId: MEDIA_A,
+      options: [{ id: 'x', mediaId: MEDIA_B }],
+      imageMediaIds: [MEDIA_A],
+      worksheetItemId: ITEM,
+    });
+    expect(ids.sort()).toEqual([MEDIA_A, MEDIA_B].sort());
+  });
+});
+
+describe('SaveAnswersBody', () => {
+  it('nhận answer theo type, từ chối field lạ', () => {
+    const ok = { answers: [{ worksheetItemId: ITEM, answer: { type: 'MULTIPLE_CHOICE', optionId: 'a' } }] };
+    expect(SaveAnswersBody.safeParse(ok).success).toBe(true);
+    expect(SaveAnswersBody.safeParse({ ...ok, extra: 1 }).success).toBe(false);
+  });
+});
+
+describe('ROLE_DEFAULT_PERMISSIONS (worksheets)', () => {
+  it('giáo viên mặc định có đủ 4 quyền phiếu bài tập', () => {
+    for (const p of ['worksheets.manage', 'worksheets.assign', 'worksheets.grade', 'worksheets.viewStats'])
+      expect(ROLE_DEFAULT_PERMISSIONS.TEACHER).toContain(p);
   });
 });

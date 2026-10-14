@@ -18,6 +18,10 @@ export const PermissionCode = z.enum([
   'games.manage',
   'reports.export',
   'stats.view',
+  'worksheets.manage',
+  'worksheets.assign',
+  'worksheets.grade',
+  'worksheets.viewStats',
 ]);
 export type Permission = z.infer<typeof PermissionCode>;
 
@@ -37,6 +41,22 @@ export const PERMISSIONS: readonly PermissionDef[] = [
   { code: 'games.manage', defaultRoles: ['ADMIN'], description: 'Sửa catalog game (bật / tắt, giá, thứ tự)' },
   { code: 'reports.export', defaultRoles: ['ADMIN', 'TEACHER'], description: 'Xuất báo cáo xlsx / pdf' },
   { code: 'stats.view', defaultRoles: ['ADMIN', 'TEACHER'], description: 'Xem thống kê lớp / game' },
+  {
+    code: 'worksheets.manage',
+    defaultRoles: ['ADMIN', 'TEACHER'],
+    description: 'Tạo / sửa câu hỏi và phiếu bài tập',
+  },
+  {
+    code: 'worksheets.assign',
+    defaultRoles: ['ADMIN', 'TEACHER'],
+    description: 'Giao phiếu bài tập cho lớp mình',
+  },
+  { code: 'worksheets.grade', defaultRoles: ['ADMIN', 'TEACHER'], description: 'Chấm bài, nhận xét bài nộp' },
+  {
+    code: 'worksheets.viewStats',
+    defaultRoles: ['ADMIN', 'TEACHER'],
+    description: 'Xem thống kê phiếu bài tập',
+  },
 ];
 
 export const PERMISSION_CODES: readonly Permission[] = PermissionCode.options;

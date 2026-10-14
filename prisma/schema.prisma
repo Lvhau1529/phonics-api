@@ -52,6 +52,79 @@ enum NotificationType {
   CLASS_CHANGED
   GAME_UNLOCKED
   SYSTEM
+  ASSIGNMENT_NEW
+  SUBMISSION_GRADED
+  COMMENT_REPLY
+}
+
+// ---------- Phiếu bài tập (ADR 0017 / 0018 / 0019) ----------
+
+enum MediaKind {
+  IMAGE
+  AUDIO
+}
+
+enum MediaStatus {
+  PENDING
+  READY
+}
+
+/// 14 dạng câu hỏi — khớp contracts QuestionType
+enum QuestionType {
+  MISSING_SOUND
+  CROSSWORD
+  UNSCRAMBLE_WORD
+  PICK_LETTERS
+  WORD_SEARCH
+  ODD_ONE_OUT
+  PATTERN_NEXT
+  NUMBER_PICTURES
+  MULTIPLE_CHOICE
+  FILL_BLANK_WORD_BANK
+  WORD_ORDER
+  INLINE_CHOICE
+  TRACE_AND_READ
+  SPEAK
+}
+
+enum GradingMode {
+  AUTO
+  MANUAL
+}
+
+/// Vòng đời câu hỏi / phiếu
+enum ContentStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum Visibility {
+  PRIVATE
+  SHARED
+}
+
+enum Subject {
+  PHONICS
+  ESL
+}
+
+enum WorksheetKind {
+  EXTRA
+  HANDOUT
+  WORKSHEET
+}
+
+enum AssignmentStatus {
+  SCHEDULED
+  OPEN
+  CLOSED
+}
+
+enum SubmissionStatus {
+  IN_PROGRESS
+  SUBMITTED
+  GRADED
 }
 
 /// Tài khoản chung cho admin / giáo viên / học sinh
@@ -86,6 +159,13 @@ model User {
   unlocksGranted   StudentGameUnlock[] @relation("UnlockGrantedBy")
   auditLogs        AuditLog[]
   gameEvents       GameEvent[]
+  mediaAssets       MediaAsset[]       @relation("MediaOwner")
+  questionsCreated  Question[]         @relation("QuestionCreatedBy")
+  worksheetsCreated Worksheet[]        @relation("WorksheetCreatedBy")
+  assignmentsMade   Assignment[]       @relation("AssignmentAssignedBy")
+  submissionsGraded Submission[]       @relation("SubmissionGradedBy")
+  answersGraded     SubmissionAnswer[] @relation("AnswerGradedBy")
+  comments          Comment[]          @relation("CommentAuthor")
 
   @@index([role, status])
   @@map("users")
@@ -107,6 +187,7 @@ model StudentProfile {
   gameResults  GameResult[]
   pointEntries PointEntry[]
   gameUnlocks  StudentGameUnlock[]
+  submissions  Submission[]
 
   @@map("student_profiles")
 }
@@ -128,6 +209,7 @@ model Class {
   memberships  ClassMembership[]
   pointEntries PointEntry[]
   gameResults  GameResult[]
+  assignments  Assignment[]
 
   @@unique([name, schoolYear])
   @@index([joinVisible, archivedAt])
@@ -386,4 +468,241 @@ model AuditLog {
   @@index([actorId, createdAt])
   @@index([action, createdAt])
   @@map("audit_logs")
+}
+
+// ---------- Phiếu bài tập ----------
+
+/// File do giáo viên / học sinh tải lên, lưu trên ổ đĩa VPS (MEDIA_DIR, ADR 0024):
+/// presign (link PUT có chữ ký) → client PUT lên API → POST complete (kiểm size trên đĩa rồi đánh dấu READY).
+/// PENDING quá 24h bị cron xoá.
+model MediaAsset {
+  id         String      @id @default(uuid()) @db.Uuid
+  ownerId    String      @map("owner_id") @db.Uuid
+  kind       MediaKind
+  /// `media/{ownerId}/{uuid}.{ext}` — bất biến
+  key        String      @unique
+  /// URL public (bucket public_read); null khi PENDING
+  url        String?
+  mimeType   String      @map("mime_type")
+  sizeBytes  Int         @map("size_bytes")
+  width      Int?
+  height     Int?
+  durationMs Int?        @map("duration_ms")
+  status     MediaStatus @default(PENDING)
+  createdAt  DateTime    @default(now()) @map("created_at")
+  readyAt    DateTime?   @map("ready_at")
+  owner      User        @relation("MediaOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+
+  @@index([ownerId, createdAt])
+  @@index([status, createdAt])
+  @@map("media_assets")
+}
+
+/// Ngân hàng câu hỏi. `config` / `answerKey` là JSON theo discriminated union trong contracts (khoá `type`).
+/// Không xoá cứng (worksheet_items tham chiếu), chỉ ARCHIVED. GIN index trên tags thêm tay trong migration.
+model Question {
+  id            String        @id @default(uuid()) @db.Uuid
+  type          QuestionType
+  gradingMode   GradingMode   @map("grading_mode")
+  instruction   String
+  instructionVi String?       @map("instruction_vi")
+  points        Int           @default(1)
+  tags          String[]      @default([])
+  /// Ví dụ mẫu "E.g." (contracts QuestionExample)
+  example       Json?
+  config        Json
+  answerKey     Json          @map("answer_key")
+  status        ContentStatus @default(DRAFT)
+  visibility    Visibility    @default(SHARED)
+  createdById   String        @map("created_by_id") @db.Uuid
+  createdAt     DateTime      @default(now()) @map("created_at")
+  updatedAt     DateTime      @updatedAt @map("updated_at")
+  createdBy     User          @relation("QuestionCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  items         WorksheetItem[]
+
+  @@index([createdById, status])
+  @@index([type, status])
+  @@index([visibility, status])
+  @@map("questions")
+}
+
+/// Phiếu bài tập: metadata + Part (section) + câu (item)
+model Worksheet {
+  id          String        @id @default(uuid()) @db.Uuid
+  title       String
+  subject     Subject       @default(PHONICS)
+  /// "Letter Nn"
+  topic       String?
+  grade       String?
+  week        Int?
+  /// 1..5 (D1..D5)
+  day         Int?
+  kind        WorksheetKind @default(WORKSHEET)
+  status      ContentStatus @default(DRAFT)
+  visibility  Visibility    @default(SHARED)
+  note        String?
+  createdById String        @map("created_by_id") @db.Uuid
+  createdAt   DateTime      @default(now()) @map("created_at")
+  updatedAt   DateTime      @updatedAt @map("updated_at")
+  createdBy   User          @relation("WorksheetCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  sections    WorksheetSection[]
+  items       WorksheetItem[]
+  assignments Assignment[]
+
+  @@index([createdById, status])
+  @@index([status, visibility])
+  @@index([grade, week, day])
+  @@map("worksheets")
+}
+
+model WorksheetSection {
+  id          String    @id @default(uuid()) @db.Uuid
+  worksheetId String    @map("worksheet_id") @db.Uuid
+  order       Int
+  /// "Part 1"
+  title       String
+  instruction String?
+  worksheet   Worksheet @relation(fields: [worksheetId], references: [id], onDelete: Cascade)
+  items       WorksheetItem[]
+
+  @@index([worksheetId, order])
+  @@map("worksheet_sections")
+}
+
+/// Một câu trong phiếu. Id của item là khoá ổn định mà snapshot / submission_answers tham chiếu (không FK).
+model WorksheetItem {
+  id             String           @id @default(uuid()) @db.Uuid
+  worksheetId    String           @map("worksheet_id") @db.Uuid
+  sectionId      String           @map("section_id") @db.Uuid
+  questionId     String           @map("question_id") @db.Uuid
+  order          Int
+  pointsOverride Int?             @map("points_override")
+  worksheet      Worksheet        @relation(fields: [worksheetId], references: [id], onDelete: Cascade)
+  section        WorksheetSection @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  question       Question         @relation(fields: [questionId], references: [id], onDelete: Restrict)
+
+  @@index([sectionId, order])
+  @@index([questionId])
+  @@map("worksheet_items")
+}
+
+/// Giao phiếu cho lớp. `snapshot` = toàn bộ nội dung phiếu + câu hỏi (config, answerKey, points) đóng băng lúc giao
+/// → sửa phiếu / câu hỏi sau đó không đổi bài đã chấm.
+model Assignment {
+  id                     String           @id @default(uuid()) @db.Uuid
+  worksheetId            String           @map("worksheet_id") @db.Uuid
+  classId                String           @map("class_id") @db.Uuid
+  assignedById           String           @map("assigned_by_id") @db.Uuid
+  /// Ngày trên lịch (APP_TIMEZONE)
+  scheduledFor           DateTime         @map("scheduled_for") @db.Date
+  availableFrom          DateTime         @map("available_from")
+  dueAt                  DateTime?        @map("due_at")
+  allowLate              Boolean          @default(false) @map("allow_late")
+  maxAttempts            Int              @default(1) @map("max_attempts")
+  showAnswersAfterSubmit Boolean          @default(false) @map("show_answers_after_submit")
+  status                 AssignmentStatus @default(SCHEDULED)
+  /// contracts WorksheetSnapshot — có answerKey, KHÔNG trả thẳng cho học sinh
+  snapshot               Json
+  /// Tổng điểm tối đa, tính lúc snapshot
+  maxScore               Int              @map("max_score")
+  /// Có câu chấm tay → nộp xong ở SUBMITTED chờ GV
+  hasManualItems         Boolean          @map("has_manual_items")
+  openedAt               DateTime?        @map("opened_at")
+  closedAt               DateTime?        @map("closed_at")
+  createdAt              DateTime         @default(now()) @map("created_at")
+  updatedAt              DateTime         @updatedAt @map("updated_at")
+  worksheet              Worksheet        @relation(fields: [worksheetId], references: [id], onDelete: Restrict)
+  class                  Class            @relation(fields: [classId], references: [id], onDelete: Cascade)
+  assignedBy             User             @relation("AssignmentAssignedBy", fields: [assignedById], references: [id], onDelete: Restrict)
+  submissions            Submission[]
+
+  @@index([classId, scheduledFor])
+  @@index([status, availableFrom])
+  @@index([status, dueAt])
+  @@index([worksheetId])
+  @@map("assignments")
+}
+
+/// Một lần làm bài. Partial unique `submissions_one_in_progress (assignment_id, student_id) WHERE status = 'IN_PROGRESS'`
+/// thêm tay trong migration.
+model Submission {
+  id           String           @id @default(uuid()) @db.Uuid
+  assignmentId String           @map("assignment_id") @db.Uuid
+  studentId    String           @map("student_id") @db.Uuid
+  attemptNo    Int              @map("attempt_no")
+  status       SubmissionStatus @default(IN_PROGRESS)
+  startedAt    DateTime         @default(now()) @map("started_at")
+  submittedAt  DateTime?        @map("submitted_at")
+  gradedAt     DateTime?        @map("graded_at")
+  gradedById   String?          @map("graded_by_id") @db.Uuid
+  /// Tổng điểm phần tự chấm (sau submit)
+  autoScore    Float            @default(0) @map("auto_score")
+  /// Tổng điểm GV chấm / ghi đè (sau finalize)
+  manualScore  Float?           @map("manual_score")
+  /// Chỉ có khi GRADED
+  totalScore   Float?           @map("total_score")
+  maxScore     Int              @map("max_score")
+  durationMs   Int?             @map("duration_ms")
+  late         Boolean          @default(false)
+  createdAt    DateTime         @default(now()) @map("created_at")
+  updatedAt    DateTime         @updatedAt @map("updated_at")
+  assignment   Assignment       @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  student      StudentProfile   @relation(fields: [studentId], references: [userId], onDelete: Cascade)
+  gradedBy     User?            @relation("SubmissionGradedBy", fields: [gradedById], references: [id], onDelete: SetNull)
+  answers      SubmissionAnswer[]
+  comments     Comment[]
+
+  @@unique([assignmentId, studentId, attemptNo])
+  @@index([assignmentId, status, totalScore(sort: Desc), durationMs])
+  @@index([studentId, status, submittedAt])
+  @@map("submissions")
+}
+
+/// Câu trả lời của một item trong snapshot (không FK — item có thể bị xoá khỏi phiếu gốc sau này)
+model SubmissionAnswer {
+  id              String       @id @default(uuid()) @db.Uuid
+  submissionId    String       @map("submission_id") @db.Uuid
+  worksheetItemId String       @map("worksheet_item_id") @db.Uuid
+  /// Denormalize từ snapshot để thống kê theo dạng câu bằng SQL
+  questionType    QuestionType @map("question_type")
+  maxPoints       Int          @map("max_points")
+  answer          Json
+  isCorrect       Boolean?     @map("is_correct")
+  autoScore       Float?       @map("auto_score")
+  /// Điểm GV chấm (MANUAL) hoặc ghi đè (AUTO); ưu tiên hơn autoScore khi tính tổng
+  manualScore     Float?       @map("manual_score")
+  gradedById      String?      @map("graded_by_id") @db.Uuid
+  gradedAt        DateTime?    @map("graded_at")
+  teacherNote     String?      @map("teacher_note")
+  /// Chi tiết chấm tự động (phần nào đúng)
+  gradeDetail     Json?        @map("grade_detail")
+  createdAt       DateTime     @default(now()) @map("created_at")
+  updatedAt       DateTime     @updatedAt @map("updated_at")
+  submission      Submission   @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  gradedBy        User?        @relation("AnswerGradedBy", fields: [gradedById], references: [id], onDelete: SetNull)
+
+  @@unique([submissionId, worksheetItemId])
+  @@index([questionType, isCorrect])
+  @@map("submission_answers")
+}
+
+/// Nhận xét theo bài nộp / theo câu; học sinh trả lời được; một cấp (parent_id chỉ trỏ tới comment gốc)
+model Comment {
+  id              String     @id @default(uuid()) @db.Uuid
+  submissionId    String     @map("submission_id") @db.Uuid
+  worksheetItemId String?    @map("worksheet_item_id") @db.Uuid
+  authorId        String     @map("author_id") @db.Uuid
+  parentId        String?    @map("parent_id") @db.Uuid
+  body            String
+  createdAt       DateTime   @default(now()) @map("created_at")
+  editedAt        DateTime?  @map("edited_at")
+  deletedAt       DateTime?  @map("deleted_at")
+  submission      Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  author          User       @relation("CommentAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  parent          Comment?   @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies         Comment[]  @relation("CommentReplies")
+
+  @@index([submissionId, createdAt])
+  @@index([parentId])
+  @@map("submission_comments")
 }

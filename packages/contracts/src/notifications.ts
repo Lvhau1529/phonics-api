@@ -9,6 +9,12 @@ export const NotificationType = z.enum([
   'CLASS_CHANGED',
   'GAME_UNLOCKED',
   'SYSTEM',
+  /** Bài giao mới mở cho lớp (data: assignmentId) */
+  'ASSIGNMENT_NEW',
+  /** GV chốt điểm (data: assignmentId, submissionId) */
+  'SUBMISSION_GRADED',
+  /** Có nhận xét / trả lời mới (data: assignmentId, submissionId, commentId) */
+  'COMMENT_REPLY',
 ]);
 export type NotificationType = z.infer<typeof NotificationType>;
 

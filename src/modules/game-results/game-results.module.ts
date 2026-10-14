@@ -1,13 +1,16 @@
 import { Module } from '@nestjs/common';
-import { EventsModule } from '../events/events.module';
-import { GamesModule } from '../games/games.module';
-import { PointsModule } from '../points/points.module';
-import { GameResultsService } from './game-results.service';
-import { GameResultsController, MeGameResultsController } from './v1/game-results.controller';
+import { EventsModule } from '@/modules/events/events.module';
+import { GamesModule } from '@/modules/games/games.module';
+import { PointsModule } from '@/modules/points/points.module';
+import { GameResultsMeController } from '@/modules/game-results/controllers/game-results-me.controller';
+import { GameResultsController } from '@/modules/game-results/controllers/game-results.controller';
+import { GameResultRepository } from '@/modules/game-results/repositories/game-result.repository';
+import { GameResultReaderService } from '@/modules/game-results/services/game-result-reader.service';
+import { GameResultWriterService } from '@/modules/game-results/services/game-result-writer.service';
 
 @Module({
   imports: [PointsModule, GamesModule, EventsModule],
-  controllers: [GameResultsController, MeGameResultsController],
-  providers: [GameResultsService],
+  controllers: [GameResultsController, GameResultsMeController],
+  providers: [GameResultRepository, GameResultWriterService, GameResultReaderService],
 })
 export class GameResultsModule {}
