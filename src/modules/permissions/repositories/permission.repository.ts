@@ -1,12 +1,12 @@
 import { Injectable } from '@nestjs/common';
 import { type Role } from '@phonics/contracts';
-import { PrismaService } from '../../../database/prisma.service';
-import { type Prisma } from '../../../generated/prisma/client';
+import { PrismaService } from '@/database/prisma.service';
+import { type Prisma } from '@/generated/prisma/client';
 import {
   permissionGroupInclude,
   type PermissionGroupRow,
   type PermissionOverride,
-} from '../types/permission.types';
+} from '@/modules/permissions/types/permission.types';
 
 /** Truy cập user_permissions, permission_groups, user_permission_groups */
 @Injectable()

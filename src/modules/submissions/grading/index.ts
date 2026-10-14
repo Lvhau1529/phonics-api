@@ -6,6 +6,7 @@ import {
   type SnapshotQuestion,
   gradingModeOf,
 } from '@phonics/contracts';
+import { clamp } from 'es-toolkit';
 import {
   gradeCrossword,
   gradeFillBlank,
@@ -19,11 +20,11 @@ import {
   gradeUnscrambleWord,
   gradeWordOrder,
   gradeWordSearch,
-} from './graders';
-import { type GradeResult, ZERO, round2 } from './types';
+} from '@/modules/submissions/grading/graders';
+import { type GradeResult, ZERO, round2 } from '@/modules/submissions/grading/types';
 
-export { type GradeResult, round2 } from './types';
-export * from './normalize';
+export { type GradeResult, round2 } from '@/modules/submissions/grading/types';
+export * from '@/modules/submissions/grading/normalize';
 
 type AnyGrader = (config: QuestionConfig, key: QuestionAnswerKey, answer: QuestionAnswer) => GradeResult;
 
@@ -61,7 +62,7 @@ export function gradeItem(
   if (!parsed.success || parsed.data.type !== question.type) return ZERO;
   if (question.config.type !== question.type || question.answerKey.type !== question.type) return ZERO;
   const result = grader(question.config, question.answerKey, parsed.data);
-  return { ...result, fraction: Math.min(1, Math.max(0, result.fraction)) };
+  return { ...result, fraction: clamp(result.fraction, 0, 1) };
 }
 
 /** Điểm số của câu = fraction × điểm tối đa, làm tròn 2 chữ số */

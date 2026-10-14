@@ -1,5 +1,5 @@
-import { type Prisma } from '../../../generated/prisma/client';
-import { submissionSummaryInclude } from '../dto/responses/submission.view';
+import { type Prisma } from '@/generated/prisma/client';
+import { submissionSummaryInclude } from '@/modules/submissions/dto/responses/submission.view';
 
 /** Bài nộp đầy đủ: người làm / người chấm + mọi câu trả lời + bài giao (snapshot) */
 export const submissionDetailInclude = {

@@ -1,9 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { TimeService } from '../../../core/time/time.service';
-import { type Tx } from '../../../database/types';
-import { NotificationsService } from '../../notifications/services/notifications.service';
-import { AssignmentRepository } from '../repositories/assignment.repository';
-import { type AssignmentRow } from '../types/assignment.types';
+import { TimeService } from '@/core/time/time.service';
+import { type Tx } from '@/database/types';
+import { NotificationsService } from '@/modules/notifications/services/notifications.service';
+import { AssignmentRepository } from '@/modules/assignments/repositories/assignment.repository';
+import { type AssignmentRow } from '@/modules/assignments/types/assignment.types';
 
 /** Vòng đời theo thời gian của bài giao: mở bài tới giờ (+ thông báo), đóng bài quá hạn */
 @Injectable()

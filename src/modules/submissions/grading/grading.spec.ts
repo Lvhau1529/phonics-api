@@ -1,6 +1,6 @@
 import { type SnapshotQuestion } from '@phonics/contracts';
 import { describe, expect, it } from 'vitest';
-import { gradeItem, normalizeSentence, normalizeWord, scoreOf } from './index';
+import { gradeItem, normalizeSentence, normalizeWord, scoreOf } from '@/modules/submissions/grading/index';
 
 const M = '11111111-1111-4111-8111-111111111111';
 

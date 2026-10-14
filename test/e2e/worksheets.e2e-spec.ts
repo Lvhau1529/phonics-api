@@ -39,7 +39,7 @@ describe.skipIf(!enabled)('worksheets (e2e)', () => {
     applyMigrations();
     t = await createTestApp();
     await truncateAll(t.prisma);
-    const { PasswordService } = await import('../../src/modules/auth/services/password.service');
+    const { PasswordService } = await import('@/modules/auth/services/password.service');
     const passwordHash = await new PasswordService().hash(PASSWORD);
 
     const teacher = await t.prisma.user.create({

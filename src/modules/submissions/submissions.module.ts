@@ -1,13 +1,13 @@
 import { Module } from '@nestjs/common';
-import { AssignmentsModule } from '../assignments/assignments.module';
-import { AuditModule } from '../audit/audit.module';
-import { MediaModule } from '../media/media.module';
-import { SubmissionsMeController } from './controllers/submissions-me.controller';
-import { SubmissionsController } from './controllers/submissions.controller';
-import { SubmissionRepository } from './repositories/submission.repository';
-import { SubmissionGradingService } from './services/submission-grading.service';
-import { SubmissionReaderService } from './services/submission-reader.service';
-import { SubmissionStudentService } from './services/submission-student.service';
+import { AssignmentsModule } from '@/modules/assignments/assignments.module';
+import { AuditModule } from '@/modules/audit/audit.module';
+import { MediaModule } from '@/modules/media/media.module';
+import { SubmissionsMeController } from '@/modules/submissions/controllers/submissions-me.controller';
+import { SubmissionsController } from '@/modules/submissions/controllers/submissions.controller';
+import { SubmissionRepository } from '@/modules/submissions/repositories/submission.repository';
+import { SubmissionGradingService } from '@/modules/submissions/services/submission-grading.service';
+import { SubmissionReaderService } from '@/modules/submissions/services/submission-reader.service';
+import { SubmissionStudentService } from '@/modules/submissions/services/submission-student.service';
 
 /** Bài nộp: học sinh làm / nộp, giáo viên chấm — ADR 0019 */
 @Module({

@@ -1,15 +1,15 @@
 import { Injectable } from '@nestjs/common';
 import { MANUAL_TYPES, type SubmissionDetail, collectMediaIds } from '@phonics/contracts';
-import { notFound } from '../../../common/errors/app-error';
-import { AccessService } from '../../../core/access/access.service';
-import { type Tx } from '../../../database/types';
-import { type AuthUser } from '../../auth/types/auth.types';
-import { MediaService } from '../../media/services/media.service';
-import { itemsOf, stripAnswerKeys } from '../../worksheets/utils/worksheet-snapshot';
-import { toAnswerView, toSubmissionSummary } from '../dto/responses/submission.view';
-import { SubmissionRepository } from '../repositories/submission.repository';
-import { type SubmissionRow } from '../types/submission.types';
-import { snapshotOf } from '../utils/submission-rules';
+import { notFound } from '@/common/errors/app-error';
+import { AccessService } from '@/core/access/access.service';
+import { type Tx } from '@/database/types';
+import { type AuthUser } from '@/modules/auth/types/auth.types';
+import { MediaService } from '@/modules/media/services/media.service';
+import { itemsOf, stripAnswerKeys } from '@/modules/worksheets/utils/worksheet-snapshot';
+import { toAnswerView, toSubmissionSummary } from '@/modules/submissions/dto/responses/submission.view';
+import { SubmissionRepository } from '@/modules/submissions/repositories/submission.repository';
+import { type SubmissionRow } from '@/modules/submissions/types/submission.types';
+import { snapshotOf } from '@/modules/submissions/utils/submission-rules';
 
 const MANUAL = new Set<string>(MANUAL_TYPES);
 

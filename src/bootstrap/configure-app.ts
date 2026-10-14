@@ -1,17 +1,20 @@
+import { resolve } from 'node:path';
 import { VersioningType } from '@nestjs/common';
 import { type NestExpressApplication } from '@nestjs/platform-express';
 import { API_ROOT } from '@phonics/contracts';
 import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
-import { AllExceptionsFilter } from '../common/filters/all-exceptions.filter';
-import { requestIdMiddleware } from '../common/middleware/request-id.middleware';
-import { type Env } from '../config/env.schema';
+import { AllExceptionsFilter } from '@/common/filters/all-exceptions.filter';
+import { requestIdMiddleware } from '@/common/middleware/request-id.middleware';
+import { WORKSHEETS } from '@/config/constants';
+import { type Env } from '@/config/env.schema';
 
 /**
  * Cấu hình HTTP dùng chung cho `main.ts` và e2e (`test/helpers/create-test-app.ts`) — test chạy đúng
  * prefix / version / middleware như production.
  *
  * Thứ tự xử lý một request:
+ *   (file media `/files/*` → trả thẳng từ MEDIA_DIR, không qua phần dưới)
  *   middleware (request-id → helmet → cookie-parser → CORS → pino-http)
  *   → guard (Throttler → Jwt → Roles → Permissions, AppModule)
  *   → pipe (ZodValidationPipe) → controller → service
@@ -25,6 +28,22 @@ export function configureApp(app: NestExpressApplication, env: Env): void {
   app.enableVersioning({ type: VersioningType.URI });
   // Sau nginx / Caddy: lấy IP thật của client cho throttle + audit
   app.set('trust proxy', 1);
+
+  // File media đã upload (ADR 0024): public, tên bất biến (uuid) → cache 1 năm; mọi origin đọc được (<img>, <audio>,
+  // canvas). Đặt trước helmet để không bị gắn Cross-Origin-Resource-Policy: same-origin.
+  app.useStaticAssets(resolve(env.MEDIA_DIR), {
+    prefix: WORKSHEETS.mediaFilesPath,
+    index: false,
+    dotfiles: 'ignore',
+    immutable: true,
+    maxAge: '365d',
+    setHeaders: (res, path) => {
+      res.setHeader('Access-Control-Allow-Origin', '*');
+      res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+      // .webm chỉ sinh từ audio/webm (MEDIA_EXT) — mặc định express đoán video/webm
+      if (path.endsWith('.webm')) res.setHeader('Content-Type', 'audio/webm');
+    },
+  });
 
   app.use(requestIdMiddleware);
   app.use(helmet({ contentSecurityPolicy: false })); // Swagger UI cần inline script

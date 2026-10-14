@@ -1,12 +1,15 @@
 import { Body, Controller, Get, Param, ParseUUIDPipe, Put } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
-import { CurrentUser } from '../../../common/decorators/current-user.decorator';
-import { Roles } from '../../../common/decorators/roles.decorator';
-import { API_V1 } from '../../../config/api-version';
-import { type AuthUser } from '../../auth/types/auth.types';
-import { SetUserPermissionGroupsDto, UpdateUserPermissionsDto } from '../dto/requests/permissions.dto';
-import { PermissionsService } from '../services/permissions.service';
-import { UserPermissionsWriterService } from '../services/user-permissions-writer.service';
+import { CurrentUser } from '@/common/decorators/current-user.decorator';
+import { Roles } from '@/common/decorators/roles.decorator';
+import { API_V1 } from '@/config/api-version';
+import { type AuthUser } from '@/modules/auth/types/auth.types';
+import {
+  SetUserPermissionGroupsDto,
+  UpdateUserPermissionsDto,
+} from '@/modules/permissions/dto/requests/permissions.dto';
+import { PermissionsService } from '@/modules/permissions/services/permissions.service';
+import { UserPermissionsWriterService } from '@/modules/permissions/services/user-permissions-writer.service';
 
 /** Catalog chức năng + quyền của từng user (chỉ admin) */
 @ApiTags('admin')

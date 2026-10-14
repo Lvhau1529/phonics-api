@@ -1,10 +1,10 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { type AuditAction, type AuditListQuery, type AuditLogView, type Paginated } from '@phonics/contracts';
-import { paginate } from '../../../common/utils/paginate';
-import { PrismaService } from '../../../database/prisma.service';
-import { TimeService } from '../../../core/time/time.service';
-import { type Prisma } from '../../../generated/prisma/client';
-import { type AuthUser } from '../../auth/types/auth.types';
+import { paginate } from '@/common/utils/paginate';
+import { PrismaService } from '@/database/prisma.service';
+import { TimeService } from '@/core/time/time.service';
+import { type Prisma } from '@/generated/prisma/client';
+import { type AuthUser } from '@/modules/auth/types/auth.types';
 
 /**
  * Nhật ký hành động admin / giáo viên. Service nghiệp vụ gọi `record` tường minh ở các thao tác nhạy cảm
@@ -56,7 +56,7 @@ export class AuditService {
         query.from || query.to
           ? {
               gte: query.from ? this.time.fromIsoDate(query.from) : undefined,
-              lt: query.to ? new Date(this.time.fromIsoDate(query.to).getTime() + 86_400_000) : undefined,
+              lt: query.to ? this.time.afterIsoDate(query.to) : undefined,
             }
           : undefined,
     };

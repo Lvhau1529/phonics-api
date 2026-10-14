@@ -1,5 +1,5 @@
 import { GAME_IDS, type GameId } from '@phonics/contracts';
-import { type PrismaClient } from '../../generated/prisma/client';
+import { type PrismaClient } from '@/generated/prisma/client';
 
 const GAME_TITLES: Record<GameId, string> = {
   'bread-catcher': 'Bread Catcher',

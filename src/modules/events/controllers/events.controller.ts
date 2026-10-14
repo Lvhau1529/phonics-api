@@ -1,13 +1,13 @@
 import { Body, Controller, HttpCode, Post } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
-import { MaybeUser } from '../../../common/decorators/current-user.decorator';
-import { OptionalAuth, Public } from '../../../common/decorators/public.decorator';
-import { API_V1 } from '../../../config/api-version';
-import { THROTTLE } from '../../../config/constants';
-import { type AuthUser } from '../../auth/types/auth.types';
-import { EventsService } from '../services/events.service';
-import { EventBatchDto } from '../dto/requests/events.dto';
+import { MaybeUser } from '@/common/decorators/current-user.decorator';
+import { OptionalAuth, Public } from '@/common/decorators/public.decorator';
+import { API_V1 } from '@/config/api-version';
+import { THROTTLE } from '@/config/constants';
+import { type AuthUser } from '@/modules/auth/types/auth.types';
+import { EventsService } from '@/modules/events/services/events.service';
+import { EventBatchDto } from '@/modules/events/dto/requests/events.dto';
 
 /** Client gom sự kiện VIEW / PLAY rồi gửi theo lô; có bearer hợp lệ thì gắn userId */
 @ApiTags('public')

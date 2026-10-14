@@ -54,9 +54,9 @@ jobs:
           git reset --hard origin/main
           docker compose up -d --build --remove-orphans
           docker image prune -f
-          # Chờ API khởi động (migrate + start) tối đa ~150 giây
+          # Chờ API khởi động (migrate + start) tối đa ~150 giây; /api/health/db kiểm tra luôn kết nối DB (một lần sau deploy)
           for i in $(seq 1 30); do
-            if curl -fsS http://127.0.0.1:3000/api/health > /dev/null; then echo "API healthy"; exit 0; fi
+            if curl -fsS http://127.0.0.1:3000/api/health/db > /dev/null; then echo "API healthy"; exit 0; fi
             sleep 5
           done
           echo "API không healthy sau deploy" >&2

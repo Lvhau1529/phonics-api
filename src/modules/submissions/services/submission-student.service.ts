@@ -6,20 +6,20 @@ import {
   type SubmitResponse,
   collectMediaIds,
 } from '@phonics/contracts';
-import { AppError, notFound } from '../../../common/errors/app-error';
-import { WORKSHEETS } from '../../../config/constants';
-import { Prisma } from '../../../generated/prisma/client';
-import { AssignmentRankingService } from '../../assignments/services/assignment-ranking.service';
-import { AssignmentStudentService } from '../../assignments/services/assignment-student.service';
-import { isOpenFor } from '../../assignments/utils/assignment-dates';
-import { type AuthUser } from '../../auth/types/auth.types';
-import { MediaService } from '../../media/services/media.service';
-import { itemsOf } from '../../worksheets/utils/worksheet-snapshot';
-import { toSubmissionSummary } from '../dto/responses/submission.view';
-import { gradeItem, round2, scoreOf } from '../grading/index';
-import { SubmissionRepository } from '../repositories/submission.repository';
-import { assertAnswersMatch, itemMapOf, snapshotOf } from '../utils/submission-rules';
-import { SubmissionReaderService } from './submission-reader.service';
+import { AppError, notFound } from '@/common/errors/app-error';
+import { WORKSHEETS } from '@/config/constants';
+import { Prisma } from '@/generated/prisma/client';
+import { AssignmentRankingService } from '@/modules/assignments/services/assignment-ranking.service';
+import { AssignmentStudentService } from '@/modules/assignments/services/assignment-student.service';
+import { isOpenFor } from '@/modules/assignments/utils/assignment-dates';
+import { type AuthUser } from '@/modules/auth/types/auth.types';
+import { MediaService } from '@/modules/media/services/media.service';
+import { itemsOf } from '@/modules/worksheets/utils/worksheet-snapshot';
+import { toSubmissionSummary } from '@/modules/submissions/dto/responses/submission.view';
+import { gradeItem, round2, scoreOf } from '@/modules/submissions/grading/index';
+import { SubmissionRepository } from '@/modules/submissions/repositories/submission.repository';
+import { assertAnswersMatch, itemMapOf, snapshotOf } from '@/modules/submissions/utils/submission-rules';
+import { SubmissionReaderService } from '@/modules/submissions/services/submission-reader.service';
 
 /**
  * Học sinh làm bài (ADR 0019): start → autosave answers → submit (chấm AUTO). Điểm phiếu tách khỏi sổ điểm game;

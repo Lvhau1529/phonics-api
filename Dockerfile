@@ -35,7 +35,10 @@ RUN DIRECT_URL=postgresql://build:build@localhost:5432/build \
 # ---------- runtime ----------
 FROM ${NODE_IMAGE} AS runtime
 ENV NODE_ENV=production \
-    PORT=3000
+    PORT=3000 \
+    MEDIA_DIR=/data/media
+# Thư mục ảnh / audio (ADR 0024): volume `media` trong docker-compose gắn vào đây, user node ghi được
+RUN mkdir -p /data/media && chown node:node /data/media
 WORKDIR /app
 # node_modules production (symlink tương đối tới packages/contracts) + dist + prisma
 COPY --from=build --chown=node:node /repo/package.json /repo/prisma.config.ts /repo/docker-entrypoint.sh ./
@@ -46,6 +49,7 @@ COPY --from=build --chown=node:node /repo/dist ./dist
 COPY --from=build --chown=node:node /repo/prisma ./prisma
 USER node
 EXPOSE 3000
+# /api/health chỉ kiểm process (liveness, không chạm DB); kiểm tra cả DB dùng /api/health/db
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
   CMD wget -qO- "http://127.0.0.1:${PORT}/api/health" > /dev/null || exit 1
 ENTRYPOINT ["./docker-entrypoint.sh"]

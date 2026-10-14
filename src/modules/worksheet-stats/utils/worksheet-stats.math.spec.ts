@@ -6,7 +6,7 @@ import {
   isPastDue,
   percentOf,
   toWeekBucket,
-} from './worksheet-stats.math';
+} from '@/modules/worksheet-stats/utils/worksheet-stats.math';
 
 const sub = (totalScore: number | null, status: 'GRADED' | 'SUBMITTED' = 'GRADED') => ({
   id: String(totalScore),

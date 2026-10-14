@@ -4,12 +4,12 @@ import {
   type PermissionGroup,
   type UpdatePermissionGroupBody,
 } from '@phonics/contracts';
-import { AppError, notFound } from '../../../common/errors/app-error';
-import { AuditService } from '../../audit/services/audit.service';
-import { type AuthUser } from '../../auth/types/auth.types';
-import { toGroupView } from '../dto/responses/permission-group.view';
-import { PermissionRepository } from '../repositories/permission.repository';
-import { type PermissionGroupRow } from '../types/permission.types';
+import { AppError, notFound } from '@/common/errors/app-error';
+import { AuditService } from '@/modules/audit/services/audit.service';
+import { type AuthUser } from '@/modules/auth/types/auth.types';
+import { toGroupView } from '@/modules/permissions/dto/responses/permission-group.view';
+import { PermissionRepository } from '@/modules/permissions/repositories/permission.repository';
+import { type PermissionGroupRow } from '@/modules/permissions/types/permission.types';
 
 /** CRUD nhóm quyền (`permission_groups`); nhóm hệ thống không xoá được */
 @Injectable()

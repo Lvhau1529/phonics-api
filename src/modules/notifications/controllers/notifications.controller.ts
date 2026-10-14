@@ -1,10 +1,13 @@
 import { Body, Controller, Get, Patch, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
-import { CurrentUser } from '../../../common/decorators/current-user.decorator';
-import { API_V1 } from '../../../config/api-version';
-import { type AuthUser } from '../../auth/types/auth.types';
-import { MarkReadDto, NotificationListQueryDto } from '../dto/requests/notifications.dto';
-import { NotificationsService } from '../services/notifications.service';
+import { CurrentUser } from '@/common/decorators/current-user.decorator';
+import { API_V1 } from '@/config/api-version';
+import { type AuthUser } from '@/modules/auth/types/auth.types';
+import {
+  MarkReadDto,
+  NotificationListQueryDto,
+} from '@/modules/notifications/dto/requests/notifications.dto';
+import { NotificationsService } from '@/modules/notifications/services/notifications.service';
 
 @ApiTags('me')
 @ApiBearerAuth()

@@ -1,10 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { type AssignmentItemStats, type AssignmentStats, type WorksheetSnapshot } from '@phonics/contracts';
-import { AssignmentRankingService } from '../../assignments/services/assignment-ranking.service';
-import { AssignmentReaderService } from '../../assignments/services/assignment-reader.service';
-import { type AuthUser } from '../../auth/types/auth.types';
-import { WorksheetStatsRepository } from '../repositories/worksheet-stats.repository';
-import { distributePercents } from '../utils/worksheet-stats.math';
+import { AssignmentRankingService } from '@/modules/assignments/services/assignment-ranking.service';
+import { AssignmentReaderService } from '@/modules/assignments/services/assignment-reader.service';
+import { type AuthUser } from '@/modules/auth/types/auth.types';
+import { WorksheetStatsRepository } from '@/modules/worksheet-stats/repositories/worksheet-stats.repository';
+import { distributePercents } from '@/modules/worksheet-stats/utils/worksheet-stats.math';
 
 /** Thống kê một bài giao: phân bố điểm, nộp muộn, độ đúng từng câu */
 @Injectable()

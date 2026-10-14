@@ -1,19 +1,19 @@
 import { Controller, Get, Param, ParseUUIDPipe, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
-import { CurrentUser } from '../../../common/decorators/current-user.decorator';
-import { RequirePermission, Roles } from '../../../common/decorators/roles.decorator';
-import { RangeQueryDto } from '../../../common/dto/query.dto';
-import { API_V1 } from '../../../config/api-version';
-import { type AuthUser } from '../../auth/types/auth.types';
-import { ClassStatsService } from '../services/class-stats.service';
-import { GameStatsService } from '../services/game-stats.service';
-import { OverviewStatsService } from '../services/overview-stats.service';
+import { CurrentUser } from '@/common/decorators/current-user.decorator';
+import { RequirePermission, Roles } from '@/common/decorators/roles.decorator';
+import { RangeQueryDto } from '@/common/dto/query.dto';
+import { API_V1 } from '@/config/api-version';
+import { type AuthUser } from '@/modules/auth/types/auth.types';
+import { ClassStatsService } from '@/modules/stats/services/class-stats.service';
+import { GameStatsService } from '@/modules/stats/services/game-stats.service';
+import { OverviewStatsService } from '@/modules/stats/services/overview-stats.service';
 import {
   DistributionQueryDto,
   GameTimelineQueryDto,
   TimelineQueryDto,
   TopStudentsQueryDto,
-} from '../dto/requests/stats.dto';
+} from '@/modules/stats/dto/requests/stats.dto';
 
 /** Thống kê (admin + giáo viên có quyền stats.view; phạm vi lớp kiểm tra trong service) */
 @ApiTags('stats')

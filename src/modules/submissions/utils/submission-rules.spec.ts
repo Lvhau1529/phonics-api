@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { totalOf } from './submission-rules';
+import { totalOf } from '@/modules/submissions/utils/submission-rules';
 
 describe('submission-rules', () => {
   it('totalOf: điểm GV ưu tiên hơn điểm tự chấm', () => {

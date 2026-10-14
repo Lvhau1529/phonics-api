@@ -472,8 +472,9 @@ model AuditLog {
 
 // ---------- Phiếu bài tập ----------
 
-/// File do giáo viên / học sinh tải lên Neon Object Storage (bucket `resources`). API không chạm byte:
-/// presign PUT → client PUT → POST complete (server HEAD đối tượng rồi đánh dấu READY). PENDING quá 24h bị cron xoá.
+/// File do giáo viên / học sinh tải lên, lưu trên ổ đĩa VPS (MEDIA_DIR, ADR 0024):
+/// presign (link PUT có chữ ký) → client PUT lên API → POST complete (kiểm size trên đĩa rồi đánh dấu READY).
+/// PENDING quá 24h bị cron xoá.
 model MediaAsset {
   id         String      @id @default(uuid()) @db.Uuid
   ownerId    String      @map("owner_id") @db.Uuid

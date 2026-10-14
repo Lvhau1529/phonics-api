@@ -5,16 +5,16 @@ import {
   type AwardBonusResponse,
   type PointEntryView,
 } from '@phonics/contracts';
-import { AppError } from '../../../common/errors/app-error';
-import { AccessService } from '../../../core/access/access.service';
-import { type Tx } from '../../../database/types';
-import { AuditService } from '../../audit/services/audit.service';
-import { type AuthUser } from '../../auth/types/auth.types';
-import { NotificationsService } from '../../notifications/services/notifications.service';
-import { bonusTitle, toEntryView } from '../dto/responses/point-entry.view';
-import { PointRepository } from '../repositories/point.repository';
-import { type PointEntryRow } from '../types/point.types';
-import { RankingService } from './ranking.service';
+import { AppError } from '@/common/errors/app-error';
+import { AccessService } from '@/core/access/access.service';
+import { type Tx } from '@/database/types';
+import { AuditService } from '@/modules/audit/services/audit.service';
+import { type AuthUser } from '@/modules/auth/types/auth.types';
+import { NotificationsService } from '@/modules/notifications/services/notifications.service';
+import { bonusTitle, toEntryView } from '@/modules/points/dto/responses/point-entry.view';
+import { PointRepository } from '@/modules/points/repositories/point.repository';
+import { type PointEntryRow } from '@/modules/points/types/point.types';
+import { RankingService } from '@/modules/points/services/ranking.service';
 
 /** Trừ điểm cần quyền riêng (points.revoke) — kiểm tra ở service vì guard không biết dấu của points */
 const revokeForbidden = () =>

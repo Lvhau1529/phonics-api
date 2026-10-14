@@ -1,9 +1,10 @@
 /** Luật thuần của phiếu bài tập: phạm vi nhìn thấy, kiểm tra cấu trúc gửi lên, điều kiện phát hành */
 import { type WorksheetStructureBody } from '@phonics/contracts';
-import { AppError } from '../../../common/errors/app-error';
-import { type Prisma } from '../../../generated/prisma/client';
-import { type AuthUser } from '../../auth/types/auth.types';
-import { type WorksheetDetailRow } from '../types/worksheet.types';
+import { sumBy } from 'es-toolkit';
+import { AppError } from '@/common/errors/app-error';
+import { type Prisma } from '@/generated/prisma/client';
+import { type AuthUser } from '@/modules/auth/types/auth.types';
+import { type WorksheetDetailRow } from '@/modules/worksheets/types/worksheet.types';
 
 /** GV thấy phiếu của mình ∪ phiếu SHARED đã PUBLISHED; ADMIN thấy tất cả */
 export function worksheetVisibleWhere(user: AuthUser): Prisma.WorksheetWhereInput {
@@ -40,5 +41,4 @@ export function assertPublishable(current: WorksheetDetailRow): void {
     throw new AppError('QUESTION_NOT_PUBLISHED', 409, { details: { questionIds: unpublished } });
 }
 
-export const countItems = (row: WorksheetDetailRow): number =>
-  row.sections.reduce((n, s) => n + s.items.length, 0);
+export const countItems = (row: WorksheetDetailRow): number => sumBy(row.sections, (s) => s.items.length);

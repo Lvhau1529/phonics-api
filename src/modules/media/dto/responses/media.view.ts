@@ -1,5 +1,5 @@
 import { type MediaView } from '@phonics/contracts';
-import { type MediaRow } from '../../types/media.types';
+import { type MediaRow } from '@/modules/media/types/media.types';
 
 export function toMediaView(row: MediaRow): MediaView {
   return {

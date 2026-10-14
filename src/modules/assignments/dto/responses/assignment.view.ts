@@ -10,9 +10,10 @@ import {
   type SubmissionStatus,
   type WorksheetSnapshot,
 } from '@phonics/contracts';
-import { itemsOf } from '../../../worksheets/utils/worksheet-snapshot';
-import { type AssignmentRow } from '../../types/assignment.types';
-import { isOpenFor, isoDateOf } from '../../utils/assignment-dates';
+import { maxBy } from 'es-toolkit';
+import { itemsOf } from '@/modules/worksheets/utils/worksheet-snapshot';
+import { type AssignmentRow } from '@/modules/assignments/types/assignment.types';
+import { isOpenFor, isoDateOf } from '@/modules/assignments/utils/assignment-dates';
 
 export const EMPTY_COUNTS: AssignmentCounts = {
   students: 0,
@@ -94,7 +95,7 @@ export function toRosterRow(
 ): AssignmentRosterRow {
   const latest = submissions.at(-1);
   const graded = submissions.filter((s) => s.status === 'GRADED' && s.totalScore !== null);
-  const best = [...graded].sort((a, b) => (b.totalScore ?? 0) - (a.totalScore ?? 0))[0];
+  const best = maxBy(graded, (s) => s.totalScore ?? 0);
   const status: RosterStatus = latest ? latest.status : 'MISSING';
   return {
     studentId: member.studentId,
@@ -135,7 +136,7 @@ export function toMyAssignmentSummary(
 ): MyAssignmentSummary {
   const inProgress = mine.find((s) => s.status === 'IN_PROGRESS');
   const finished = mine.filter((s) => s.status !== 'IN_PROGRESS');
-  const best = [...finished].sort((a, b) => (b.totalScore ?? -1) - (a.totalScore ?? -1))[0];
+  const best = maxBy(finished, (s) => s.totalScore ?? -1);
   const latest = mine.at(-1);
   const open = isOpenFor(row, now);
   const snapshot = row.snapshot as unknown as WorksheetSnapshot;

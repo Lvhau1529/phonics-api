@@ -32,7 +32,8 @@ Header `X-Refresh-Transport: body` trên các route auth → refresh token trả
 | GET | `/public/classes` | pub | `PublicClassesResponse` (lớp đang nhận học sinh), cache 60 s |
 | GET | `/public/games` | pub | `PublicGamesResponse` (catalog, kể cả disabled) |
 | POST | `/public/events` | pub (+token tuỳ chọn) | `EventBatchBody` → `EventBatchResponse { accepted, duplicates }` |
-| GET | `/health` | pub | Terminus |
+| GET | `/health` | pub | Terminus, liveness — **không** chạm DB (Docker HEALTHCHECK / uptime monitor) |
+| GET | `/health/db` | pub | Terminus, ping DB (readiness) — CI gọi sau deploy |
 
 ## me (học sinh)
 
@@ -126,16 +127,18 @@ Header `X-Refresh-Transport: body` trên các route auth → refresh token trả
 | GET | `/stats/games/:id/timeline` | A, T | `TimelineQuery` → `GameTimelineBucket[]` |
 | GET | `/stats/games/:id/by-class` | A, T | → `GameByClassStats[]` |
 
-## media (phiếu bài tập — ADR 0018)
+## media (phiếu bài tập — ADR 0018 / 0024)
 
-Upload ảnh / audio bằng presigned PUT lên Neon Object Storage; API không chạm byte. Giới hạn `MEDIA_LIMITS`
+Upload ảnh / audio bằng link PUT có chữ ký (API lưu trên đĩa VPS, phục vụ ở `${API_PUBLIC_URL}/files/...`, cache
+1 năm, CORS `*`). Giới hạn `MEDIA_LIMITS`
 (contracts): ảnh ≤ 5 MB jpg/png/webp, audio ≤ 10 MB mp3/m4a/webm/ogg/wav. Mọi response có media kèm
 `media: { [mediaId]: { id, url, kind } }`; JSON config / answer giữ khoá `*MediaId`.
 
 | Method | Path | Ai | Request → Response |
 | --- | --- | --- | --- |
-| POST | `/media/presign` | \* | `PresignMediaBody` → `PresignMediaResponse` (201). Client PUT file lên `uploadUrl` với đúng `headers`. 400 `MEDIA_TYPE_UNSUPPORTED` / `MEDIA_TOO_LARGE`, 503 `MEDIA_STORAGE_DISABLED`. Throttle 30/phút |
-| POST | `/media/:id/complete` | \* (chủ file) | `CompleteMediaBody` → `MediaView`. Server HEAD đối tượng; sai size / mime → xoá + 409 `MEDIA_UPLOAD_INCOMPLETE`. Idempotent |
+| POST | `/media/presign` | \* | `PresignMediaBody` → `PresignMediaResponse` (201). Client PUT file lên `uploadUrl` với đúng `headers`. 400 `MEDIA_TYPE_UNSUPPORTED` / `MEDIA_TOO_LARGE`. Throttle 30/phút |
+| PUT | `/media/:id/upload?exp&sig` | pub (chữ ký) | Body = byte file (đúng `uploadUrl` của presign) → 204. 403 chữ ký sai / hết hạn, 415 `MEDIA_TYPE_UNSUPPORTED` (Content-Type khác lúc presign), 413 `MEDIA_TOO_LARGE`, 409 `CONFLICT` (đã READY). Throttle 30/phút |
+| POST | `/media/:id/complete` | \* (chủ file) | `CompleteMediaBody` → `MediaView`. Server kiểm file trên đĩa; thiếu / sai size → xoá + 409 `MEDIA_UPLOAD_INCOMPLETE`. Idempotent |
 | GET | `/media/:id` | A, T; S file của mình | → `MediaView` |
 
 ## questions (perm:`worksheets.manage`) — ADR 0017
@@ -170,7 +173,7 @@ Upload ảnh / audio bằng presigned PUT lên Neon Object Storage; API không c
 ## assignments (A, T lớp mình)
 
 Giao phiếu = đóng băng **snapshot** (nội dung + answerKey + điểm) vào bài giao. Trạng thái `SCHEDULED` → `OPEN`
-→ `CLOSED` do cron (5 phút) + GV; "đang mở" luôn tính lại tại request:
+→ `CLOSED` do `AssignmentsScheduler` (timer hẹn đúng mốc mở / hạn nộp kế tiếp, không cron định kỳ) + GV; "đang mở" luôn tính lại tại request:
 `OPEN && now ≥ availableFrom && (!dueAt || now < dueAt || allowLate)`.
 
 | Method | Path | Ai | Request → Response |

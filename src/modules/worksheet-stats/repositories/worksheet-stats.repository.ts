@@ -1,16 +1,16 @@
 import { Injectable } from '@nestjs/common';
 import { type TypeAccuracy, type WeekBucket } from '@phonics/contracts';
-import { type DateRange } from '../../../core/time/time.service';
-import { PrismaService } from '../../../database/prisma.service';
-import { Prisma } from '../../../generated/prisma/client';
+import { type DateRange } from '@/core/time/time.service';
+import { PrismaService } from '@/database/prisma.service';
+import { Prisma } from '@/generated/prisma/client';
 import {
   type AssignmentBrief,
   type ItemRow,
   type SubmissionBrief,
   type TypeRow,
   type WeekRow,
-} from '../types/worksheet-stats.types';
-import { toTypeAccuracy, toWeekBucket } from '../utils/worksheet-stats.math';
+} from '@/modules/worksheet-stats/types/worksheet-stats.types';
+import { toTypeAccuracy, toWeekBucket } from '@/modules/worksheet-stats/utils/worksheet-stats.math';
 
 /** "Bài tốt nhất đã GRADED của mỗi (bài giao, học sinh)" — CTE dùng chung cho byType / trend */
 const BEST_CTE = (where: Prisma.Sql) => Prisma.sql`

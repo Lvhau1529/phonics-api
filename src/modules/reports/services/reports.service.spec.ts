@@ -1,14 +1,14 @@
 import { Workbook } from 'exceljs';
 import { describe, expect, it } from 'vitest';
-import { contentDisposition, rangeLabel, rangeSlug, slugify } from '../utils/report-format';
-import { buildRankingPdf } from '../writers/pdf.writer';
+import { contentDisposition, rangeLabel, rangeSlug, slugify } from '@/modules/reports/utils/report-format';
+import { buildRankingPdf } from '@/modules/reports/writers/pdf.writer';
 import {
   buildPointsWorkbook,
   buildRankingWorkbook,
   type PointsRow,
   type RankingRow,
   type ReportMeta,
-} from '../writers/xlsx.writer';
+} from '@/modules/reports/writers/xlsx.writer';
 
 const meta: ReportMeta = {
   className: 'Lớp K2A',

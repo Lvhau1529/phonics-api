@@ -499,8 +499,8 @@ export const QuestionContent = z.discriminatedUnion('type', [
     if (!uniqueBy(c.words, (w) => `${w.number}:${w.direction}`))
       issue(ctx, ['config', 'words'], 'Số thứ tự + hướng bị trùng');
     c.words.forEach((w, i) => {
-      const endR = w.direction === 'down' ? w.start.r + w.length - 1 : w.start.r;
-      const endC = w.direction === 'across' ? w.start.c + w.length - 1 : w.start.c;
+      const endR = w.direction === Direction.enum.down ? w.start.r + w.length - 1 : w.start.r;
+      const endC = w.direction === Direction.enum.across ? w.start.c + w.length - 1 : w.start.c;
       if (endR >= c.rows || endC >= c.cols) issue(ctx, ['config', 'words', i], 'Từ vượt ngoài lưới');
     });
     k.words.forEach((kw, i) => {

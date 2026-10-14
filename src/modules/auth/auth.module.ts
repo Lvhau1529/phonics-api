@@ -1,15 +1,15 @@
 import { Global, Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
-import { AUTH } from '../../config/constants';
-import { ENV } from '../../config/env.module';
-import { type Env } from '../../config/env.schema';
-import { PointsModule } from '../points/points.module';
-import { UsersModule } from '../users/users.module';
-import { AuthService } from './services/auth.service';
-import { GoogleService } from './services/google.service';
-import { PasswordService } from './services/password.service';
-import { TokenService } from './services/token.service';
-import { AuthController } from './controllers/auth.controller';
+import { AUTH } from '@/config/constants';
+import { ENV } from '@/config/env.module';
+import { type Env } from '@/config/env.schema';
+import { PointsModule } from '@/modules/points/points.module';
+import { UsersModule } from '@/modules/users/users.module';
+import { AuthService } from '@/modules/auth/services/auth.service';
+import { GoogleService } from '@/modules/auth/services/google.service';
+import { PasswordService } from '@/modules/auth/services/password.service';
+import { TokenService } from '@/modules/auth/services/token.service';
+import { AuthController } from '@/modules/auth/controllers/auth.controller';
 
 /** Global: JwtModule / PasswordService / TokenService được guard và các module khác (students reset password) dùng */
 @Global()

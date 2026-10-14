@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { diffRanks } from './ranking.service';
+import { diffRanks } from '@/modules/points/services/ranking.service';
 
 describe('diffRanks', () => {
   it('báo thay đổi cho ai đổi hạng, bỏ qua lần đầu (null) và ai giữ nguyên', () => {

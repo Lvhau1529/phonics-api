@@ -6,8 +6,12 @@ import {
   type WorksheetSectionView,
   type WorksheetSummary,
 } from '@phonics/contracts';
-import { toQuestionSummary, toQuestionView } from '../../../questions/dto/responses/question.view';
-import { type WorksheetDetailRow, type WorksheetSummaryRow } from '../../types/worksheet.types';
+import { sumBy } from 'es-toolkit';
+import { toQuestionSummary, toQuestionView } from '@/modules/questions/dto/responses/question.view';
+import {
+  type WorksheetDetailRow,
+  type WorksheetSummaryRow,
+} from '@/modules/worksheets/types/worksheet.types';
 
 export function toWorksheetSummary(row: WorksheetSummaryRow): WorksheetSummary {
   return {
@@ -23,7 +27,7 @@ export function toWorksheetSummary(row: WorksheetSummaryRow): WorksheetSummary {
     visibility: row.visibility,
     note: row.note,
     itemCount: row.items.length,
-    maxScore: row.items.reduce((sum, it) => sum + (it.pointsOverride ?? it.question.points), 0),
+    maxScore: sumBy(row.items, (it) => it.pointsOverride ?? it.question.points),
     assignmentCount: row._count.assignments,
     createdById: row.createdById,
     createdByName: row.createdBy.displayName,

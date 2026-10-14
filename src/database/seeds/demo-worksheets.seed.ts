@@ -1,5 +1,5 @@
-import { type PrismaClient } from '../../generated/prisma/client';
-import { DEMO_TEACHER1 } from './demo.constants';
+import { type PrismaClient } from '@/generated/prisma/client';
+import { DEMO_TEACHER1 } from '@/database/seeds/demo.constants';
 
 /**
  * Phiếu bài tập mẫu (SEED_DEMO): 4 câu SHARED đã phát hành (không cần media) + 1 phiếu "Letter Nn — Demo" đã phát hành,

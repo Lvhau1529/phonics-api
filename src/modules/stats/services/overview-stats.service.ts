@@ -1,11 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { type OverviewStats } from '@phonics/contracts';
-import { AccessService } from '../../../core/access/access.service';
-import { type DateRange } from '../../../core/time/time.service';
-import { type AuthUser } from '../../auth/types/auth.types';
-import { StatsRepository } from '../repositories/stats.repository';
-
-const DAY_MS = 24 * 3600 * 1000;
+import { AccessService } from '@/core/access/access.service';
+import { type DateRange } from '@/core/time/time.service';
+import { type AuthUser } from '@/modules/auth/types/auth.types';
+import { StatsRepository } from '@/modules/stats/repositories/stats.repository';
+import { dayjs } from '@/core/time/dayjs';
 
 /** GET /stats/overview — ADMIN: toàn hệ thống; TEACHER: gói trong các lớp mình dạy */
 @Injectable()
@@ -16,7 +15,7 @@ export class OverviewStatsService {
   ) {}
 
   async overview(user: AuthUser, now = new Date()): Promise<OverviewStats> {
-    const range: DateRange = { from: new Date(now.getTime() - 7 * DAY_MS), to: now };
+    const range: DateRange = { from: dayjs(now).subtract(7, 'day').toDate(), to: now };
     const classIds = await this.access.scopedClassIds(user);
     const generatedAt = now.toISOString();
     if (classIds && !classIds.length) {

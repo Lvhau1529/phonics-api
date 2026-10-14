@@ -1,8 +1,8 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../../../database/prisma.service';
-import { type Tx } from '../../../database/types';
-import { type GameResult, type Prisma } from '../../../generated/prisma/client';
-import { type StudentRow, studentInclude } from '../types/student.types';
+import { PrismaService } from '@/database/prisma.service';
+import { type Tx } from '@/database/types';
+import { type GameResult, type Prisma } from '@/generated/prisma/client';
+import { type StudentRow, studentInclude } from '@/modules/students/types/student.types';
 
 /** Mọi truy vấn Prisma về học sinh (users role STUDENT + student_profiles + class_memberships) */
 @Injectable()

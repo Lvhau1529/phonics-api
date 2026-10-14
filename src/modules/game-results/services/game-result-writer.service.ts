@@ -1,16 +1,20 @@
 import { Injectable } from '@nestjs/common';
 import { type GameResultBody, type GameResultResponse, type PointsReason } from '@phonics/contracts';
-import { AppError } from '../../../common/errors/app-error';
-import { POINT_RULES } from '../../../config/constants';
-import { TimeService } from '../../../core/time/time.service';
-import { type Prisma } from '../../../generated/prisma/client';
-import { EventsService } from '../../events/services/events.service';
-import { GameUnlockService } from '../../games/services/game-unlock.service';
-import { PointReaderService } from '../../points/services/point-reader.service';
-import { type RankChange, RankingService } from '../../points/services/ranking.service';
-import { GameResultRepository } from '../repositories/game-result.repository';
-import { type ResultRow } from '../types/game-result.types';
-import { assertResultPlausible, computePoints, isUniqueViolation } from '../utils/game-result-rules';
+import { AppError } from '@/common/errors/app-error';
+import { POINT_RULES } from '@/config/constants';
+import { TimeService } from '@/core/time/time.service';
+import { type Prisma } from '@/generated/prisma/client';
+import { EventsService } from '@/modules/events/services/events.service';
+import { GameUnlockService } from '@/modules/games/services/game-unlock.service';
+import { PointReaderService } from '@/modules/points/services/point-reader.service';
+import { type RankChange, RankingService } from '@/modules/points/services/ranking.service';
+import { GameResultRepository } from '@/modules/game-results/repositories/game-result.repository';
+import { type ResultRow } from '@/modules/game-results/types/game-result.types';
+import {
+  assertResultPlausible,
+  computePoints,
+  isUniqueViolation,
+} from '@/modules/game-results/utils/game-result-rules';
 
 /**
  * Kết quả ván SOLO từ game client. Đây là lõi của hệ thống điểm: mỗi ván hợp lệ sinh đúng một bút toán

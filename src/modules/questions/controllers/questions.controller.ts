@@ -1,12 +1,16 @@
 import { Body, Controller, Get, HttpCode, Param, ParseUUIDPipe, Patch, Post, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
-import { CurrentUser } from '../../../common/decorators/current-user.decorator';
-import { RequirePermission, Roles } from '../../../common/decorators/roles.decorator';
-import { API_V1 } from '../../../config/api-version';
-import { type AuthUser } from '../../auth/types/auth.types';
-import { QuestionReaderService } from '../services/question-reader.service';
-import { QuestionWriterService } from '../services/question-writer.service';
-import { CreateQuestionDto, QuestionListQueryDto, UpdateQuestionDto } from '../dto/requests/questions.dto';
+import { CurrentUser } from '@/common/decorators/current-user.decorator';
+import { RequirePermission, Roles } from '@/common/decorators/roles.decorator';
+import { API_V1 } from '@/config/api-version';
+import { type AuthUser } from '@/modules/auth/types/auth.types';
+import { QuestionReaderService } from '@/modules/questions/services/question-reader.service';
+import { QuestionWriterService } from '@/modules/questions/services/question-writer.service';
+import {
+  CreateQuestionDto,
+  QuestionListQueryDto,
+  UpdateQuestionDto,
+} from '@/modules/questions/dto/requests/questions.dto';
 
 /** Ngân hàng câu hỏi: GV (quyền worksheets.manage) và admin. Phạm vi chủ sở hữu kiểm tra trong service. */
 @ApiTags('questions')

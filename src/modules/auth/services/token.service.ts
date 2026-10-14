@@ -2,12 +2,13 @@ import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { Cron } from '@nestjs/schedule';
-import { AppError } from '../../../common/errors/app-error';
-import { AUTH } from '../../../config/constants';
-import { ENV } from '../../../config/env.module';
-import { type Env } from '../../../config/env.schema';
-import { PrismaService } from '../../../database/prisma.service';
-import { type AccessTokenPayload } from '../types/auth.types';
+import { AppError } from '@/common/errors/app-error';
+import { AUTH } from '@/config/constants';
+import { ENV } from '@/config/env.module';
+import { type Env } from '@/config/env.schema';
+import { PrismaService } from '@/database/prisma.service';
+import { type AccessTokenPayload } from '@/modules/auth/types/auth.types';
+import { dayjs } from '@/core/time/dayjs';
 
 export interface IssuedTokens {
   accessToken: string;
@@ -20,8 +21,6 @@ interface ClientMeta {
   userAgent?: string;
   ip?: string;
 }
-
-const DAY_MS = 24 * 3600 * 1000;
 
 /**
  * Access token: JWT ngắn hạn (JWT_ACCESS_TTL) chứa { sub, role, tv }.
@@ -41,8 +40,7 @@ export class TokenService {
   get accessTtlSeconds(): number {
     const m = /^(\d+)([smhd])$/.exec(this.env.JWT_ACCESS_TTL);
     if (!m) return 900;
-    const n = Number(m[1]);
-    return { s: n, m: n * 60, h: n * 3600, d: n * 86400 }[m[2] as 's' | 'm' | 'h' | 'd'];
+    return dayjs.duration(Number(m[1]), m[2] as 's' | 'm' | 'h' | 'd').asSeconds();
   }
 
   signAccess(user: { id: string; role: AccessTokenPayload['role']; tokenVersion: number }): Promise<string> {
@@ -72,7 +70,7 @@ export class TokenService {
       await this.revokeFamily(row.familyId);
       throw new AppError('REFRESH_REUSED', 401);
     }
-    if (row.expiresAt.getTime() < Date.now()) throw new AppError('INVALID_REFRESH', 401);
+    if (dayjs(row.expiresAt).isBefore(dayjs())) throw new AppError('INVALID_REFRESH', 401);
     if (row.user.status === 'DISABLED') throw new AppError('ACCOUNT_DISABLED', 403);
 
     const refreshToken = await this.prisma.$transaction(async (tx) => {
@@ -124,7 +122,7 @@ export class TokenService {
   /** Dọn token hết hạn lâu (4h sáng mỗi ngày) */
   @Cron('0 4 * * *')
   async cleanup(): Promise<void> {
-    const before = new Date(Date.now() - AUTH.refreshCleanupAfterDays * DAY_MS);
+    const before = dayjs().subtract(AUTH.refreshCleanupAfterDays, 'day').toDate();
     const { count } = await this.prisma.refreshToken.deleteMany({ where: { expiresAt: { lt: before } } });
     if (count) this.logger.log(`Đã xoá ${count} refresh token hết hạn`);
   }
@@ -141,7 +139,7 @@ export class TokenService {
         userId,
         familyId,
         tokenHash: this.hash(token),
-        expiresAt: new Date(Date.now() + this.env.REFRESH_TTL_DAYS * DAY_MS),
+        expiresAt: dayjs().add(this.env.REFRESH_TTL_DAYS, 'day').toDate(),
         userAgent: meta.userAgent?.slice(0, 200),
         ip: meta.ip,
       },

@@ -1,10 +1,10 @@
 import { JwtService } from '@nestjs/jwt';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { type DeepMockProxy, mockDeep } from 'vitest-mock-extended';
-import { type AppError } from '../../../common/errors/app-error';
-import { type Env } from '../../../config/env.schema';
-import { type PrismaService } from '../../../database/prisma.service';
-import { TokenService } from './token.service';
+import { type AppError } from '@/common/errors/app-error';
+import { type Env } from '@/config/env.schema';
+import { type PrismaService } from '@/database/prisma.service';
+import { TokenService } from '@/modules/auth/services/token.service';
 
 const env = { JWT_ACCESS_TTL: '15m', REFRESH_TTL_DAYS: 30 } as Env;
 const user = { id: 'u1', role: 'STUDENT' as const, tokenVersion: 0, status: 'ACTIVE' as const };

@@ -8,15 +8,15 @@ import {
   type RankingQuery,
   type RankingResponse,
 } from '@phonics/contracts';
-import { AppError, notFound } from '../../../common/errors/app-error';
-import { paginate } from '../../../common/utils/paginate';
-import { TimeService } from '../../../core/time/time.service';
-import { type Tx } from '../../../database/types';
-import { type Prisma } from '../../../generated/prisma/client';
-import { type AuthUser } from '../../auth/types/auth.types';
-import { toEntryView } from '../dto/responses/point-entry.view';
-import { PointRepository } from '../repositories/point.repository';
-import { RankingService } from './ranking.service';
+import { AppError, notFound } from '@/common/errors/app-error';
+import { paginate } from '@/common/utils/paginate';
+import { TimeService } from '@/core/time/time.service';
+import { type Tx } from '@/database/types';
+import { type Prisma } from '@/generated/prisma/client';
+import { type AuthUser } from '@/modules/auth/types/auth.types';
+import { toEntryView } from '@/modules/points/dto/responses/point-entry.view';
+import { PointRepository } from '@/modules/points/repositories/point.repository';
+import { RankingService } from '@/modules/points/services/ranking.service';
 
 /** Đọc điểm: tổng theo học sinh, sổ điểm, bảng xếp hạng lớp */
 @Injectable()

@@ -1,6 +1,6 @@
 import { type AnswerKeyOf, type AnswerOf, type Cell, type ConfigOf } from '@phonics/contracts';
-import { anyWord, normalizeWord, sameWord } from './normalize';
-import { type GradeResult, ratio } from './types';
+import { anyWord, normalizeWord, sameWord } from '@/modules/submissions/grading/normalize';
+import { type GradeResult, ratio } from '@/modules/submissions/grading/types';
 
 /**
  * Hàm chấm thuần cho 12 dạng AUTO (ADR 0019). Không truy DB, không ném lỗi với answer thiếu trường:

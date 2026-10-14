@@ -1,11 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { type GameByClassStats, type GameTimelineBucket, type RangeQuery } from '@phonics/contracts';
-import { notFound } from '../../../common/errors/app-error';
-import { AccessService } from '../../../core/access/access.service';
-import { TimeService } from '../../../core/time/time.service';
-import { type AuthUser } from '../../auth/types/auth.types';
-import { StatsRepository } from '../repositories/stats.repository';
-import { type GameTimelineQuery } from '../types/stats.schemas';
+import { notFound } from '@/common/errors/app-error';
+import { AccessService } from '@/core/access/access.service';
+import { TimeService } from '@/core/time/time.service';
+import { type AuthUser } from '@/modules/auth/types/auth.types';
+import { StatsRepository } from '@/modules/stats/repositories/stats.repository';
+import { type GameTimelineQuery } from '@/modules/stats/types/stats.schemas';
 
 /** Thống kê theo game: lượt xem / chơi theo thời gian, theo lớp */
 @Injectable()

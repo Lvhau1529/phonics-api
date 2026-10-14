@@ -1,10 +1,10 @@
 import { Controller, Get, Param, ParseUUIDPipe } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
-import { CurrentUser } from '../../../common/decorators/current-user.decorator';
-import { RequirePermission, Roles } from '../../../common/decorators/roles.decorator';
-import { API_V1 } from '../../../config/api-version';
-import { type AuthUser } from '../../auth/types/auth.types';
-import { AssignmentStatsService } from '../services/assignment-stats.service';
+import { CurrentUser } from '@/common/decorators/current-user.decorator';
+import { RequirePermission, Roles } from '@/common/decorators/roles.decorator';
+import { API_V1 } from '@/config/api-version';
+import { type AuthUser } from '@/modules/auth/types/auth.types';
+import { AssignmentStatsService } from '@/modules/worksheet-stats/services/assignment-stats.service';
 
 /** GET /assignments/:id/stats — đặt ở module này để tránh import vòng với module assignments */
 @ApiTags('assignments')

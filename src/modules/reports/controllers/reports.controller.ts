@@ -1,14 +1,14 @@
 import { Controller, Get, Param, ParseUUIDPipe, Query, StreamableFile } from '@nestjs/common';
 import { ApiBearerAuth, ApiProduces, ApiTags } from '@nestjs/swagger';
 import { REPORT_MIME } from '@phonics/contracts';
-import { CurrentUser } from '../../../common/decorators/current-user.decorator';
-import { RequirePermission, Roles } from '../../../common/decorators/roles.decorator';
-import { API_V1 } from '../../../config/api-version';
-import { type AuthUser } from '../../auth/types/auth.types';
-import { ReportQueryDto } from '../dto/requests/reports.dto';
-import { ReportsService } from '../services/reports.service';
-import { type ReportFile } from '../types/report.types';
-import { contentDisposition } from '../utils/report-format';
+import { CurrentUser } from '@/common/decorators/current-user.decorator';
+import { RequirePermission, Roles } from '@/common/decorators/roles.decorator';
+import { API_V1 } from '@/config/api-version';
+import { type AuthUser } from '@/modules/auth/types/auth.types';
+import { ReportQueryDto } from '@/modules/reports/dto/requests/reports.dto';
+import { ReportsService } from '@/modules/reports/services/reports.service';
+import { type ReportFile } from '@/modules/reports/types/report.types';
+import { contentDisposition } from '@/modules/reports/utils/report-format';
 
 /** Xuất file xlsx / pdf (admin + giáo viên có quyền reports.export; phạm vi lớp kiểm tra trong service) */
 @ApiTags('reports')

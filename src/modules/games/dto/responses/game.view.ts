@@ -6,7 +6,12 @@ import {
   type StudentGameStatus,
   type UnlockSource,
 } from '@phonics/contracts';
-import { type GameAdminStats, type GameRow, type GameStats, type UnlockRow } from '../../types/game.types';
+import {
+  type GameAdminStats,
+  type GameRow,
+  type GameStats,
+  type UnlockRow,
+} from '@/modules/games/types/game.types';
 
 export function toCatalogItem(row: GameRow): GameCatalogItem {
   return {

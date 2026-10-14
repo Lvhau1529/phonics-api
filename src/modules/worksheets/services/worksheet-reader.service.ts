@@ -5,18 +5,18 @@ import {
   type WorksheetListQuery,
   type WorksheetSummary,
 } from '@phonics/contracts';
-import { notFound } from '../../../common/errors/app-error';
-import { orderBy, paginate } from '../../../common/utils/paginate';
-import { type Tx } from '../../../database/types';
-import { type Prisma } from '../../../generated/prisma/client';
-import { type AuthUser } from '../../auth/types/auth.types';
-import { MediaService } from '../../media/services/media.service';
-import { questionMediaIds } from '../../questions/utils/question-content';
-import { toWorksheetDetail, toWorksheetSummary } from '../dto/responses/worksheet.view';
-import { WorksheetRepository } from '../repositories/worksheet.repository';
-import { WORKSHEET_SORT_FIELDS, type WorksheetDetailRow } from '../types/worksheet.types';
-import { worksheetVisibleWhere } from '../utils/worksheet-rules';
-import { type SnapshotSource } from '../utils/worksheet-snapshot';
+import { notFound } from '@/common/errors/app-error';
+import { orderBy, paginate } from '@/common/utils/paginate';
+import { type Tx } from '@/database/types';
+import { type Prisma } from '@/generated/prisma/client';
+import { type AuthUser } from '@/modules/auth/types/auth.types';
+import { MediaService } from '@/modules/media/services/media.service';
+import { questionMediaIds } from '@/modules/questions/utils/question-content';
+import { toWorksheetDetail, toWorksheetSummary } from '@/modules/worksheets/dto/responses/worksheet.view';
+import { WorksheetRepository } from '@/modules/worksheets/repositories/worksheet.repository';
+import { WORKSHEET_SORT_FIELDS, type WorksheetDetailRow } from '@/modules/worksheets/types/worksheet.types';
+import { worksheetVisibleWhere } from '@/modules/worksheets/utils/worksheet-rules';
+import { type SnapshotSource } from '@/modules/worksheets/utils/worksheet-snapshot';
 
 /** Đọc phiếu bài tập (ADR 0017): GV thấy phiếu của mình ∪ SHARED PUBLISHED */
 @Injectable()

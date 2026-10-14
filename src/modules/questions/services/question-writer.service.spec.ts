@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { mockDeep } from 'vitest-mock-extended';
-import { type PrismaService } from '../../../database/prisma.service';
-import { type AuditService } from '../../audit/services/audit.service';
-import { type AuthUser } from '../../auth/types/auth.types';
-import { type MediaService } from '../../media/services/media.service';
-import { QuestionRepository } from '../repositories/question.repository';
-import { QuestionReaderService } from './question-reader.service';
-import { QuestionWriterService } from './question-writer.service';
+import { type PrismaService } from '@/database/prisma.service';
+import { type AuditService } from '@/modules/audit/services/audit.service';
+import { type AuthUser } from '@/modules/auth/types/auth.types';
+import { type MediaService } from '@/modules/media/services/media.service';
+import { QuestionRepository } from '@/modules/questions/repositories/question.repository';
+import { QuestionReaderService } from '@/modules/questions/services/question-reader.service';
+import { QuestionWriterService } from '@/modules/questions/services/question-writer.service';
 
 const M = '11111111-1111-4111-8111-111111111111';
 const A = '22222222-2222-4222-8222-222222222222';

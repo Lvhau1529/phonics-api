@@ -1,8 +1,6 @@
 /** Tiện ích dùng chung cho seed (không phụ thuộc Nest) */
 import argon2 from 'argon2';
 
-export const DAY_MS = 24 * 3600 * 1000;
-
 /** Cùng tham số với src/modules/auth/services/password.service.ts */
 export const hashPassword = (password: string) =>
   argon2.hash(password, { type: argon2.argon2id, memoryCost: 19456, timeCost: 2, parallelism: 1 });
@@ -21,6 +19,15 @@ export function createRandom(seed: number) {
     /** Số nguyên trong [min, max] */
     int: (min: number, max: number) => min + Math.floor(next() * (max - min + 1)),
     pick: <T>(items: readonly T[]) => items[Math.floor(next() * items.length)],
+    /** Fisher–Yates theo PRNG có seed (es-toolkit `shuffle` không nhận seed) */
+    shuffle: <T>(items: readonly T[]): T[] => {
+      const out = [...items];
+      for (let i = out.length - 1; i > 0; i--) {
+        const j = Math.floor(next() * (i + 1));
+        [out[i], out[j]] = [out[j], out[i]];
+      }
+      return out;
+    },
   };
 }
 

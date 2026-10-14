@@ -6,10 +6,10 @@ import {
   ROLE_DEFAULT_PERMISSIONS,
   type UserPermissionsResponse,
 } from '@phonics/contracts';
-import { notFound } from '../../../common/errors/app-error';
-import { type AuthUser } from '../../auth/types/auth.types';
-import { PermissionRepository } from '../repositories/permission.repository';
-import { onlyKnown, resolveEffective } from '../utils/permission-rules';
+import { notFound } from '@/common/errors/app-error';
+import { type AuthUser } from '@/modules/auth/types/auth.types';
+import { PermissionRepository } from '@/modules/permissions/repositories/permission.repository';
+import { onlyKnown, resolveEffective } from '@/modules/permissions/utils/permission-rules';
 
 /**
  * Đọc quyền: catalog (contracts) và quyền hiệu lực của user. Global vì PermissionsGuard, AuthService cần.

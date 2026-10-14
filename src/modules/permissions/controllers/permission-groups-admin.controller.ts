@@ -1,11 +1,14 @@
 import { Body, Controller, Delete, Get, HttpCode, Param, ParseUUIDPipe, Patch, Post } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
-import { CurrentUser } from '../../../common/decorators/current-user.decorator';
-import { Roles } from '../../../common/decorators/roles.decorator';
-import { API_V1 } from '../../../config/api-version';
-import { type AuthUser } from '../../auth/types/auth.types';
-import { CreatePermissionGroupDto, UpdatePermissionGroupDto } from '../dto/requests/permissions.dto';
-import { PermissionGroupsService } from '../services/permission-groups.service';
+import { CurrentUser } from '@/common/decorators/current-user.decorator';
+import { Roles } from '@/common/decorators/roles.decorator';
+import { API_V1 } from '@/config/api-version';
+import { type AuthUser } from '@/modules/auth/types/auth.types';
+import {
+  CreatePermissionGroupDto,
+  UpdatePermissionGroupDto,
+} from '@/modules/permissions/dto/requests/permissions.dto';
+import { PermissionGroupsService } from '@/modules/permissions/services/permission-groups.service';
 
 /** Nhóm quyền (chỉ admin) */
 @ApiTags('admin')

@@ -8,15 +8,15 @@ import {
   type PointsListQuery,
   type RangeQuery,
 } from '@phonics/contracts';
-import { orderBy, paginate } from '../../../common/utils/paginate';
-import { TimeService } from '../../../core/time/time.service';
-import { type Prisma } from '../../../generated/prisma/client';
-import { type AuthUser } from '../../auth/types/auth.types';
-import { PointReaderService } from '../../points/services/point-reader.service';
-import { toGameResultView } from '../dto/responses/student.view';
-import { StudentRepository } from '../repositories/student.repository';
-import { GAME_RESULT_SORT_FIELDS } from '../types/student.types';
-import { StudentReaderService } from './student-reader.service';
+import { orderBy, paginate } from '@/common/utils/paginate';
+import { TimeService } from '@/core/time/time.service';
+import { type Prisma } from '@/generated/prisma/client';
+import { type AuthUser } from '@/modules/auth/types/auth.types';
+import { PointReaderService } from '@/modules/points/services/point-reader.service';
+import { toGameResultView } from '@/modules/students/dto/responses/student.view';
+import { StudentRepository } from '@/modules/students/repositories/student.repository';
+import { GAME_RESULT_SORT_FIELDS } from '@/modules/students/types/student.types';
+import { StudentReaderService } from '@/modules/students/services/student-reader.service';
 
 /** Lịch sử của một học sinh: sổ điểm, điểm theo game, kết quả từng ván (đã kiểm tra phạm vi) */
 @Injectable()

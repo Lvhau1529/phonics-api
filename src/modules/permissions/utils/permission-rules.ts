@@ -1,6 +1,6 @@
 /** Luật quyền hiệu lực — hàm thuần */
 import { isPermission, type Permission, ROLE_DEFAULT_PERMISSIONS, type Role } from '@phonics/contracts';
-import { type PermissionOverride } from '../types/permission.types';
+import { type PermissionOverride } from '@/modules/permissions/types/permission.types';
 
 /** Bỏ mã quyền lạ (mã cũ còn trong DB sau khi đổi catalog) */
 export const onlyKnown = (codes: readonly string[]): Permission[] => codes.filter(isPermission);

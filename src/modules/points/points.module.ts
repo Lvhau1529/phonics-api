@@ -1,11 +1,11 @@
 import { Module } from '@nestjs/common';
-import { AuditModule } from '../audit/audit.module';
-import { PointsClassController } from './controllers/points-class.controller';
-import { PointsMeController } from './controllers/points-me.controller';
-import { PointRepository } from './repositories/point.repository';
-import { PointBonusService } from './services/point-bonus.service';
-import { PointReaderService } from './services/point-reader.service';
-import { RankingService } from './services/ranking.service';
+import { AuditModule } from '@/modules/audit/audit.module';
+import { PointsClassController } from '@/modules/points/controllers/points-class.controller';
+import { PointsMeController } from '@/modules/points/controllers/points-me.controller';
+import { PointRepository } from '@/modules/points/repositories/point.repository';
+import { PointBonusService } from '@/modules/points/services/point-bonus.service';
+import { PointReaderService } from '@/modules/points/services/point-reader.service';
+import { RankingService } from '@/modules/points/services/ranking.service';
 
 @Module({
   imports: [AuditModule],

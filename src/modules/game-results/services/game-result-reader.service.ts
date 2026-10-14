@@ -1,9 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { type GameResultListQuery, type GameResultView, type Paginated } from '@phonics/contracts';
-import { paginate } from '../../../common/utils/paginate';
-import { type Prisma } from '../../../generated/prisma/client';
-import { toResultView } from '../dto/responses/game-result.view';
-import { GameResultRepository } from '../repositories/game-result.repository';
+import { paginate } from '@/common/utils/paginate';
+import { type Prisma } from '@/generated/prisma/client';
+import { toResultView } from '@/modules/game-results/dto/responses/game-result.view';
+import { GameResultRepository } from '@/modules/game-results/repositories/game-result.repository';
 
 /** Lịch sử ván của học sinh */
 @Injectable()

@@ -1,5 +1,5 @@
 import { type EndedBy, type GameId, type GameResultView } from '@phonics/contracts';
-import { type ResultRow } from '../../types/game-result.types';
+import { type ResultRow } from '@/modules/game-results/types/game-result.types';
 
 export function toResultView(row: ResultRow): GameResultView {
   return {

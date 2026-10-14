@@ -1,4 +1,4 @@
-import { type Prisma } from '../../../generated/prisma/client';
+import { type Prisma } from '@/generated/prisma/client';
 
 /** Include chuẩn để dựng TeacherSummary: các lớp đang dạy */
 export const teacherInclude = {

@@ -1,15 +1,20 @@
 import { Injectable } from '@nestjs/common';
 import { type AssignmentCounts, MANUAL_TYPES } from '@phonics/contracts';
-import { PrismaService } from '../../../database/prisma.service';
-import { type Tx } from '../../../database/types';
-import { Prisma } from '../../../generated/prisma/client';
+import { clamp } from 'es-toolkit';
+import { PrismaService } from '@/database/prisma.service';
+import { type Tx } from '@/database/types';
+import { Prisma } from '@/generated/prisma/client';
 import {
   type MySubmissionBrief,
   type RosterMember,
   type RosterSubmission,
-} from '../dto/responses/assignment.view';
-import { type AssignmentCountsRow, type AssignmentRow, assignmentInclude } from '../types/assignment.types';
-import { dateOnly } from '../utils/assignment-dates';
+} from '@/modules/assignments/dto/responses/assignment.view';
+import {
+  type AssignmentCountsRow,
+  type AssignmentRow,
+  assignmentInclude,
+} from '@/modules/assignments/types/assignment.types';
+import { dateOnly } from '@/modules/assignments/utils/assignment-dates';
 
 /** Mọi truy vấn Prisma của bài giao. Service chỉ gọi repository, không đụng `PrismaService` trực tiếp. */
 @Injectable()
@@ -95,7 +100,25 @@ export class AssignmentRepository {
     await this.prisma.assignment.delete({ where: { id } });
   }
 
-  // ---------- cron ----------
+  // ---------- hẹn giờ mở / đóng (AssignmentsScheduler) ----------
+
+  /** Mốc sớm nhất có bài cần mở (SCHEDULED) hoặc cần đóng (OPEN quá hạn, không cho nộp muộn); null = không có */
+  async nextTransitionAt(): Promise<Date | null> {
+    const [toOpen, toClose] = await Promise.all([
+      this.prisma.assignment.findFirst({
+        where: { status: 'SCHEDULED' },
+        orderBy: { availableFrom: 'asc' },
+        select: { availableFrom: true },
+      }),
+      this.prisma.assignment.findFirst({
+        where: { status: 'OPEN', allowLate: false, dueAt: { not: null } },
+        orderBy: { dueAt: 'asc' },
+        select: { dueAt: true },
+      }),
+    ]);
+    const times = [toOpen?.availableFrom, toClose?.dueAt].filter((d): d is Date => d != null);
+    return times.length ? new Date(Math.min(...times.map(Number))) : null;
+  }
 
   findScheduledDue(now: Date, take = 200): Promise<{ id: string }[]> {
     return this.prisma.assignment.findMany({
@@ -234,7 +257,7 @@ export class AssignmentRepository {
         graded: r.graded,
         missing: Math.max(0, r.students - r.submitted),
         pendingGrading: r.pendingGrading,
-        avgPercent: r.avgPercent === null ? null : Math.min(1, Math.max(0, r.avgPercent)),
+        avgPercent: r.avgPercent === null ? null : clamp(r.avgPercent, 0, 1),
       });
     }
     return map;

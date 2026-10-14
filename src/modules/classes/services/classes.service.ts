@@ -8,16 +8,16 @@ import {
   type SetClassTeachersBody,
   type UpdateClassBody,
 } from '@phonics/contracts';
-import { AppError, notFound } from '../../../common/errors/app-error';
-import { orderBy, paginate } from '../../../common/utils/paginate';
-import { AccessService } from '../../../core/access/access.service';
-import { PrismaService } from '../../../database/prisma.service';
-import { type Tx } from '../../../database/types';
-import { type Prisma } from '../../../generated/prisma/client';
-import { AuditService } from '../../audit/services/audit.service';
-import { type AuthUser } from '../../auth/types/auth.types';
-import { toClassSummary } from '../dto/responses/class.view';
-import { CLASS_SORT_FIELDS, classSummaryInclude } from '../types/class.types';
+import { AppError, notFound } from '@/common/errors/app-error';
+import { orderBy, paginate } from '@/common/utils/paginate';
+import { AccessService } from '@/core/access/access.service';
+import { PrismaService } from '@/database/prisma.service';
+import { type Tx } from '@/database/types';
+import { type Prisma } from '@/generated/prisma/client';
+import { AuditService } from '@/modules/audit/services/audit.service';
+import { type AuthUser } from '@/modules/auth/types/auth.types';
+import { toClassSummary } from '@/modules/classes/dto/responses/class.view';
+import { CLASS_SORT_FIELDS, classSummaryInclude } from '@/modules/classes/types/class.types';
 
 /** Lớp học: CRUD (admin), phân công giáo viên, danh sách public cho form đăng ký */
 @Injectable()

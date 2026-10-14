@@ -35,10 +35,10 @@ export const THROTTLE = {
 export const WORKSHEETS = {
   /** Media PENDING (presign nhưng không complete) bị cron xoá sau số giờ này */
   mediaPendingTtlHours: 24,
-  /** Cron mở / đóng bài giao */
-  assignmentTickCron: '*/5 * * * *',
+  /** Mở / đóng bài giao bị lỗi (DB tạm mất) → thử lại sau (ms); bình thường hẹn đúng mốc, không chạy định kỳ */
+  assignmentRetryMs: 60_000,
   /** Thời gian làm bài tối đa tính vào durationMs */
   maxDurationMs: 6 * 3600 * 1000,
-  /** Cache-Control cho object trên bucket (key bất biến) */
-  mediaCacheControl: 'public, max-age=31536000, immutable',
+  /** Đường dẫn API phục vụ file media (ngoài `/api`): `${API_PUBLIC_URL}/files/media/<owner>/<uuid>.<ext>` */
+  mediaFilesPath: '/files',
 } as const;

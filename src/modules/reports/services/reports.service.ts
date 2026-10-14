@@ -6,29 +6,29 @@ import {
   type ReportQuery,
   type WorksheetSnapshot,
 } from '@phonics/contracts';
-import { notFound } from '../../../common/errors/app-error';
-import { AccessService } from '../../../core/access/access.service';
-import { TimeService } from '../../../core/time/time.service';
-import { PrismaService } from '../../../database/prisma.service';
-import { AssignmentReaderService } from '../../assignments/services/assignment-reader.service';
-import { isoDateOf } from '../../assignments/utils/assignment-dates';
-import { type AuthUser } from '../../auth/types/auth.types';
-import { RankingService } from '../../points/services/ranking.service';
-import { itemsOf } from '../../worksheets/utils/worksheet-snapshot';
-import { type ReportFile, reportEntryInclude } from '../types/report.types';
-import { rangeLabel, rangeSlug, slugify } from '../utils/report-format';
+import { notFound } from '@/common/errors/app-error';
+import { AccessService } from '@/core/access/access.service';
+import { TimeService } from '@/core/time/time.service';
+import { PrismaService } from '@/database/prisma.service';
+import { AssignmentReaderService } from '@/modules/assignments/services/assignment-reader.service';
+import { isoDateOf } from '@/modules/assignments/utils/assignment-dates';
+import { type AuthUser } from '@/modules/auth/types/auth.types';
+import { RankingService } from '@/modules/points/services/ranking.service';
+import { itemsOf } from '@/modules/worksheets/utils/worksheet-snapshot';
+import { type ReportFile, reportEntryInclude } from '@/modules/reports/types/report.types';
+import { rangeLabel, rangeSlug, slugify } from '@/modules/reports/utils/report-format';
 import {
   type AssignmentResultColumn,
   type AssignmentResultRow,
   buildAssignmentResultsWorkbook,
-} from '../writers/assignment-results.writer';
-import { buildRankingPdf } from '../writers/pdf.writer';
+} from '@/modules/reports/writers/assignment-results.writer';
+import { buildRankingPdf } from '@/modules/reports/writers/pdf.writer';
 import {
   type PointsRow,
   type ReportMeta,
   buildPointsWorkbook,
   buildRankingWorkbook,
-} from '../writers/xlsx.writer';
+} from '@/modules/reports/writers/xlsx.writer';
 
 /** Giới hạn số dòng sổ điểm xuất ra một file */
 export const POINTS_EXPORT_MAX_ROWS = 10_000;
@@ -172,8 +172,6 @@ export class ReportsService {
 
   /** `dd/MM/yyyy HH:mm` theo APP_TIMEZONE */
   private formatDateTime(date: Date): string {
-    const p = this.time.parts(date);
-    const pad = (n: number) => String(n).padStart(2, '0');
-    return `${pad(p.d)}/${pad(p.m)}/${p.y} ${pad(p.h)}:${pad(p.mi)}`;
+    return this.time.format(date, 'DD/MM/YYYY HH:mm');
   }
 }

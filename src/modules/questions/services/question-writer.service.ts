@@ -6,16 +6,16 @@ import {
   type UpdateQuestionBody,
   gradingModeOf,
 } from '@phonics/contracts';
-import { AppError, notFound } from '../../../common/errors/app-error';
-import { flattenZodError } from '../../../common/filters/all-exceptions.filter';
-import { Prisma } from '../../../generated/prisma/client';
-import { AuditService } from '../../audit/services/audit.service';
-import { type AuthUser } from '../../auth/types/auth.types';
-import { MediaService } from '../../media/services/media.service';
-import { QuestionRepository } from '../repositories/question.repository';
-import { type QuestionRow } from '../types/question.types';
-import { normalizeTags, questionMediaIds } from '../utils/question-content';
-import { QuestionReaderService } from './question-reader.service';
+import { AppError, notFound } from '@/common/errors/app-error';
+import { flattenZodError } from '@/common/filters/all-exceptions.filter';
+import { Prisma } from '@/generated/prisma/client';
+import { AuditService } from '@/modules/audit/services/audit.service';
+import { type AuthUser } from '@/modules/auth/types/auth.types';
+import { MediaService } from '@/modules/media/services/media.service';
+import { QuestionRepository } from '@/modules/questions/repositories/question.repository';
+import { type QuestionRow } from '@/modules/questions/types/question.types';
+import { normalizeTags, questionMediaIds } from '@/modules/questions/utils/question-content';
+import { QuestionReaderService } from '@/modules/questions/services/question-reader.service';
 
 /**
  * Tạo / sửa / phát hành / lưu trữ / nhân bản câu hỏi. Chỉ chủ sở hữu / ADMIN sửa. Không xoá cứng

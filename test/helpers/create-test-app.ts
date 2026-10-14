@@ -8,8 +8,8 @@ import { execFileSync } from 'node:child_process';
 import path from 'node:path';
 import { type NestExpressApplication } from '@nestjs/platform-express';
 import { Test } from '@nestjs/testing';
-import { type Env } from '../../src/config/env.schema';
-import { type PrismaService } from '../../src/database/prisma.service';
+import { type Env } from '@/config/env.schema';
+import { type PrismaService } from '@/database/prisma.service';
 
 const API_ROOT = path.resolve(__dirname, '../..');
 
@@ -60,10 +60,10 @@ export function applyMigrations(): void {
 export async function createTestApp(): Promise<TestApp> {
   // Import động để env (useTestDatabase) được đặt trước khi EnvModule đọc process.env
   const [{ AppModule }, { configureApp }, { PrismaService }, { ENV }] = await Promise.all([
-    import('../../src/app.module.js'),
-    import('../../src/bootstrap/configure-app.js'),
-    import('../../src/database/prisma.service'),
-    import('../../src/config/env.module.js'),
+    import('@/app.module'),
+    import('@/bootstrap/configure-app'),
+    import('@/database/prisma.service'),
+    import('@/config/env.module'),
   ]);
   const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
   const app = moduleRef.createNestApplication<NestExpressApplication>({ bufferLogs: false, logger: false });

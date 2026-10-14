@@ -5,18 +5,22 @@ import {
   type StudentDetail,
   type UpdateStudentBody,
 } from '@phonics/contracts';
-import { AppError, notFound } from '../../../common/errors/app-error';
-import { AccessService } from '../../../core/access/access.service';
-import { type Prisma } from '../../../generated/prisma/client';
-import { AuditService } from '../../audit/services/audit.service';
-import { PasswordService } from '../../auth/services/password.service';
-import { TokenService } from '../../auth/services/token.service';
-import { type AuthUser } from '../../auth/types/auth.types';
-import { NotificationsService } from '../../notifications/services/notifications.service';
-import { RankingService } from '../../points/services/ranking.service';
-import { StudentRepository } from '../repositories/student.repository';
-import { assertCanEditFields, profileUpdateOf, studentAuditDiff } from '../utils/student-rules';
-import { StudentReaderService } from './student-reader.service';
+import { AppError, notFound } from '@/common/errors/app-error';
+import { AccessService } from '@/core/access/access.service';
+import { type Prisma } from '@/generated/prisma/client';
+import { AuditService } from '@/modules/audit/services/audit.service';
+import { PasswordService } from '@/modules/auth/services/password.service';
+import { TokenService } from '@/modules/auth/services/token.service';
+import { type AuthUser } from '@/modules/auth/types/auth.types';
+import { NotificationsService } from '@/modules/notifications/services/notifications.service';
+import { RankingService } from '@/modules/points/services/ranking.service';
+import { StudentRepository } from '@/modules/students/repositories/student.repository';
+import {
+  assertCanEditFields,
+  profileUpdateOf,
+  studentAuditDiff,
+} from '@/modules/students/utils/student-rules';
+import { StudentReaderService } from '@/modules/students/services/student-reader.service';
 
 /** Sửa học sinh, đổi lớp, đặt lại mật khẩu (kèm audit; khoá tài khoản → thu hồi phiên) */
 @Injectable()

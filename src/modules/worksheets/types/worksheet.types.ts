@@ -1,5 +1,5 @@
-import { type Prisma } from '../../../generated/prisma/client';
-import { questionInclude } from '../../questions/types/question.types';
+import { type Prisma } from '@/generated/prisma/client';
+import { questionInclude } from '@/modules/questions/types/question.types';
 
 /** Include cho WorksheetSummary (đếm item / bài giao + điểm hiệu lực từng item) */
 export const worksheetSummaryInclude = {

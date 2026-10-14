@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { dateOnly, isOpenFor, isoDateOf, statusByWindow } from './assignment-dates';
+import { dateOnly, isOpenFor, isoDateOf, statusByWindow } from '@/modules/assignments/utils/assignment-dates';
 
 describe('isOpenFor', () => {
   const base = {

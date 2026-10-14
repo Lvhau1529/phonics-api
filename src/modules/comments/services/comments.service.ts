@@ -6,15 +6,15 @@ import {
   type UpdateCommentBody,
   type WorksheetSnapshot,
 } from '@phonics/contracts';
-import { AppError, notFound } from '../../../common/errors/app-error';
-import { AccessService } from '../../../core/access/access.service';
-import { PrismaService } from '../../../database/prisma.service';
-import { AuditService } from '../../audit/services/audit.service';
-import { type AuthUser } from '../../auth/types/auth.types';
-import { NotificationsService } from '../../notifications/services/notifications.service';
-import { itemsOf } from '../../worksheets/utils/worksheet-snapshot';
-import { buildThread, toCommentReply } from '../dto/responses/comment.view';
-import { commentInclude, CommentRow } from '../types/comment.types';
+import { AppError, notFound } from '@/common/errors/app-error';
+import { AccessService } from '@/core/access/access.service';
+import { PrismaService } from '@/database/prisma.service';
+import { AuditService } from '@/modules/audit/services/audit.service';
+import { type AuthUser } from '@/modules/auth/types/auth.types';
+import { NotificationsService } from '@/modules/notifications/services/notifications.service';
+import { itemsOf } from '@/modules/worksheets/utils/worksheet-snapshot';
+import { buildThread, toCommentReply } from '@/modules/comments/dto/responses/comment.view';
+import { commentInclude, CommentRow } from '@/modules/comments/types/comment.types';
 
 /**
  * Nhận xét trên bài nộp (theo bài hoặc theo câu). GV (lớp mình) tạo gốc / trả lời; học sinh chỉ trả lời trên bài của

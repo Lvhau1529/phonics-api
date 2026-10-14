@@ -1,8 +1,8 @@
 import { Controller, Get, Header } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
-import { Public } from '../../../common/decorators/public.decorator';
-import { API_V1 } from '../../../config/api-version';
-import { ClassesService } from '../services/classes.service';
+import { Public } from '@/common/decorators/public.decorator';
+import { API_V1 } from '@/config/api-version';
+import { ClassesService } from '@/modules/classes/services/classes.service';
 
 /** Danh sách lớp cho form đăng ký của học sinh (không cần đăng nhập) */
 @ApiTags('public')

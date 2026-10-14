@@ -5,12 +5,12 @@ import {
   type PublicGamesResponse,
   type UpdateGameBody,
 } from '@phonics/contracts';
-import { notFound } from '../../../common/errors/app-error';
-import { AuditService } from '../../audit/services/audit.service';
-import { type AuthUser } from '../../auth/types/auth.types';
-import { toAdminItem, toCatalogItem } from '../dto/responses/game.view';
-import { GameRepository } from '../repositories/game.repository';
-import { type GameRow } from '../types/game.types';
+import { notFound } from '@/common/errors/app-error';
+import { AuditService } from '@/modules/audit/services/audit.service';
+import { type AuthUser } from '@/modules/auth/types/auth.types';
+import { toAdminItem, toCatalogItem } from '@/modules/games/dto/responses/game.view';
+import { GameRepository } from '@/modules/games/repositories/game.repository';
+import { type GameRow } from '@/modules/games/types/game.types';
 
 /** Catalog game: danh sách công khai, trang quản trị (kèm số liệu), sửa catalog */
 @Injectable()

@@ -1,8 +1,12 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../../../database/prisma.service';
-import { type Tx } from '../../../database/types';
-import { type Prisma } from '../../../generated/prisma/client';
-import { type BonusEntryInput, pointEntryInclude, type PointEntryRow } from '../types/point.types';
+import { PrismaService } from '@/database/prisma.service';
+import { type Tx } from '@/database/types';
+import { type Prisma } from '@/generated/prisma/client';
+import {
+  type BonusEntryInput,
+  pointEntryInclude,
+  type PointEntryRow,
+} from '@/modules/points/types/point.types';
 
 /** Truy cập bảng point_entries (+ tra cứu lớp / thành viên mà luật điểm cần) */
 @Injectable()

@@ -7,8 +7,8 @@ import {
   type QuestionSummary,
   type QuestionView,
 } from '@phonics/contracts';
-import { type QuestionRow } from '../../types/question.types';
-import { thumbnailOf } from '../../utils/question-content';
+import { type QuestionRow } from '@/modules/questions/types/question.types';
+import { thumbnailOf } from '@/modules/questions/utils/question-content';
 
 export function toQuestionSummary(row: QuestionRow, media: MediaMap): QuestionSummary {
   return {

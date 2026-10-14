@@ -9,13 +9,13 @@
  */
 import 'dotenv/config';
 import { PrismaPg } from '@prisma/adapter-pg';
-import { PrismaClient } from '../../generated/prisma/client';
-import { seedAdmin } from './admin.seed';
-import { seedDemoClasses } from './demo-classes.seed';
-import { seedDemoWorksheets } from './demo-worksheets.seed';
-import { seedGames } from './games.seed';
-import { seedPermissionGroups } from './permission-groups.seed';
-import { connectionString } from './seed-helpers';
+import { PrismaClient } from '@/generated/prisma/client';
+import { seedAdmin } from '@/database/seeds/admin.seed';
+import { seedDemoClasses } from '@/database/seeds/demo-classes.seed';
+import { seedDemoWorksheets } from '@/database/seeds/demo-worksheets.seed';
+import { seedGames } from '@/database/seeds/games.seed';
+import { seedPermissionGroups } from '@/database/seeds/permission-groups.seed';
+import { connectionString } from '@/database/seeds/seed-helpers';
 
 async function main(): Promise<void> {
   const prisma = new PrismaClient({

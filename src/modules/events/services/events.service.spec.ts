@@ -1,6 +1,10 @@
 import { EVENT_MAX_AGE_MS, type GameEventInput } from '@phonics/contracts';
 import { describe, expect, it } from 'vitest';
-import { EVENT_MAX_FUTURE_MS, prepareEvents, truncateToSecond } from './events.service';
+import {
+  EVENT_MAX_FUTURE_MS,
+  prepareEvents,
+  truncateToSecond,
+} from '@/modules/events/services/events.service';
 
 const CLIENT_ID = '11111111-1111-4111-8111-111111111111';
 const KNOWN = new Set(['bread-catcher', 'food-stream', 'phonics-ocean']);

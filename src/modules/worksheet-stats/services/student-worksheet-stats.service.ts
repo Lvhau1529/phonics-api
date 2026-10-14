@@ -1,13 +1,14 @@
 import { Injectable } from '@nestjs/common';
 import { type StudentWorksheetRecent, type StudentWorksheetStats } from '@phonics/contracts';
-import { AppError } from '../../../common/errors/app-error';
-import { AccessService } from '../../../core/access/access.service';
-import { Prisma } from '../../../generated/prisma/client';
-import { AssignmentRankingService } from '../../assignments/services/assignment-ranking.service';
-import { isoDateOf } from '../../assignments/utils/assignment-dates';
-import { type AuthUser } from '../../auth/types/auth.types';
-import { WorksheetStatsRepository } from '../repositories/worksheet-stats.repository';
-import { avg, bestGraded, groupByAssignment, isPastDue, percentOf } from '../utils/worksheet-stats.math';
+import { groupBy } from 'es-toolkit';
+import { AppError } from '@/common/errors/app-error';
+import { AccessService } from '@/core/access/access.service';
+import { Prisma } from '@/generated/prisma/client';
+import { AssignmentRankingService } from '@/modules/assignments/services/assignment-ranking.service';
+import { isoDateOf } from '@/modules/assignments/utils/assignment-dates';
+import { type AuthUser } from '@/modules/auth/types/auth.types';
+import { WorksheetStatsRepository } from '@/modules/worksheet-stats/repositories/worksheet-stats.repository';
+import { avg, bestGraded, isPastDue, percentOf } from '@/modules/worksheet-stats/utils/worksheet-stats.math';
 
 const RECENT = 10;
 
@@ -35,8 +36,8 @@ export class StudentWorksheetStatsService {
       this.repo.byType(studentSql),
       this.repo.trend(studentSql),
     ]);
-    const byAssignment = groupByAssignment(submissions);
-    const finished = [...byAssignment.values()].filter((list) =>
+    const byAssignment = groupBy(submissions, (s) => s.assignmentId);
+    const finished = Object.values(byAssignment).filter((list) =>
       list.some((s) => s.status !== 'IN_PROGRESS'),
     );
     const bestPercents = finished
@@ -44,13 +45,13 @@ export class StudentWorksheetStatsService {
       .filter((b): b is NonNullable<typeof b> => !!b && b.maxScore > 0)
       .map((b) => Math.min(1, (b.totalScore ?? 0) / b.maxScore));
     const missing = classAssignments.filter(
-      (a) => !byAssignment.get(a.id)?.some((s) => s.status !== 'IN_PROGRESS') && isPastDue(a, now),
+      (a) => !byAssignment[a.id]?.some((s) => s.status !== 'IN_PROGRESS') && isPastDue(a, now),
     ).length;
 
     const latestAssignments = classAssignments.slice(0, RECENT);
     const ranks = await Promise.all(latestAssignments.map((a) => this.ranking.rankOf(a.id, studentId)));
     const recent: StudentWorksheetRecent[] = latestAssignments.map((a, i) => {
-      const list = byAssignment.get(a.id) ?? [];
+      const list = byAssignment[a.id] ?? [];
       const latest = list.at(-1);
       const chosen = bestGraded(list) ?? latest;
       return {

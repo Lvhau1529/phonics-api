@@ -3,15 +3,16 @@ import { type IncomingMessage } from 'node:http';
 import { Module } from '@nestjs/common';
 import { API_ROOT, ENDPOINTS } from '@phonics/contracts';
 import { LoggerModule as PinoLoggerModule } from 'nestjs-pino';
-import { REQUEST_ID_HEADER } from '../../common/middleware/request-id.middleware';
-import { ENV } from '../../config/env.module';
-import { type Env } from '../../config/env.schema';
+import { REQUEST_ID_HEADER } from '@/common/middleware/request-id.middleware';
+import { WORKSHEETS } from '@/config/constants';
+import { ENV } from '@/config/env.module';
+import { type Env } from '@/config/env.schema';
 
 const HEALTH_URL = `${API_ROOT}${ENDPOINTS.health}`;
 
 /**
  * Log JSON bằng pino (pino-pretty khi dev). Mã request lấy từ `requestIdMiddleware`;
- * không log secret (authorization / cookie / set-cookie bị redact), bỏ qua log của health check.
+ * không log secret (authorization / cookie / set-cookie bị redact), bỏ qua log của health check và file media.
  */
 @Module({
   imports: [
@@ -27,7 +28,10 @@ const HEALTH_URL = `${API_ROOT}${ENDPOINTS.health}`;
             env.NODE_ENV === 'development'
               ? { target: 'pino-pretty', options: { singleLine: true } }
               : undefined,
-          autoLogging: { ignore: (req: IncomingMessage) => req.url === HEALTH_URL },
+          autoLogging: {
+            ignore: (req: IncomingMessage) =>
+              req.url === HEALTH_URL || !!req.url?.startsWith(`${WORKSHEETS.mediaFilesPath}/`),
+          },
         },
       }),
     }),

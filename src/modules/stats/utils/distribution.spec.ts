@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { distribute, distributionWidth } from './distribution';
+import { distribute, distributionWidth } from '@/modules/stats/utils/distribution';
 
 describe('distributionWidth', () => {
   it('chọn bước theo điểm cao nhất', () => {

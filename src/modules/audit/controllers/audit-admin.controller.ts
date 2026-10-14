@@ -1,9 +1,9 @@
 import { Controller, Get, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
-import { Roles } from '../../../common/decorators/roles.decorator';
-import { API_V1 } from '../../../config/api-version';
-import { AuditListQueryDto } from '../dto/requests/audit.dto';
-import { AuditService } from '../services/audit.service';
+import { Roles } from '@/common/decorators/roles.decorator';
+import { API_V1 } from '@/config/api-version';
+import { AuditListQueryDto } from '@/modules/audit/dto/requests/audit.dto';
+import { AuditService } from '@/modules/audit/services/audit.service';
 
 @ApiTags('admin')
 @ApiBearerAuth()

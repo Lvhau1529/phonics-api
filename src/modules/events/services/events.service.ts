@@ -7,8 +7,9 @@ import {
   type GameEventType,
   type PlayMode,
 } from '@phonics/contracts';
-import { PrismaService } from '../../../database/prisma.service';
-import { type Tx } from '../../../database/types';
+import { dayjs } from '@/core/time/dayjs';
+import { PrismaService } from '@/database/prisma.service';
+import { type Tx } from '@/database/types';
 
 /** Sự kiện được phép tới "tương lai" tối đa chừng này (lệch đồng hồ client) */
 export const EVENT_MAX_FUTURE_MS = 60_000;
@@ -25,8 +26,7 @@ export interface EventRow {
 
 /** Cắt bỏ phần mili-giây (khoá dedupe `occurred_at` tính theo giây) */
 export function truncateToSecond(date: Date | number | string): Date {
-  const ms = typeof date === 'number' ? date : new Date(date).getTime();
-  return new Date(Math.floor(ms / 1000) * 1000);
+  return dayjs(date).startOf('second').toDate();
 }
 
 /**

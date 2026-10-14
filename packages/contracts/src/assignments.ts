@@ -30,7 +30,8 @@ export const CreateAssignmentBody = z
     maxAttempts: MaxAttempts.default(1),
     showAnswersAfterSubmit: z.boolean().default(false),
   })
-  .refine((b) => !b.dueAt || !b.availableFrom || b.dueAt > b.availableFrom, {
+  // So sánh mốc thời gian, không so chuỗi (ISO có thể khác offset)
+  .refine((b) => !b.dueAt || !b.availableFrom || Date.parse(b.dueAt) > Date.parse(b.availableFrom), {
     path: ['dueAt'],
     message: 'Hạn nộp phải sau thời điểm mở',
   });

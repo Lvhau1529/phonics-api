@@ -1,9 +1,9 @@
 import { type CanActivate, type ExecutionContext, Injectable } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { type Role } from '@phonics/contracts';
-import { type AuthUser } from '../../modules/auth/types/auth.types';
-import { ROLES_KEY } from '../decorators/roles.decorator';
-import { AppError } from '../errors/app-error';
+import { type AuthUser } from '@/modules/auth/types/auth.types';
+import { ROLES_KEY } from '@/common/decorators/roles.decorator';
+import { AppError } from '@/common/errors/app-error';
 
 /** Guard toàn cục #2: route có @Roles(...) thì user phải thuộc một trong các role đó */
 @Injectable()

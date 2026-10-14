@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { type AuthUser } from '../../auth/types/auth.types';
-import { type WorksheetDetailRow } from '../types/worksheet.types';
+import { type AuthUser } from '@/modules/auth/types/auth.types';
+import { type WorksheetDetailRow } from '@/modules/worksheets/types/worksheet.types';
 import {
   assertPublishable,
   assertStructureBelongs,
   countItems,
   worksheetVisibleWhere,
-} from './worksheet-rules';
+} from '@/modules/worksheets/utils/worksheet-rules';
 
 const teacher: AuthUser = {
   id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',

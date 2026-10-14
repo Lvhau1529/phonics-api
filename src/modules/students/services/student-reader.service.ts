@@ -5,18 +5,18 @@ import {
   type StudentListQuery,
   type StudentSummary,
 } from '@phonics/contracts';
-import { notFound } from '../../../common/errors/app-error';
-import { orderBy, paginate } from '../../../common/utils/paginate';
-import { AccessService } from '../../../core/access/access.service';
-import { PrismaService } from '../../../database/prisma.service';
-import { type Prisma } from '../../../generated/prisma/client';
-import { type AuthUser } from '../../auth/types/auth.types';
-import { PermissionsService } from '../../permissions/services/permissions.service';
-import { PointReaderService } from '../../points/services/point-reader.service';
-import { RankingService } from '../../points/services/ranking.service';
-import { toParentContact, toStudentSummary } from '../dto/responses/student.view';
-import { StudentRepository } from '../repositories/student.repository';
-import { STUDENT_SORT_FIELDS, type StudentRow } from '../types/student.types';
+import { notFound } from '@/common/errors/app-error';
+import { orderBy, paginate } from '@/common/utils/paginate';
+import { AccessService } from '@/core/access/access.service';
+import { PrismaService } from '@/database/prisma.service';
+import { type Prisma } from '@/generated/prisma/client';
+import { type AuthUser } from '@/modules/auth/types/auth.types';
+import { PermissionsService } from '@/modules/permissions/services/permissions.service';
+import { PointReaderService } from '@/modules/points/services/point-reader.service';
+import { RankingService } from '@/modules/points/services/ranking.service';
+import { toParentContact, toStudentSummary } from '@/modules/students/dto/responses/student.view';
+import { StudentRepository } from '@/modules/students/repositories/student.repository';
+import { STUDENT_SORT_FIELDS, type StudentRow } from '@/modules/students/types/student.types';
 
 /** Đọc học sinh: danh sách / chi tiết (ADMIN mọi lớp, TEACHER lớp mình) */
 @Injectable()

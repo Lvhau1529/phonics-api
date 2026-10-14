@@ -1,7 +1,7 @@
-import { DeleteObjectCommand, HeadObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3';
-import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+import { type Readable } from 'node:stream';
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import {
+  API_PREFIX,
   baseMimeType,
   MEDIA_LIMITS,
   type CompleteMediaBody,
@@ -12,22 +12,24 @@ import {
   type PresignMediaBody,
   type PresignMediaResponse,
 } from '@phonics/contracts';
-import { AppError, notFound } from '../../../common/errors/app-error';
-import { WORKSHEETS } from '../../../config/constants';
-import { ENV } from '../../../config/env.module';
-import { type Env } from '../../../config/env.schema';
-import { PrismaService } from '../../../database/prisma.service';
-import { type Tx } from '../../../database/types';
-import { S3_CLIENT, type S3ClientOrNull } from '../../../infrastructure/storage/storage.provider';
-import { type AuthUser } from '../../auth/types/auth.types';
-import { toMediaView } from '../dto/responses/media.view';
-import { buildObjectKey } from '../utils/media-key';
+import { AppError, notFound } from '@/common/errors/app-error';
+import { WORKSHEETS } from '@/config/constants';
+import { ENV } from '@/config/env.module';
+import { type Env } from '@/config/env.schema';
+import { PrismaService } from '@/database/prisma.service';
+import { type Tx } from '@/database/types';
+import { DiskStorage, FileTooLargeError } from '@/infrastructure/storage/disk-storage';
+import { type AuthUser } from '@/modules/auth/types/auth.types';
+import { toMediaView } from '@/modules/media/dto/responses/media.view';
+import { buildObjectKey } from '@/modules/media/utils/media-key';
+import { signUpload, verifyUpload } from '@/modules/media/utils/upload-signature';
+import { dayjs } from '@/core/time/dayjs';
 
 /**
- * Media (ảnh / audio) trên Neon Object Storage — ADR 0018.
- * API không chạm byte: presign PUT → client tải thẳng → complete (HEAD kiểm size / mime) → READY.
- * Mọi response có media đi kèm `media: MediaMap` qua `hydrate()` — điểm thay đổi duy nhất nếu sau này
- * chuyển sang bucket private + signed GET.
+ * Media (ảnh / audio) lưu trên ổ đĩa VPS — ADR 0024 (thay Neon Object Storage của ADR 0018, giữ nguyên contracts):
+ * presign (bản ghi PENDING + link PUT có chữ ký) → client PUT byte lên API (`upload`) → complete (kiểm size) →
+ * READY. File public phục vụ ở `${API_PUBLIC_URL}/files/...` (configure-app). Mọi response có media đi kèm
+ * `media: MediaMap` qua `hydrate()`.
  */
 @Injectable()
 export class MediaService {
@@ -36,27 +38,17 @@ export class MediaService {
   constructor(
     private readonly prisma: PrismaService,
     @Inject(ENV) private readonly env: Env,
-    @Inject(S3_CLIENT) private readonly s3: S3ClientOrNull,
+    private readonly storage: DiskStorage,
   ) {}
 
-  get enabled(): boolean {
-    return this.s3 !== null;
-  }
-
-  /** URL public của một key (bucket public_read, hoặc CDN qua MEDIA_PUBLIC_BASE_URL) */
+  /** URL public của một key (API tự phục vụ, hoặc CDN qua MEDIA_PUBLIC_BASE_URL) */
   publicUrl(key: string): string {
-    const base = this.env.MEDIA_PUBLIC_BASE_URL ?? `${this.env.AWS_ENDPOINT_URL_S3}/${this.env.MEDIA_BUCKET}`;
+    const base = this.env.MEDIA_PUBLIC_BASE_URL ?? `${this.env.API_PUBLIC_URL}${WORKSHEETS.mediaFilesPath}`;
     return `${base.replace(/\/+$/, '')}/${key}`;
   }
 
-  private requireS3(): NonNullable<S3ClientOrNull> {
-    if (!this.s3) throw new AppError('MEDIA_STORAGE_DISABLED', 503);
-    return this.s3;
-  }
-
-  /** Tạo bản ghi PENDING + URL PUT đã ký. Client phải gửi đúng `headers` trả về. */
+  /** Tạo bản ghi PENDING + link PUT đã ký. Client phải gửi đúng `headers` trả về. */
   async presign(user: AuthUser, body: PresignMediaBody): Promise<PresignMediaResponse> {
-    const s3 = this.requireS3();
     const mimeType = baseMimeType(body.mimeType);
     const key = buildObjectKey(user.id, mimeType);
     const row = await this.prisma.mediaAsset.create({
@@ -69,25 +61,53 @@ export class MediaService {
         status: 'PENDING',
       },
     });
-    const command = new PutObjectCommand({
-      Bucket: this.env.MEDIA_BUCKET,
-      Key: key,
-      ContentType: mimeType,
-      CacheControl: WORKSHEETS.mediaCacheControl,
-    });
-    const expiresIn = this.env.MEDIA_PRESIGN_TTL_SEC;
-    const uploadUrl = await getSignedUrl(s3, command, { expiresIn });
+    const expiresAt = dayjs().add(this.env.MEDIA_PRESIGN_TTL_SEC, 'second');
+    const exp = expiresAt.unix();
+    const sig = signUpload(this.env.JWT_ACCESS_SECRET, row.id, exp);
+    const uploadUrl = `${this.env.API_PUBLIC_URL}${API_PREFIX}/media/${row.id}/upload?exp=${exp}&sig=${sig}`;
     return {
       mediaId: row.id,
       uploadUrl,
       method: 'PUT',
-      headers: { 'Content-Type': mimeType, 'Cache-Control': WORKSHEETS.mediaCacheControl },
-      expiresAt: new Date(Date.now() + expiresIn * 1000).toISOString(),
+      headers: { 'Content-Type': mimeType },
+      expiresAt: expiresAt.toISOString(),
     };
   }
 
   /**
-   * Xác nhận đã PUT xong: HEAD đối tượng, kiểm size / mime theo MEDIA_LIMITS; sai → xoá đối tượng, 409.
+   * PUT byte lên link đã ký (không cần đăng nhập — chữ ký là quyền ghi đúng media này, có hạn). Kiểm Content-Type
+   * khớp lúc presign và giới hạn dung lượng theo MEDIA_LIMITS: theo Content-Length trước khi đọc (trả 413 gọn), rồi
+   * đếm byte trong lúc ghi (client khai sai → cắt kết nối). Media phải còn PENDING.
+   */
+  async upload(
+    id: string,
+    link: { exp: number; sig: string },
+    request: { contentType: string; contentLength?: number },
+    body: Readable,
+  ): Promise<void> {
+    if (!verifyUpload(this.env.JWT_ACCESS_SECRET, id, link.exp, link.sig, dayjs().unix())) {
+      throw new AppError('FORBIDDEN', 403, { message: 'Link tải lên không hợp lệ hoặc đã hết hạn' });
+    }
+    const row = await this.prisma.mediaAsset.findUnique({ where: { id } });
+    if (!row) throw notFound('Không tìm thấy file');
+    if (row.status !== 'PENDING') throw new AppError('CONFLICT', 409, { message: 'File đã tải lên xong' });
+    if (baseMimeType(request.contentType) !== row.mimeType) {
+      throw new AppError('MEDIA_TYPE_UNSUPPORTED', 415, { message: 'Content-Type khác lúc presign' });
+    }
+    const maxBytes = MEDIA_LIMITS[row.kind].maxBytes;
+    if (request.contentLength !== undefined && request.contentLength > maxBytes) {
+      throw new AppError('MEDIA_TOO_LARGE', 413);
+    }
+    try {
+      await this.storage.write(row.key, body, maxBytes);
+    } catch (e) {
+      if (e instanceof FileTooLargeError) throw new AppError('MEDIA_TOO_LARGE', 413);
+      throw e;
+    }
+  }
+
+  /**
+   * Xác nhận đã PUT xong: kiểm file có trên đĩa và size theo MEDIA_LIMITS; sai → xoá file, 409.
    * Idempotent: đã READY thì trả luôn.
    */
   async complete(user: AuthUser, id: string, body: CompleteMediaBody): Promise<MediaView> {
@@ -96,23 +116,13 @@ export class MediaService {
     if (row.ownerId !== user.id && user.role !== 'ADMIN') throw new AppError('FORBIDDEN_SCOPE', 403);
     if (row.status === 'READY') return toMediaView(row);
 
-    const s3 = this.requireS3();
-    const bucket = this.env.MEDIA_BUCKET;
-    const head = await s3.send(new HeadObjectCommand({ Bucket: bucket, Key: row.key })).catch((e: Error) => {
-      this.logger.warn(`HEAD ${row.key} thất bại: ${e.message}`);
-      throw new AppError('MEDIA_UPLOAD_INCOMPLETE', 409);
-    });
-    const size = head.ContentLength ?? 0;
-    const contentType = baseMimeType(head.ContentType ?? '');
-
+    const size = await this.storage.size(row.key);
+    if (size === null) throw new AppError('MEDIA_UPLOAD_INCOMPLETE', 409);
     const limit = MEDIA_LIMITS[row.kind].maxBytes;
-    if (size <= 0 || size > limit || contentType !== row.mimeType) {
+    if (size <= 0 || size > limit) {
       await this.deleteObject(row.key);
       throw new AppError('MEDIA_UPLOAD_INCOMPLETE', 409, {
-        details: {
-          sizeBytes: size > limit ? ['File quá lớn'] : [],
-          mimeType: contentType !== row.mimeType ? ['Định dạng không khớp lúc presign'] : [],
-        },
+        details: { sizeBytes: size > limit ? ['File quá lớn'] : ['File rỗng'] },
       });
     }
 
@@ -179,11 +189,10 @@ export class MediaService {
     if (bad.length) throw new AppError('MEDIA_NOT_READY', 400, { details: { mediaIds: bad } });
   }
 
-  /** Xoá đối tượng trên bucket (bỏ qua lỗi NoSuchKey) */
+  /** Xoá file trên đĩa (không có thì bỏ qua) */
   async deleteObject(key: string): Promise<void> {
-    if (!this.s3) return;
     try {
-      await this.s3.send(new DeleteObjectCommand({ Bucket: this.env.MEDIA_BUCKET, Key: key }));
+      await this.storage.remove(key);
     } catch (e) {
       this.logger.warn(`Không xoá được ${key}: ${(e as Error).message}`);
     }

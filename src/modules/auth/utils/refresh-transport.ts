@@ -5,8 +5,9 @@ import {
   type RefreshTransport,
 } from '@phonics/contracts';
 import { type CookieOptions, type Request, type Response } from 'express';
-import { API_V1 } from '../../../config/api-version';
-import { type Env } from '../../../config/env.schema';
+import { API_V1 } from '@/config/api-version';
+import { type Env } from '@/config/env.schema';
+import { dayjs } from '@/core/time/dayjs';
 
 /**
  * Client chọn cách nhận refresh token:
@@ -35,7 +36,11 @@ export function cookieOptions(env: Env, maxAgeMs: number): CookieOptions {
 }
 
 export function setRefreshCookie(res: Response, env: Env, token: string): void {
-  res.cookie(REFRESH_COOKIE_NAME, token, cookieOptions(env, env.REFRESH_TTL_DAYS * 24 * 3600 * 1000));
+  res.cookie(
+    REFRESH_COOKIE_NAME,
+    token,
+    cookieOptions(env, dayjs.duration(env.REFRESH_TTL_DAYS, 'day').asMilliseconds()),
+  );
 }
 
 export function clearRefreshCookie(res: Response, env: Env): void {

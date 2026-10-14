@@ -4,7 +4,8 @@ import {
   type SubmissionAnswerView,
   type SubmissionSummary,
 } from '@phonics/contracts';
-import { type Prisma } from '../../../../generated/prisma/client';
+import { clamp } from 'es-toolkit';
+import { type Prisma } from '@/generated/prisma/client';
 
 /** Include tối thiểu để dựng SubmissionSummary */
 export const submissionSummaryInclude = {
@@ -15,7 +16,7 @@ export const submissionSummaryInclude = {
 export type SubmissionSummaryRow = Prisma.SubmissionGetPayload<{ include: typeof submissionSummaryInclude }>;
 
 export const percentOf = (score: number | null, max: number): number | null =>
-  score === null || max <= 0 ? null : Math.min(1, Math.max(0, score / max));
+  score === null || max <= 0 ? null : clamp(score / max, 0, 1);
 
 /** Hàm thuần dùng chung (assignments cũng cần) — đặt ở view để tránh import vòng giữa các service */
 export function toSubmissionSummary(row: SubmissionSummaryRow): SubmissionSummary {

@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { mockDeep } from 'vitest-mock-extended';
-import { type AccessService } from '../../../core/access/access.service';
-import { type PrismaService } from '../../../database/prisma.service';
-import { type AuditService } from '../../audit/services/audit.service';
-import { type AuthUser } from '../../auth/types/auth.types';
-import { type NotificationsService } from '../../notifications/services/notifications.service';
-import { buildThread } from '../dto/responses/comment.view';
-import { CommentsService } from './comments.service';
+import { type AccessService } from '@/core/access/access.service';
+import { type PrismaService } from '@/database/prisma.service';
+import { type AuditService } from '@/modules/audit/services/audit.service';
+import { type AuthUser } from '@/modules/auth/types/auth.types';
+import { type NotificationsService } from '@/modules/notifications/services/notifications.service';
+import { buildThread } from '@/modules/comments/dto/responses/comment.view';
+import { CommentsService } from '@/modules/comments/services/comments.service';
 
 const SUB = '77777777-7777-4777-8777-777777777777';
 const ITEM = '55555555-5555-4555-8555-555555555555';

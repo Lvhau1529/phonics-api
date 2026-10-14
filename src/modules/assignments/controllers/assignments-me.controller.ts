@@ -1,11 +1,11 @@
 import { Controller, Get, Param, ParseUUIDPipe, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
-import { CurrentUser } from '../../../common/decorators/current-user.decorator';
-import { Roles } from '../../../common/decorators/roles.decorator';
-import { API_V1 } from '../../../config/api-version';
-import { type AuthUser } from '../../auth/types/auth.types';
-import { AssignmentStudentService } from '../services/assignment-student.service';
-import { MyAssignmentListQueryDto } from '../dto/requests/assignments.dto';
+import { CurrentUser } from '@/common/decorators/current-user.decorator';
+import { Roles } from '@/common/decorators/roles.decorator';
+import { API_V1 } from '@/config/api-version';
+import { type AuthUser } from '@/modules/auth/types/auth.types';
+import { AssignmentStudentService } from '@/modules/assignments/services/assignment-student.service';
+import { MyAssignmentListQueryDto } from '@/modules/assignments/dto/requests/assignments.dto';
 
 /** Bài tập của chính học sinh (lớp đang học). Bắt đầu làm bài: POST /me/assignments/:id/submissions (module submissions). */
 @ApiTags('me')

@@ -1,11 +1,12 @@
 import { Injectable } from '@nestjs/common';
 import { AvatarKey, DEFAULT_AVATAR, type RankingEntry } from '@phonics/contracts';
-import { RANK_NOTIFY_POLICY } from '../../../config/constants';
-import { PrismaService } from '../../../database/prisma.service';
-import { type Tx } from '../../../database/types';
-import { type DateRange } from '../../../core/time/time.service';
-import { Prisma } from '../../../generated/prisma/client';
-import { NotificationsService } from '../../notifications/services/notifications.service';
+import { RANK_NOTIFY_POLICY } from '@/config/constants';
+import { PrismaService } from '@/database/prisma.service';
+import { type Tx } from '@/database/types';
+import { type DateRange } from '@/core/time/time.service';
+import { Prisma } from '@/generated/prisma/client';
+import { NotificationsService } from '@/modules/notifications/services/notifications.service';
+import { EPOCH, FAR_FUTURE } from '@/core/time/dayjs';
 
 export interface RankRow {
   studentId: string;
@@ -53,8 +54,8 @@ export class RankingService {
   ) {}
 
   async rankClass(tx: Tx, classId: string, filter: RankFilter = {}): Promise<RankRow[]> {
-    const from = filter.range?.from ?? new Date(0);
-    const to = filter.range?.to ?? new Date('2100-01-01T00:00:00Z');
+    const from = filter.range?.from ?? EPOCH;
+    const to = filter.range?.to ?? FAR_FUTURE;
     const gameFilter = filter.gameId ? Prisma.sql`AND p.game_id = ${filter.gameId}` : Prisma.empty;
     return tx.$queryRaw<RankRow[]>`
       SELECT m.student_id                                   AS "studentId",

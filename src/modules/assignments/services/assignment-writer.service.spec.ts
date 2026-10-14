@@ -1,19 +1,20 @@
 import { describe, expect, it } from 'vitest';
 import { mockDeep } from 'vitest-mock-extended';
-import { type AccessService } from '../../../core/access/access.service';
-import { type PrismaService } from '../../../database/prisma.service';
-import { type TimeService } from '../../../core/time/time.service';
-import { type AuditService } from '../../audit/services/audit.service';
-import { type AuthUser } from '../../auth/types/auth.types';
-import { type MediaService } from '../../media/services/media.service';
-import { type NotificationsService } from '../../notifications/services/notifications.service';
-import { type WorksheetReaderService } from '../../worksheets/services/worksheet-reader.service';
-import { AssignmentRepository } from '../repositories/assignment.repository';
-import { dateOnly } from '../utils/assignment-dates';
-import { AssignmentLifecycleService } from './assignment-lifecycle.service';
-import { type AssignmentRankingService } from './assignment-ranking.service';
-import { AssignmentReaderService } from './assignment-reader.service';
-import { AssignmentWriterService } from './assignment-writer.service';
+import { type AccessService } from '@/core/access/access.service';
+import { type PrismaService } from '@/database/prisma.service';
+import { type TimeService } from '@/core/time/time.service';
+import { type AuditService } from '@/modules/audit/services/audit.service';
+import { type AuthUser } from '@/modules/auth/types/auth.types';
+import { type MediaService } from '@/modules/media/services/media.service';
+import { type NotificationsService } from '@/modules/notifications/services/notifications.service';
+import { type WorksheetReaderService } from '@/modules/worksheets/services/worksheet-reader.service';
+import { AssignmentRepository } from '@/modules/assignments/repositories/assignment.repository';
+import { type AssignmentsScheduler } from '@/modules/assignments/jobs/assignments.scheduler';
+import { dateOnly } from '@/modules/assignments/utils/assignment-dates';
+import { AssignmentLifecycleService } from '@/modules/assignments/services/assignment-lifecycle.service';
+import { type AssignmentRankingService } from '@/modules/assignments/services/assignment-ranking.service';
+import { AssignmentReaderService } from '@/modules/assignments/services/assignment-reader.service';
+import { AssignmentWriterService } from '@/modules/assignments/services/assignment-writer.service';
 
 const M = '11111111-1111-4111-8111-111111111111';
 const CLASS = '22222222-2222-4222-8222-222222222222';
@@ -90,8 +91,18 @@ function setup() {
   const repo = new AssignmentRepository(prisma);
   const reader = new AssignmentReaderService(repo, access, time, media, ranking);
   const lifecycle = new AssignmentLifecycleService(repo, time, notifications);
-  const service = new AssignmentWriterService(repo, reader, lifecycle, access, audit, time, worksheets);
-  return { prisma, access, audit, notifications, worksheets, service };
+  const scheduler = mockDeep<AssignmentsScheduler>();
+  const service = new AssignmentWriterService(
+    repo,
+    reader,
+    lifecycle,
+    access,
+    audit,
+    time,
+    worksheets,
+    scheduler,
+  );
+  return { prisma, access, audit, notifications, worksheets, scheduler, service };
 }
 
 const createdRow = (status: 'OPEN' | 'SCHEDULED') => ({

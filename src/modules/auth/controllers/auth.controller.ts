@@ -3,12 +3,12 @@ import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import { type AuthResponse } from '@phonics/contracts';
 import { type Request, type Response } from 'express';
-import { CurrentUser, MaybeUser } from '../../../common/decorators/current-user.decorator';
-import { OptionalAuth, Public } from '../../../common/decorators/public.decorator';
-import { API_V1 } from '../../../config/api-version';
-import { THROTTLE } from '../../../config/constants';
-import { ENV } from '../../../config/env.module';
-import { type Env } from '../../../config/env.schema';
+import { CurrentUser, MaybeUser } from '@/common/decorators/current-user.decorator';
+import { OptionalAuth, Public } from '@/common/decorators/public.decorator';
+import { API_V1 } from '@/config/api-version';
+import { THROTTLE } from '@/config/constants';
+import { ENV } from '@/config/env.module';
+import { type Env } from '@/config/env.schema';
 import {
   ChangePasswordDto,
   GoogleDto,
@@ -16,15 +16,15 @@ import {
   LogoutDto,
   RefreshDto,
   RegisterDto,
-} from '../dto/requests/auth.dto';
-import { AuthService } from '../services/auth.service';
-import { type AuthResult, type AuthUser } from '../types/auth.types';
+} from '@/modules/auth/dto/requests/auth.dto';
+import { AuthService } from '@/modules/auth/services/auth.service';
+import { type AuthResult, type AuthUser } from '@/modules/auth/types/auth.types';
 import {
   clearRefreshCookie,
   presentedRefreshToken,
   setRefreshCookie,
   transportOf,
-} from '../utils/refresh-transport';
+} from '@/modules/auth/utils/refresh-transport';
 
 const authThrottle = { default: { limit: THROTTLE.auth.limit, ttl: THROTTLE.auth.ttl } };
 

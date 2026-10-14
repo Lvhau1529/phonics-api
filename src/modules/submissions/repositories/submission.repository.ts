@@ -1,12 +1,12 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../../../database/prisma.service';
-import { type Tx } from '../../../database/types';
-import { Prisma } from '../../../generated/prisma/client';
+import { PrismaService } from '@/database/prisma.service';
+import { type Tx } from '@/database/types';
+import { Prisma } from '@/generated/prisma/client';
 import {
   type SubmissionAnswerRow,
   type SubmissionRow,
   submissionDetailInclude,
-} from '../types/submission.types';
+} from '@/modules/submissions/types/submission.types';
 
 /** Dữ liệu ghi cho một câu trả lời (theo bài nộp + worksheetItemId) */
 export interface AnswerKey {

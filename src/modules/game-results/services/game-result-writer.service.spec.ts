@@ -1,16 +1,16 @@
 import { type GameResultBody, POINT_RULES } from '@phonics/contracts';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { type DeepMockProxy, mock, mockDeep, mockReset } from 'vitest-mock-extended';
-import { AppError } from '../../../common/errors/app-error';
-import { type PrismaService } from '../../../database/prisma.service';
-import { type TimeService } from '../../../core/time/time.service';
-import { Prisma } from '../../../generated/prisma/client';
-import { type EventsService } from '../../events/services/events.service';
-import { type GameUnlockService } from '../../games/services/game-unlock.service';
-import { type PointReaderService } from '../../points/services/point-reader.service';
-import { type RankingService } from '../../points/services/ranking.service';
-import { GameResultRepository } from '../repositories/game-result.repository';
-import { GameResultWriterService } from './game-result-writer.service';
+import { AppError } from '@/common/errors/app-error';
+import { type PrismaService } from '@/database/prisma.service';
+import { type TimeService } from '@/core/time/time.service';
+import { Prisma } from '@/generated/prisma/client';
+import { type EventsService } from '@/modules/events/services/events.service';
+import { type GameUnlockService } from '@/modules/games/services/game-unlock.service';
+import { type PointReaderService } from '@/modules/points/services/point-reader.service';
+import { type RankingService } from '@/modules/points/services/ranking.service';
+import { GameResultRepository } from '@/modules/game-results/repositories/game-result.repository';
+import { GameResultWriterService } from '@/modules/game-results/services/game-result-writer.service';
 
 const STUDENT_ID = '22222222-2222-4222-8222-222222222222';
 const CLASS_ID = '33333333-3333-4333-8333-333333333333';

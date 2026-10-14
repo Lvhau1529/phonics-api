@@ -1,8 +1,15 @@
 import { randomUUID } from 'node:crypto';
 import { AVATARS, GAME_IDS } from '@phonics/contracts';
-import { type Prisma, type PrismaClient } from '../../generated/prisma/client';
-import { DEMO_PASSWORD, DEMO_TEACHER1, DEMO_TEACHER2, SCHOOL_YEAR, STUDENT_NAMES } from './demo.constants';
-import { createRandom, DAY_MS, hashPassword } from './seed-helpers';
+import { type Prisma, type PrismaClient } from '@/generated/prisma/client';
+import {
+  DEMO_PASSWORD,
+  DEMO_TEACHER1,
+  DEMO_TEACHER2,
+  SCHOOL_YEAR,
+  STUDENT_NAMES,
+} from '@/database/seeds/demo.constants';
+import { dayjs } from '@/core/time/dayjs';
+import { createRandom, hashPassword } from '@/database/seeds/seed-helpers';
 
 /** SQL xếp hạng — bản sao của src/modules/points/services/ranking.service.ts (rankClass, không lọc thời gian / game) */
 async function rankClass(
@@ -76,7 +83,7 @@ export async function seedDemoClasses(prisma: PrismaClient): Promise<void> {
         for (let i = 1; i <= 8; i += 1) {
           const displayName = STUDENT_NAMES[nameIndex % STUDENT_NAMES.length];
           nameIndex += 1;
-          const joinedAt = new Date(now.getTime() - random.int(15, 40) * DAY_MS);
+          const joinedAt = dayjs(now).subtract(random.int(15, 40), 'day').toDate();
           const student = await tx.user.create({
             data: {
               email: `${slug}.student${String(i).padStart(2, '0')}@demo.local`,
@@ -108,11 +115,11 @@ export async function seedDemoClasses(prisma: PrismaClient): Promise<void> {
             const total =
               gameId === 'bread-catcher' ? 5 : gameId === 'phonics-ocean' ? 12 : random.int(8, 12);
             const correct = random.int(Math.floor(total / 2), total);
-            const playedAt = new Date(
-              Math.floor(
-                (now.getTime() - random.int(1, 14 * 24) * 3600 * 1000 - random.int(0, 3599) * 1000) / 1000,
-              ) * 1000,
-            );
+            const playedAt = dayjs(now)
+              .subtract(random.int(1, 14 * 24), 'hour')
+              .subtract(random.int(0, 3599), 'second')
+              .startOf('second')
+              .toDate();
             resultData.push({
               studentId: student.id,
               classId: cls.id,
@@ -158,7 +165,7 @@ export async function seedDemoClasses(prisma: PrismaClient): Promise<void> {
               userId: student.id,
               clientId,
               mode: 'solo',
-              occurredAt: new Date(res.playedAt.getTime() - random.int(60, 600) * 1000),
+              occurredAt: dayjs(res.playedAt).subtract(random.int(60, 600), 'second').toDate(),
             },
             {
               gameId: res.gameId,
@@ -180,7 +187,7 @@ export async function seedDemoClasses(prisma: PrismaClient): Promise<void> {
           'Read aloud beautifully',
           'Super focus',
         ];
-        for (const studentId of [...studentIds].sort(() => random.int(0, 1) - 0.5).slice(0, 3)) {
+        for (const studentId of random.shuffle(studentIds).slice(0, 3)) {
           await tx.pointEntry.create({
             data: {
               studentId,
@@ -189,7 +196,9 @@ export async function seedDemoClasses(prisma: PrismaClient): Promise<void> {
               points: random.pick([5, 5, 10]),
               note: random.pick(bonusNotes),
               createdById: teacherId,
-              createdAt: new Date(now.getTime() - random.int(1, 7 * 24) * 3600 * 1000),
+              createdAt: dayjs(now)
+                .subtract(random.int(1, 7 * 24), 'hour')
+                .toDate(),
             },
           });
           summary.bonus += 1;
@@ -202,9 +211,10 @@ export async function seedDemoClasses(prisma: PrismaClient): Promise<void> {
             gameId: random.pick(GAME_IDS),
             type: 'VIEW',
             clientId: randomUUID(),
-            occurredAt: new Date(
-              Math.floor((now.getTime() - random.int(1, 14 * 24) * 3600 * 1000) / 1000) * 1000,
-            ),
+            occurredAt: dayjs(now)
+              .subtract(random.int(1, 14 * 24), 'hour')
+              .startOf('second')
+              .toDate(),
           });
         }
         summary.events += (await tx.gameEvent.createMany({ data: anonymous, skipDuplicates: true })).count;

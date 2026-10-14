@@ -1,13 +1,13 @@
 import { Body, Controller, Get, HttpCode, Param, ParseUUIDPipe, Patch, Post, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
-import { CurrentUser } from '../../../common/decorators/current-user.decorator';
-import { RequirePermission, Roles } from '../../../common/decorators/roles.decorator';
-import { RangeQueryDto } from '../../../common/dto/query.dto';
-import { API_V1 } from '../../../config/api-version';
-import { type AuthUser } from '../../auth/types/auth.types';
-import { StudentActivityService } from '../services/student-activity.service';
-import { StudentReaderService } from '../services/student-reader.service';
-import { StudentWriterService } from '../services/student-writer.service';
+import { CurrentUser } from '@/common/decorators/current-user.decorator';
+import { RequirePermission, Roles } from '@/common/decorators/roles.decorator';
+import { RangeQueryDto } from '@/common/dto/query.dto';
+import { API_V1 } from '@/config/api-version';
+import { type AuthUser } from '@/modules/auth/types/auth.types';
+import { StudentActivityService } from '@/modules/students/services/student-activity.service';
+import { StudentReaderService } from '@/modules/students/services/student-reader.service';
+import { StudentWriterService } from '@/modules/students/services/student-writer.service';
 import {
   GameResultListQueryDto,
   MoveClassDto,
@@ -15,7 +15,7 @@ import {
   StudentListQueryDto,
   StudentPointsQueryDto,
   UpdateStudentDto,
-} from '../dto/requests/students.dto';
+} from '@/modules/students/dto/requests/students.dto';
 
 /**
  * Học sinh (admin + giáo viên trong phạm vi lớp mình). `/students/:id/games*` thuộc module games.

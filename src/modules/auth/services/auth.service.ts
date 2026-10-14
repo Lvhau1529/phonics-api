@@ -9,16 +9,16 @@ import {
   type ParentContact,
   type RegisterBody,
 } from '@phonics/contracts';
-import { AppError } from '../../../common/errors/app-error';
-import { PrismaService } from '../../../database/prisma.service';
-import { type Tx } from '../../../database/types';
-import { PermissionsService } from '../../permissions/services/permissions.service';
-import { RankingService } from '../../points/services/ranking.service';
-import { UsersService } from '../../users/services/users.service';
-import { type AuthResult, type AuthUser, type ClientMeta } from '../types/auth.types';
-import { GoogleService } from './google.service';
-import { PasswordService } from './password.service';
-import { type IssuedTokens, TokenService } from './token.service';
+import { AppError } from '@/common/errors/app-error';
+import { PrismaService } from '@/database/prisma.service';
+import { type Tx } from '@/database/types';
+import { PermissionsService } from '@/modules/permissions/services/permissions.service';
+import { RankingService } from '@/modules/points/services/ranking.service';
+import { UsersService } from '@/modules/users/services/users.service';
+import { type AuthResult, type AuthUser, type ClientMeta } from '@/modules/auth/types/auth.types';
+import { GoogleService } from '@/modules/auth/services/google.service';
+import { PasswordService } from '@/modules/auth/services/password.service';
+import { type IssuedTokens, TokenService } from '@/modules/auth/services/token.service';
 
 @Injectable()
 export class AuthService {

@@ -1,5 +1,5 @@
-import { type PrismaClient } from '../../generated/prisma/client';
-import { hashPassword } from './seed-helpers';
+import { type PrismaClient } from '@/generated/prisma/client';
+import { hashPassword } from '@/database/seeds/seed-helpers';
 
 /** ADMIN từ ADMIN_EMAIL / ADMIN_PASSWORD (không ghi đè mật khẩu đã có, trừ khi SEED_RESET_ADMIN_PASSWORD=true) */
 export async function seedAdmin(prisma: PrismaClient): Promise<void> {

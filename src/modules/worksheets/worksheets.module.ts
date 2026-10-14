@@ -1,11 +1,11 @@
 import { Module } from '@nestjs/common';
-import { AuditModule } from '../audit/audit.module';
-import { MediaModule } from '../media/media.module';
-import { QuestionsModule } from '../questions/questions.module';
-import { WorksheetsController } from './controllers/worksheets.controller';
-import { WorksheetRepository } from './repositories/worksheet.repository';
-import { WorksheetReaderService } from './services/worksheet-reader.service';
-import { WorksheetWriterService } from './services/worksheet-writer.service';
+import { AuditModule } from '@/modules/audit/audit.module';
+import { MediaModule } from '@/modules/media/media.module';
+import { QuestionsModule } from '@/modules/questions/questions.module';
+import { WorksheetsController } from '@/modules/worksheets/controllers/worksheets.controller';
+import { WorksheetRepository } from '@/modules/worksheets/repositories/worksheet.repository';
+import { WorksheetReaderService } from '@/modules/worksheets/services/worksheet-reader.service';
+import { WorksheetWriterService } from '@/modules/worksheets/services/worksheet-writer.service';
 
 /** Phiếu bài tập (metadata + Part + câu) — ADR 0017 */
 @Module({

@@ -1,9 +1,9 @@
 import { ROLE_DEFAULT_PERMISSIONS } from '@phonics/contracts';
 import { describe, expect, it } from 'vitest';
 import { mockDeep } from 'vitest-mock-extended';
-import { type PrismaService } from '../../../database/prisma.service';
-import { PermissionRepository } from '../repositories/permission.repository';
-import { PermissionsService } from './permissions.service';
+import { type PrismaService } from '@/database/prisma.service';
+import { PermissionRepository } from '@/modules/permissions/repositories/permission.repository';
+import { PermissionsService } from '@/modules/permissions/services/permissions.service';
 
 function setup(overrides: { permission: string; effect: 'GRANT' | 'REVOKE' }[], groups: string[][] = []) {
   const prisma = mockDeep<PrismaService>();

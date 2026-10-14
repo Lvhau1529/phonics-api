@@ -1,11 +1,11 @@
 import { Inject, Injectable, type OnModuleDestroy, type OnModuleInit } from '@nestjs/common';
 import { PrismaPg } from '@prisma/adapter-pg';
-import { ENV } from '../config/env.module';
-import { type Env } from '../config/env.schema';
-import { PrismaClient } from '../generated/prisma/client';
+import { ENV } from '@/config/env.module';
+import { type Env } from '@/config/env.schema';
+import { PrismaClient } from '@/generated/prisma/client';
 
 /**
- * Prisma 7 + driver adapter pg. Pool nhỏ vì Neon pooled đã gom kết nối.
+ * Prisma 7 + driver adapter pg. Pool nhỏ (max 5): Postgres cùng VPS (service `db`), một instance API.
  * Mọi service inject PrismaService; transaction: `this.prisma.$transaction(async (tx) => …)`.
  */
 @Injectable()

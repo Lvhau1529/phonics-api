@@ -11,6 +11,12 @@ phonics-dev (`docs/`). Rule riêng của gói hợp đồng: [packages/contracts
 - Dùng **pnpm**; thêm / đổi package thì commit kèm `pnpm-lock.yaml` (deploy cài bằng `--frozen-lockfile`).
 - Secret chỉ trong `.env` (gitignored); mẫu ở `.env.example`. Không ghi secret vào docs / commit / log.
 
+## Hạ tầng (ADR 0024)
+
+Production = một VPS, `docker-compose.yml`: `db` (Postgres 18, volume `pgdata`) + `api` + `caddy` + `backup`
+(`deploy/backup.sh`). Media lưu đĩa (volume `media`), API tự phục vụ `/files/*`. Không dùng Neon / S3 / dịch vụ DB
+ngoài. Job theo thời gian không truy vấn DB định kỳ dày (hẹn timer theo mốc dữ liệu như `AssignmentsScheduler`).
+
 ## Dev cùng các repo khác
 
 Repo này độc lập (clone, cài, build, deploy riêng). Muốn chạy cả hệ thống cùng lúc (API + game + admin): đặt 3 repo
@@ -27,7 +33,7 @@ Cấu trúc thư mục + versioning: [README > Cấu trúc](README.md#cấu-trú
 - `core/`: hạ tầng `@Global` không nghiệp vụ (logger, time, access) — gom trong `CoreModule` (kèm `PrismaModule`).
 - `database/`: `PrismaModule`, `PrismaService`, kiểu `Tx` (`database/types.ts`); `database/seeds/` = seed theo miền.
   Migration vẫn ở `prisma/migrations` (Prisma CLI + `docker-entrypoint.sh`).
-- `infrastructure/`: client dịch vụ ngoài (`storage/` — S3 / Neon Object Storage).
+- `infrastructure/`: hạ tầng ngoài nghiệp vụ (`storage/` — `DiskStorage`, file media trên đĩa `MEDIA_DIR`, ADR 0024).
 - `common/`: khối của request pipeline — `middleware/`, `guards/`, `decorators/`, `filters/`, `errors/`, `dto/`,
   `utils/`. Thêm interceptor / pipe riêng thì tạo `common/interceptors/`, `common/pipes/`.
 - `bootstrap/configure-app.ts`: prefix, versioning, middleware (`app.use`), CORS, filter — dùng chung cho `main.ts`
@@ -60,7 +66,7 @@ Cấu trúc thư mục + versioning: [README > Cấu trúc](README.md#cấu-trú
   trong API). `ZodValidationPipe` toàn cục. Mọi lỗi ra ngoài qua `AllExceptionsFilter` → envelope `ApiErrorBody`;
   lỗi nghiệp vụ ném `new AppError('CODE', status, { message?, details? })` với `CODE` thuộc `ErrorCode` của contracts.
 - Prisma 7: client sinh ra ở `src/generated/prisma` (gitignored; `pnpm prisma:generate`). Import
-  `{ Prisma }` từ `src/generated/prisma/client` (tương đối, vd `../../generated/prisma/client` từ module). Transaction:
+  `{ Prisma }` từ `src/generated/prisma/client` (`@/generated/prisma/client`). Transaction:
   `prisma.$transaction(async (tx) => …)`, kiểu `Tx` (`database/types.ts`).
   Bảng / cột snake_case qua `@@map` — SQL raw (`$queryRaw`) dùng tên snake_case.
 - Thời gian: mọi "hôm nay / tuần / tháng" qua `TimeService` (APP_TIMEZONE), không dùng `new Date()` trần.
@@ -86,7 +92,7 @@ Cấu trúc thư mục + versioning: [README > Cấu trúc](README.md#cấu-trú
 
 ## Đổi schema DB
 
-`prisma/schema.prisma` → `pnpm prisma:migrate --name <ten>` (dùng `DIRECT_URL`, Neon branch dev) → kiểm tra SQL
+`prisma/schema.prisma` → `pnpm prisma:migrate --name <ten>` (dùng `DIRECT_URL`, Postgres local của phonics-dev) → kiểm tra SQL
 sinh ra (index partial / SQL đặc biệt thêm tay vào file migration, không chỉ sửa schema) → commit cả thư mục
 `prisma/migrations`. Production chạy `prisma migrate deploy` (docker-entrypoint.sh).
 
@@ -94,7 +100,7 @@ sinh ra (index partial / SQL đặc biệt thêm tay vào file migration, không
 
 - TypeScript 6 (classic) cho app này (Nest cần decorator metadata; TS 7 chưa có compiler API). Build bằng SWC
   (`nest-cli.json`), typecheck bằng `tsc --noEmit`.
-- Import tương đối (không alias), inline `import { type X }`. Comment / JSDoc tiếng Việt, identifier tiếng Anh,
+- Import bằng alias `@/` → `src` (ESLint cấm `../`; khai báo ở `tsconfig.json`, `.swcrc`, `vitest.config.ts`), inline `import { type X }`. Comment / JSDoc tiếng Việt, identifier tiếng Anh,
   chuỗi thông báo cho học sinh (notification title/body) tiếng Anh ngắn gọn, message lỗi tiếng Việt.
 - Không bao giờ trả `passwordHash`, `googleSub`, `tokenVersion`, token ra ngoài. Không log secret
   (pino đã redact `authorization` / `cookie`).

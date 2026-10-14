@@ -1,11 +1,11 @@
 import { Body, Controller, Delete, HttpCode, Param, ParseUUIDPipe, Patch } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
-import { CurrentUser } from '../../../common/decorators/current-user.decorator';
-import { Roles } from '../../../common/decorators/roles.decorator';
-import { API_V1 } from '../../../config/api-version';
-import { type AuthUser } from '../../auth/types/auth.types';
-import { UpdateCommentDto } from '../dto/requests/comments.dto';
-import { CommentsService } from '../services/comments.service';
+import { CurrentUser } from '@/common/decorators/current-user.decorator';
+import { Roles } from '@/common/decorators/roles.decorator';
+import { API_V1 } from '@/config/api-version';
+import { type AuthUser } from '@/modules/auth/types/auth.types';
+import { UpdateCommentDto } from '@/modules/comments/dto/requests/comments.dto';
+import { CommentsService } from '@/modules/comments/services/comments.service';
 
 /** Sửa / xoá một nhận xét (tác giả; admin xoá được) */
 @ApiTags('submissions')

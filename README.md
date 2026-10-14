@@ -1,6 +1,6 @@
 # phonics-api — Phonics Arcade API
 
-NestJS 11 + Prisma 7 (PostgreSQL / Neon). Phục vụ app game ([phonics-game](https://github.com/Lvhau1529/phonics-game)) và
+NestJS 11 + Prisma 7 (PostgreSQL), chạy toàn bộ trên một VPS bằng Docker (Postgres + API + Caddy + backup). Phục vụ app game ([phonics-game](https://github.com/Lvhau1529/phonics-game)) và
 trang quản trị ([phonics-admin](https://github.com/Lvhau1529/phonics-admin)):
 tài khoản (local + Google), lớp học, học sinh, giáo viên, điểm / xếp hạng, thông báo, catalog game,
 sự kiện xem / chơi, thống kê và xuất báo cáo (xlsx / pdf). Hợp đồng dữ liệu (zod) nằm ở
@@ -29,7 +29,7 @@ phonics-api
 │   │                       APP_TIMEZONE), access/ (AccessService — GV chỉ thấy lớp mình)
 │   ├── database/           PrismaModule, PrismaService (driver adapter pg), types.ts (kiểu Tx)
 │   │   └── seeds/          seed.ts (entry `prisma db seed`) + *.seed.ts theo miền (admin, games, nhóm quyền, demo)
-│   ├── infrastructure/     kết nối dịch vụ ngoài: storage/ (S3 client cho Neon Object Storage)
+│   ├── infrastructure/     hạ tầng ngoài nghiệp vụ: storage/ (DiskStorage — file media trên đĩa, MEDIA_DIR)
 │   ├── common/             KHỐI DÙNG CHUNG cho request pipeline (không chứa nghiệp vụ)
 │   │   ├── middleware/     request-id (X-Request-Id)
 │   │   ├── guards/         JwtAuthGuard, RolesGuard, PermissionsGuard
@@ -72,7 +72,7 @@ phục vụ cả hai version (`version: [API_V1, API_V2]`). `/api/health` và Sw
 ## Chạy dev
 
 ```bash
-cp .env.example .env      # điền DATABASE_URL / DIRECT_URL (Neon), secret ≥ 32 ký tự
+cp .env.example .env      # DB mặc định = Postgres local của phonics-dev (`pnpm db` ở đó); secret ≥ 32 ký tự
 pnpm install
 pnpm prisma:generate      # sinh client vào src/generated
 pnpm prisma:migrate       # prisma migrate dev (dùng DIRECT_URL)
@@ -94,8 +94,9 @@ pnpm test        # unit (src/**/*.spec.ts) + test của contracts, không cần 
 pnpm test:e2e    # e2e (test/e2e/**/*.e2e-spec.ts), cần DATABASE_URL_TEST
 ```
 
-e2e dùng một DB Postgres **riêng** (bị `TRUNCATE` trước mỗi file test): đặt `DATABASE_URL_TEST`
-(ví dụ một branch Neon khác hoặc Postgres local). Helper tự `prisma migrate deploy` lên DB đó và điền các
+e2e dùng một DB Postgres **riêng** (bị `TRUNCATE` trước mỗi file test): đặt biến môi trường `DATABASE_URL_TEST`
+(không đọc từ `.env`), vd DB `phonics_test` mà launcher phonics-dev tạo sẵn:
+`$env:DATABASE_URL_TEST='postgresql://postgres:postgres@localhost:5432/phonics_test'; pnpm test:e2e`. Helper tự `prisma migrate deploy` lên DB đó và điền các
 biến bắt buộc còn thiếu (secret, admin) bằng giá trị test, nên CI không cần `.env`. Không có
 `DATABASE_URL_TEST` thì các file e2e tự skip.
 
@@ -104,27 +105,60 @@ biến bắt buộc còn thiếu (secret, admin) bằng giá trị test, nên CI
 Ảnh multi-stage (`Dockerfile`, `node:24-alpine`, pnpm qua corepack), build context = gốc repo (`.dockerignore`).
 Contracts được build cùng ảnh từ `packages/contracts` (không cần GitHub Packages).
 
+Toàn bộ backend chạy trên **một VPS** (ADR 0024, `docker-compose.yml`): `db` (Postgres 18) + `api` + `caddy` (HTTPS) +
+`backup`. Không dùng dịch vụ DB / storage bên ngoài.
+
+### Dựng VPS lần đầu
+
+Yêu cầu: VPS Linux (≥ 1 vCPU, 1 GB RAM, ổ đủ chứa ảnh / ghi âm), Docker Engine + plugin compose, domain (hoặc
+`api.<ip>.sslip.io`) có bản ghi A trỏ về IP VPS, mở cổng 80 / 443 (đóng 5432 — Postgres không mở ra ngoài).
+
 ```bash
-# build tại chỗ
-docker build -t ghcr.io/<owner>/phonics-api:latest .
-# chạy trên VPS (docker-compose.yml): API + Caddy (HTTPS tự động cho API_DOMAIN)
-cp .env.example .env.production            # biến của API
-echo "API_DOMAIN=api.example.vn" > .env    # biến của compose: domain API (DNS trỏ về VPS, mở cổng 80 / 443)
-docker compose up -d --build
+git clone <repo> /opt/phonics-api && cd /opt/phonics-api
+cp .env.example .env.production   # sửa: NODE_ENV=production, JWT_ACCESS_SECRET, COOKIE_SECRET, ADMIN_EMAIL /
+                                  # ADMIN_PASSWORD, CORS_ORIGINS (URL game + admin trên Vercel), GOOGLE_CLIENT_IDS…
+                                  # Bỏ qua DATABASE_URL / DIRECT_URL / API_PUBLIC_URL / MEDIA_DIR — compose tự đặt.
+# Biến của compose: domain API + mật khẩu Postgres (hex, không ký tự đặc biệt vì nằm trong URL)
+printf 'API_DOMAIN=api.example.vn\nPOSTGRES_PASSWORD=%s\n' "$(openssl rand -hex 24)" > .env
+chmod 600 .env .env.production
+docker compose up -d --build                                  # db → api (prisma migrate deploy) → caddy, backup
+docker compose exec api node_modules/.bin/prisma db seed      # admin + catalog game (một lần)
+curl -fsS https://api.example.vn/api/health/db                # {"status":"ok",...database up}
 ```
 
+Sau đó đặt `VITE_API_URL=https://api.example.vn` cho game / admin trên Vercel và thêm origin của chúng vào
+`CORS_ORIGINS`.
+
+### Vận hành
+
 - Caddy (`Caddyfile`, service `caddy`): nhận 80 / 443, xin chứng chỉ Let's Encrypt cho `API_DOMAIN`, proxy tới
-  `api:3000`. Chứng chỉ lưu ở volume `caddy_data`. Không chạy thêm Caddy / nginx trên host (tranh cổng 80 / 443).
+  `api:3000` (cả API lẫn file media `/files/*`). Chứng chỉ lưu ở volume `caddy_data`. Không chạy thêm Caddy / nginx
+  trên host (tranh cổng 80 / 443).
+- Dữ liệu nằm trong volume `pgdata` (Postgres) và `media` (ảnh / audio) — `docker compose down` giữ volume,
+  **`down -v` xoá sạch**. psql: `docker compose exec db psql -U phonics`.
+- Backup (service `backup`, `deploy/backup.sh`): khi khởi động và mỗi 24 giờ ghi `./backups/db-<thời điểm>.dump`
+  (pg_dump) + `./backups/media-<thời điểm>.tar.gz`, giữ `BACKUP_KEEP_DAYS` ngày (mặc định 7). Nên chép `./backups`
+  ra ngoài VPS định kỳ (rsync / rclone lên máy khác hoặc cloud). Khôi phục:
+
+  ```bash
+  docker compose stop api
+  docker compose exec -T db pg_restore -U phonics -d phonics --clean --if-exists < backups/db-<thời điểm>.dump
+  docker compose run --rm --no-deps -v "$PWD/backups:/backups" --entrypoint sh api \
+    -c 'tar -xzf /backups/media-<thời điểm>.tar.gz -C /data'
+  docker compose start api
+  ```
 - Đổi biến trong `.env.production` / `.env` → `docker compose up -d --force-recreate` (`restart` không đọc lại env).
 - Deploy tự động (job `deploy` trong `.github/workflows/ci.yml`): push vào `main` → CI qua → SSH vào VPS, `git reset
-  --hard origin/main`, `docker compose up -d --build`, chờ `/api/health`. Cấu hình ở GitHub repo > Settings > Secrets
+  --hard origin/main`, `docker compose up -d --build`, chờ `/api/health/db`. Cấu hình ở GitHub repo > Settings > Secrets
   and variables > Actions: variable `VPS_HOST` (bật job), tuỳ chọn `VPS_USER` (`root`), `VPS_PORT` (`22`),
   `VPS_APP_DIR` (`/opt/phonics-api`); secret `VPS_SSH_KEY` = private key có public key trong `authorized_keys` của VPS.
   VPS cần clone sẵn repo (đọc được `origin`, vd deploy key) cùng `.env.production` và `.env`.
 - Entrypoint (`docker-entrypoint.sh`): `prisma migrate deploy` (DIRECT_URL) rồi `node dist/main.js`.
-  Schema engine của Prisma được tải sẵn lúc build; runtime chạy user `node`, `HEALTHCHECK` gọi `/api/health`.
+  Schema engine của Prisma được tải sẵn lúc build; runtime chạy user `node`, `HEALTHCHECK` gọi `/api/health`
+  (không chạm DB).
 - `docker-compose.yml`: ảnh `ghcr.io/${GHCR_OWNER}/phonics-api:${TAG}` (mặc định `lvhau1529` / `latest`),
-  có `build` để dựng tại chỗ, `env_file: .env.production`, `restart: unless-stopped`, log json-file 5 × 10 MB.
+  có `build` để dựng tại chỗ, `env_file: .env.production` + `environment` ghi đè DB / media / `API_PUBLIC_URL` từ
+  `.env` của compose, `restart: unless-stopped`, log json-file 5 × 10 MB. `api` chờ `db` healthy mới chạy.
 - Seed trên production (chỉ admin + catalog; demo luôn bị bỏ qua vì `NODE_ENV=production`): `nest build` biên dịch
   `src/database/seeds/` thành `dist/database/seeds/`; `prisma.config.ts` chọn lệnh seed theo `NODE_ENV` (production →
   `node dist/database/seeds/seed.js`, còn lại → `tsx src/database/seeds/seed.ts`). Chạy trong container đang chạy (đọc biến từ `.env.production`):
@@ -139,8 +173,8 @@ Nguồn sự thật: `src/config/env.schema.ts` (zod; thiếu / sai thì API kh�
 | `NODE_ENV`                  |          | `development`      | `development` / `test` / `production` (cookie Secure, log JSON)         |
 | `PORT`                      |          | `3000`             | Cổng HTTP                                                               |
 | `APP_TIMEZONE`              |          | `Asia/Ho_Chi_Minh` | Múi giờ cho "hôm nay / tuần / tháng" và bucket thống kê                 |
-| `DATABASE_URL`              | ✓        |                    | Chuỗi kết nối pooled (Neon `-pooler`) — runtime                         |
-| `DIRECT_URL`                |          |                    | Kết nối thẳng — Prisma CLI (migrate, seed)                              |
+| `DATABASE_URL`              | ✓        |                    | Postgres — runtime (VPS: compose tự đặt, trỏ service `db`)              |
+| `DIRECT_URL`                |          |                    | Prisma CLI (migrate, seed); thường trùng `DATABASE_URL`                 |
 | `JWT_ACCESS_SECRET`         | ✓        |                    | ≥ 32 ký tự; ký access token                                             |
 | `JWT_ACCESS_TTL`            |          | `15m`              | Hạn access token (`15m`, `1h`)                                          |
 | `REFRESH_TTL_DAYS`          |          | `30`               | Hạn refresh token (ngày)                                                |
@@ -155,18 +189,15 @@ Nguồn sự thật: `src/config/env.schema.ts` (zod; thiếu / sai thì API kh�
 | `SWAGGER_ENABLED`           |          | `true`             | Bật `/api/docs`                                                         |
 | `LOG_LEVEL`                 |          | `info`             | `trace` / `debug` / `info` / `warn` / `error`                           |
 | `DATABASE_URL_TEST`         |          |                    | Chỉ cho `test:e2e` (DB riêng, bị truncate)                              |
-| `AWS_ACCESS_KEY_ID`         |          |                    | Neon Object Storage (`neon env pull`); thiếu cả 4 biến AWS_\* = tắt upload |
-| `AWS_SECRET_ACCESS_KEY`     |          |                    | —                                                                       |
-| `AWS_ENDPOINT_URL_S3`       |          |                    | Endpoint S3 của branch Neon                                             |
-| `AWS_REGION`                |          |                    | vd `us-east-2`                                                          |
-| `MEDIA_BUCKET`              |          | `resources`        | Bucket ảnh / audio phiếu bài tập (khai báo trong `neon.ts`)             |
-| `MEDIA_PUBLIC_BASE_URL`     |          |                    | CDN đứng trước bucket; mặc định `${AWS_ENDPOINT_URL_S3}/${MEDIA_BUCKET}` |
-| `MEDIA_PRESIGN_TTL_SEC`     |          | `900`              | Hạn URL PUT đã ký                                                       |
+| `API_PUBLIC_URL`            | prod ✓   | `http://localhost:${PORT}` | URL public của API (không `/api`) — dựng link upload / file media (VPS: compose đặt `https://${API_DOMAIN}`) |
+| `MEDIA_DIR`                 |          | `storage/media`    | Thư mục lưu ảnh / audio (Docker: volume `/data/media`)                  |
+| `MEDIA_PUBLIC_BASE_URL`     |          |                    | CDN / domain riêng trước file media; mặc định `${API_PUBLIC_URL}/files` |
+| `MEDIA_PRESIGN_TTL_SEC`     |          | `900`              | Hạn link upload đã ký (giây)                                            |
 
-Phiếu bài tập (ADR 0017 / 0018 / 0019): sau `neon deploy` cho mỗi branch, chạy `pnpm media:cors` một lần để bucket
-nhận PUT từ game / admin (`CORS_ORIGINS`).
-
-Lưu ý (đã kiểm chứng 10/2026): Neon Object Storage tự xử lý preflight `OPTIONS` cho presigned URL (trả `Access-Control-Allow-Origin: *`), nên upload từ trình duyệt chạy được ngay cả khi chưa đặt CORS; `PutBucketCors` trên bucket kế thừa của branch con có thể trả `NoSuchBucket` — khi đó bỏ qua script này. Lấy credential cho branch dev bằng `neon env pull --branch dev --service object-storage` (hoặc tạo credential scope `storage:read` + `storage:write` trong console) rồi điền 4 biến `AWS_*` vào `.env`.
+Media phiếu bài tập (ADR 0017 / 0018 / 0024): `POST /media/presign` trả `uploadUrl` =
+`${API_PUBLIC_URL}/api/v1/media/:id/upload?exp=…&sig=…` (HMAC theo `JWT_ACCESS_SECRET`, không cần bearer) → client PUT
+byte (giới hạn `MEDIA_LIMITS`) → `POST /media/:id/complete` → file public tại `${API_PUBLIC_URL}/files/media/...`
+(API tự phục vụ, cache 1 năm, `Access-Control-Allow-Origin: *`). Chạy dev cũng upload được (lưu vào `storage/media`).
 
 ## Contracts
 

@@ -1,4 +1,4 @@
-import { type Prisma } from '../../../generated/prisma/client';
+import { type Prisma } from '@/generated/prisma/client';
 
 /** File đã sinh xong, controller chỉ việc trả về */
 export interface ReportFile {

@@ -1,10 +1,10 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
-import { WORKSHEETS } from '../../../config/constants';
-import { PrismaService } from '../../../database/prisma.service';
-import { MediaService } from '../services/media.service';
+import { WORKSHEETS } from '@/config/constants';
+import { PrismaService } from '@/database/prisma.service';
+import { MediaService } from '@/modules/media/services/media.service';
+import { dayjs } from '@/core/time/dayjs';
 
-const HOUR_MS = 3600 * 1000;
 const BATCH = 500;
 
 /** Dọn media PENDING quá hạn (presign nhưng không complete): xoá đối tượng (nếu có) rồi xoá bản ghi */
@@ -17,9 +17,10 @@ export class MediaCleanupService {
     private readonly media: MediaService,
   ) {}
 
-  @Cron('30 4 * * *')
+  // Cùng giờ với dọn refresh token (TokenService): gom việc dọn dẹp vào một thời điểm vắng mỗi đêm
+  @Cron('0 4 * * *')
   async cleanup(): Promise<number> {
-    const before = new Date(Date.now() - WORKSHEETS.mediaPendingTtlHours * HOUR_MS);
+    const before = dayjs().subtract(WORKSHEETS.mediaPendingTtlHours, 'hour').toDate();
     const rows = await this.prisma.mediaAsset.findMany({
       where: { status: 'PENDING', createdAt: { lt: before } },
       select: { id: true, key: true },

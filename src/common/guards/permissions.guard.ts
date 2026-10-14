@@ -1,10 +1,10 @@
 import { type CanActivate, type ExecutionContext, Injectable } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { type Permission } from '@phonics/contracts';
-import { type AuthUser } from '../../modules/auth/types/auth.types';
-import { PermissionsService } from '../../modules/permissions/services/permissions.service';
-import { PERMISSION_KEY } from '../decorators/roles.decorator';
-import { AppError } from '../errors/app-error';
+import { type AuthUser } from '@/modules/auth/types/auth.types';
+import { PermissionsService } from '@/modules/permissions/services/permissions.service';
+import { PERMISSION_KEY } from '@/common/decorators/roles.decorator';
+import { AppError } from '@/common/errors/app-error';
 
 /**
  * Guard toàn cục #3: route có @RequirePermission(...) thì user phải có đủ quyền hiệu lực

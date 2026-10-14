@@ -5,14 +5,15 @@ import {
   type SnapshotItem,
   type WorksheetSnapshot,
 } from '@phonics/contracts';
-import { AppError } from '../../../common/errors/app-error';
-import { itemsOf } from '../../worksheets/utils/worksheet-snapshot';
-import { round2 } from '../grading/index';
-import { type SubmissionAnswerRow, type SubmissionRow } from '../types/submission.types';
+import { sumBy } from 'es-toolkit';
+import { AppError } from '@/common/errors/app-error';
+import { itemsOf } from '@/modules/worksheets/utils/worksheet-snapshot';
+import { round2 } from '@/modules/submissions/grading/index';
+import { type SubmissionAnswerRow, type SubmissionRow } from '@/modules/submissions/types/submission.types';
 
 /** Tổng điểm cuối = Σ (điểm GV ?? điểm tự chấm ?? 0) */
 export function totalOf(answers: readonly Pick<SubmissionAnswerRow, 'manualScore' | 'autoScore'>[]): number {
-  return round2(answers.reduce((sum, a) => sum + (a.manualScore ?? a.autoScore ?? 0), 0));
+  return round2(sumBy(answers, (a) => a.manualScore ?? a.autoScore ?? 0));
 }
 
 export const snapshotOf = (row: Pick<SubmissionRow, 'assignment'>): WorksheetSnapshot =>

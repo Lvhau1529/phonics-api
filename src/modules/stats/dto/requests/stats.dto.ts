@@ -1,6 +1,6 @@
 import { RankingQuery, TimelineQuery } from '@phonics/contracts';
 import { createZodDto } from 'nestjs-zod';
-import { GameTimelineQuery, TopStudentsQuery } from '../../types/stats.schemas';
+import { GameTimelineQuery, TopStudentsQuery } from '@/modules/stats/types/stats.schemas';
 
 /** Timeline điểm của lớp: bucket day|week, lọc theo kind / game */
 export class TimelineQueryDto extends createZodDto(TimelineQuery) {}

@@ -1,9 +1,9 @@
 import { Injectable } from '@nestjs/common';
-import { type DateRange } from '../../../core/time/time.service';
-import { PrismaService } from '../../../database/prisma.service';
-import { type Tx } from '../../../database/types';
-import { type Prisma } from '../../../generated/prisma/client';
-import { type ResultRow } from '../types/game-result.types';
+import { type DateRange } from '@/core/time/time.service';
+import { PrismaService } from '@/database/prisma.service';
+import { type Tx } from '@/database/types';
+import { type Prisma } from '@/generated/prisma/client';
+import { type ResultRow } from '@/modules/game-results/types/game-result.types';
 
 /** Truy cập game_results (+ bút toán GAME đi kèm trong point_entries) */
 @Injectable()

@@ -1,4 +1,4 @@
-import { type Prisma } from '../../../generated/prisma/client';
+import { type Prisma } from '@/generated/prisma/client';
 
 /** Quan hệ luôn nạp kèm bài giao (tên phiếu, lớp, người giao) để dựng view */
 export const assignmentInclude = {

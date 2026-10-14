@@ -1,5 +1,5 @@
 import { type TeacherSummary, AvatarKey, DEFAULT_AVATAR } from '@phonics/contracts';
-import { type TeacherRow } from '../../types/teacher.types';
+import { type TeacherRow } from '@/modules/teachers/types/teacher.types';
 
 export function toTeacherSummary(row: TeacherRow): TeacherSummary {
   return {

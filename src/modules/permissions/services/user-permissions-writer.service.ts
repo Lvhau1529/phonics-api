@@ -4,11 +4,11 @@ import {
   type UpdateUserPermissionsBody,
   type UserPermissionsResponse,
 } from '@phonics/contracts';
-import { AppError, notFound } from '../../../common/errors/app-error';
-import { AuditService } from '../../audit/services/audit.service';
-import { type AuthUser } from '../../auth/types/auth.types';
-import { PermissionRepository } from '../repositories/permission.repository';
-import { PermissionsService } from './permissions.service';
+import { AppError, notFound } from '@/common/errors/app-error';
+import { AuditService } from '@/modules/audit/services/audit.service';
+import { type AuthUser } from '@/modules/auth/types/auth.types';
+import { PermissionRepository } from '@/modules/permissions/repositories/permission.repository';
+import { PermissionsService } from '@/modules/permissions/services/permissions.service';
 
 /** Admin sửa quyền riêng (GRANT / REVOKE) và nhóm quyền của một user (không sửa được admin) */
 @Injectable()

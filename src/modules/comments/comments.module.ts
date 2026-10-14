@@ -1,9 +1,9 @@
 import { Module } from '@nestjs/common';
-import { AuditModule } from '../audit/audit.module';
-import { CommentsMeController } from './controllers/comments-me.controller';
-import { CommentsTeacherController } from './controllers/comments-teacher.controller';
-import { CommentsController } from './controllers/comments.controller';
-import { CommentsService } from './services/comments.service';
+import { AuditModule } from '@/modules/audit/audit.module';
+import { CommentsMeController } from '@/modules/comments/controllers/comments-me.controller';
+import { CommentsTeacherController } from '@/modules/comments/controllers/comments-teacher.controller';
+import { CommentsController } from '@/modules/comments/controllers/comments.controller';
+import { CommentsService } from '@/modules/comments/services/comments.service';
 
 /** Nhận xét trên bài nộp (GV ↔ học sinh) */
 @Module({

@@ -1,4 +1,4 @@
-import { type Prisma } from '../../../generated/prisma/client';
+import { type Prisma } from '@/generated/prisma/client';
 
 export const commentInclude = {
   author: { select: { displayName: true, role: true, avatarKey: true } },

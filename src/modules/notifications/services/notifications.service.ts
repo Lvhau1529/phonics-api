@@ -7,9 +7,9 @@ import {
   type NotificationType,
   type NotificationView,
 } from '@phonics/contracts';
-import { PrismaService } from '../../../database/prisma.service';
-import { type Tx } from '../../../database/types';
-import { type Prisma } from '../../../generated/prisma/client';
+import { PrismaService } from '@/database/prisma.service';
+import { type Tx } from '@/database/types';
+import { type Prisma } from '@/generated/prisma/client';
 
 export interface NotificationInput {
   userId: string;

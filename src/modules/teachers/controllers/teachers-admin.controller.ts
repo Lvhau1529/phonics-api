@@ -1,16 +1,16 @@
 import { Body, Controller, Get, Param, ParseUUIDPipe, Patch, Post, Put, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
-import { CurrentUser } from '../../../common/decorators/current-user.decorator';
-import { Roles } from '../../../common/decorators/roles.decorator';
-import { API_V1 } from '../../../config/api-version';
-import { type AuthUser } from '../../auth/types/auth.types';
-import { TeachersService } from '../services/teachers.service';
+import { CurrentUser } from '@/common/decorators/current-user.decorator';
+import { Roles } from '@/common/decorators/roles.decorator';
+import { API_V1 } from '@/config/api-version';
+import { type AuthUser } from '@/modules/auth/types/auth.types';
+import { TeachersService } from '@/modules/teachers/services/teachers.service';
 import {
   CreateTeacherDto,
   SetTeacherClassesDto,
   TeacherListQueryDto,
   UpdateTeacherDto,
-} from '../dto/requests/teachers.dto';
+} from '@/modules/teachers/dto/requests/teachers.dto';
 
 /** Quản lý giáo viên — chỉ admin */
 @ApiTags('admin')

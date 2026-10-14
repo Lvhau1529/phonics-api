@@ -1,10 +1,10 @@
 /** Luật thuần khi sửa học sinh: quyền theo vai trò, dữ liệu profile, before / after cho audit */
 import { type UpdateStudentBody } from '@phonics/contracts';
-import { AppError } from '../../../common/errors/app-error';
-import { type Prisma } from '../../../generated/prisma/client';
-import { type AuthUser } from '../../auth/types/auth.types';
-import { toParentContact } from '../dto/responses/student.view';
-import { type StudentRow } from '../types/student.types';
+import { AppError } from '@/common/errors/app-error';
+import { type Prisma } from '@/generated/prisma/client';
+import { type AuthUser } from '@/modules/auth/types/auth.types';
+import { toParentContact } from '@/modules/students/dto/responses/student.view';
+import { type StudentRow } from '@/modules/students/types/student.types';
 
 /** Trường giáo viên (có students.edit) được sửa; còn lại chỉ admin */
 export const TEACHER_EDITABLE_FIELDS: readonly (keyof UpdateStudentBody)[] = ['displayName', 'avatarKey'];

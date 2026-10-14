@@ -4,19 +4,20 @@ import {
   type CreateAssignmentBody,
   type UpdateAssignmentBody,
 } from '@phonics/contracts';
-import { AppError } from '../../../common/errors/app-error';
-import { AccessService } from '../../../core/access/access.service';
-import { TimeService } from '../../../core/time/time.service';
-import { type Prisma } from '../../../generated/prisma/client';
-import { AuditService } from '../../audit/services/audit.service';
-import { type AuthUser } from '../../auth/types/auth.types';
-import { WorksheetReaderService } from '../../worksheets/services/worksheet-reader.service';
-import { buildSnapshot, hasManualItems, itemsOf } from '../../worksheets/utils/worksheet-snapshot';
-import { toAssignmentAudit } from '../dto/responses/assignment.view';
-import { AssignmentRepository } from '../repositories/assignment.repository';
-import { dateOnly, isoDateOf, statusByWindow } from '../utils/assignment-dates';
-import { AssignmentLifecycleService } from './assignment-lifecycle.service';
-import { AssignmentReaderService } from './assignment-reader.service';
+import { AppError } from '@/common/errors/app-error';
+import { AccessService } from '@/core/access/access.service';
+import { TimeService } from '@/core/time/time.service';
+import { type Prisma } from '@/generated/prisma/client';
+import { AuditService } from '@/modules/audit/services/audit.service';
+import { type AuthUser } from '@/modules/auth/types/auth.types';
+import { WorksheetReaderService } from '@/modules/worksheets/services/worksheet-reader.service';
+import { buildSnapshot, hasManualItems, itemsOf } from '@/modules/worksheets/utils/worksheet-snapshot';
+import { toAssignmentAudit } from '@/modules/assignments/dto/responses/assignment.view';
+import { AssignmentsScheduler } from '@/modules/assignments/jobs/assignments.scheduler';
+import { AssignmentRepository } from '@/modules/assignments/repositories/assignment.repository';
+import { dateOnly, isoDateOf, statusByWindow } from '@/modules/assignments/utils/assignment-dates';
+import { AssignmentLifecycleService } from '@/modules/assignments/services/assignment-lifecycle.service';
+import { AssignmentReaderService } from '@/modules/assignments/services/assignment-reader.service';
 
 const dueAfterOpenError = () =>
   new AppError('VALIDATION_ERROR', 400, { details: { dueAt: ['Hạn nộp phải sau thời điểm mở'] } });
@@ -35,6 +36,7 @@ export class AssignmentWriterService {
     private readonly audit: AuditService,
     private readonly time: TimeService,
     private readonly worksheets: WorksheetReaderService,
+    private readonly scheduler: AssignmentsScheduler,
   ) {}
 
   async create(actor: AuthUser, body: CreateAssignmentBody): Promise<AssignmentDetail> {
@@ -81,6 +83,7 @@ export class AssignmentWriterService {
       scheduledFor: isoDateOf(row.scheduledFor),
       status: row.status,
     });
+    void this.scheduler.reschedule();
     return this.reader.detail(row);
   }
 
@@ -120,6 +123,7 @@ export class AssignmentWriterService {
       toAssignmentAudit(current),
       toAssignmentAudit(row),
     );
+    void this.scheduler.reschedule();
     return this.reader.detail(row);
   }
 
@@ -135,6 +139,7 @@ export class AssignmentWriterService {
       { status: current.status },
       { status: 'CLOSED' },
     );
+    void this.scheduler.reschedule();
     return this.reader.detail(row);
   }
 
@@ -149,6 +154,7 @@ export class AssignmentWriterService {
       openedAt: status === 'OPEN' ? (current.openedAt ?? now) : current.openedAt,
     });
     await this.audit.record(actor, 'assignment.reopen', 'Assignment', id, { status: 'CLOSED' }, { status });
+    void this.scheduler.reschedule();
     return this.reader.detail(row);
   }
 
@@ -159,5 +165,6 @@ export class AssignmentWriterService {
       throw new AppError('CONFLICT', 409, { message: 'Đã có bài nộp — hãy đóng bài thay vì xoá' });
     await this.repo.delete(id);
     await this.audit.record(actor, 'assignment.delete', 'Assignment', id, toAssignmentAudit(current), null);
+    void this.scheduler.reschedule();
   }
 }

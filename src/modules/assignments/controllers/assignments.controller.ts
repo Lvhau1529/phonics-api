@@ -11,17 +11,17 @@ import {
   Query,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
-import { CurrentUser } from '../../../common/decorators/current-user.decorator';
-import { RequirePermission, Roles } from '../../../common/decorators/roles.decorator';
-import { API_V1 } from '../../../config/api-version';
-import { type AuthUser } from '../../auth/types/auth.types';
-import { AssignmentReaderService } from '../services/assignment-reader.service';
-import { AssignmentWriterService } from '../services/assignment-writer.service';
+import { CurrentUser } from '@/common/decorators/current-user.decorator';
+import { RequirePermission, Roles } from '@/common/decorators/roles.decorator';
+import { API_V1 } from '@/config/api-version';
+import { type AuthUser } from '@/modules/auth/types/auth.types';
+import { AssignmentReaderService } from '@/modules/assignments/services/assignment-reader.service';
+import { AssignmentWriterService } from '@/modules/assignments/services/assignment-writer.service';
 import {
   AssignmentListQueryDto,
   CreateAssignmentDto,
   UpdateAssignmentDto,
-} from '../dto/requests/assignments.dto';
+} from '@/modules/assignments/dto/requests/assignments.dto';
 
 /** Bài giao (GV lớp mình / admin). Thống kê bài giao nằm ở module worksheet-stats (`/assignments/:id/stats`). */
 @ApiTags('assignments')

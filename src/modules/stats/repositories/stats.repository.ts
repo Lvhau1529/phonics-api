@@ -5,18 +5,16 @@ import {
   type GameTimelineBucket,
   type PointKind,
 } from '@phonics/contracts';
-import { type DateRange } from '../../../core/time/time.service';
-import { PrismaService } from '../../../database/prisma.service';
-import { Prisma } from '../../../generated/prisma/client';
+import { type DateRange } from '@/core/time/time.service';
+import { PrismaService } from '@/database/prisma.service';
+import { Prisma } from '@/generated/prisma/client';
 import {
   type GameResultAgg,
   type OverviewActivity,
   type OverviewCounts,
   type TimelineRow,
-} from '../types/stats.types';
-
-const EPOCH = new Date(0);
-const FAR_FUTURE = new Date('2100-01-01T00:00:00Z');
+} from '@/modules/stats/types/stats.types';
+import { EPOCH, FAR_FUTURE } from '@/core/time/dayjs';
 
 /** [from, to) dùng được trong SQL (null = không giới hạn) */
 const bounds = (range: DateRange | null): DateRange => range ?? { from: EPOCH, to: FAR_FUTURE };

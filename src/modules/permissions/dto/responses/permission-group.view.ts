@@ -1,6 +1,6 @@
 import { type PermissionGroup } from '@phonics/contracts';
-import { type PermissionGroupRow } from '../../types/permission.types';
-import { onlyKnown } from '../../utils/permission-rules';
+import { type PermissionGroupRow } from '@/modules/permissions/types/permission.types';
+import { onlyKnown } from '@/modules/permissions/utils/permission-rules';
 
 export function toGroupView(row: PermissionGroupRow): PermissionGroup {
   return {

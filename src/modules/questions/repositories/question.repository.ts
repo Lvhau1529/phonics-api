@@ -1,10 +1,10 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../../../database/prisma.service';
-import { type Tx } from '../../../database/types';
-import { type Prisma } from '../../../generated/prisma/client';
-import { type AuthUser } from '../../auth/types/auth.types';
-import { type QuestionRow, questionInclude } from '../types/question.types';
-import { questionVisibleWhere } from '../utils/question-content';
+import { PrismaService } from '@/database/prisma.service';
+import { type Tx } from '@/database/types';
+import { type Prisma } from '@/generated/prisma/client';
+import { type AuthUser } from '@/modules/auth/types/auth.types';
+import { type QuestionRow, questionInclude } from '@/modules/questions/types/question.types';
+import { questionVisibleWhere } from '@/modules/questions/utils/question-content';
 
 /** Mọi truy vấn Prisma của ngân hàng câu hỏi */
 @Injectable()

@@ -11,5 +11,6 @@ coverage
 !.env.example
 # Prisma client sinh ra (pnpm prisma:generate)
 src/generated
-# neon link (trỏ DB production)
-.neon
+# File media khi chạy dev (MEDIA_DIR mặc định) và bản backup trên VPS (service backup)
+storage/
+backups/

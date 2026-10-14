@@ -1,11 +1,11 @@
 import { Body, Controller, Get, HttpCode, Param, Post } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
-import { CurrentUser } from '../../../common/decorators/current-user.decorator';
-import { Roles } from '../../../common/decorators/roles.decorator';
-import { API_V1 } from '../../../config/api-version';
-import { type AuthUser } from '../../auth/types/auth.types';
-import { GameUnlockService } from '../services/game-unlock.service';
-import { UnlockWithGemsDto } from '../dto/requests/games.dto';
+import { CurrentUser } from '@/common/decorators/current-user.decorator';
+import { Roles } from '@/common/decorators/roles.decorator';
+import { API_V1 } from '@/config/api-version';
+import { type AuthUser } from '@/modules/auth/types/auth.types';
+import { GameUnlockService } from '@/modules/games/services/game-unlock.service';
+import { UnlockWithGemsDto } from '@/modules/games/dto/requests/games.dto';
 
 /** Game của chính học sinh */
 @ApiTags('me')

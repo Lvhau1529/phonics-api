@@ -1,8 +1,8 @@
 /** Luật kết quả ván / điểm GAME — hàm thuần để test */
 import { type GameResultBody, type PointsReason } from '@phonics/contracts';
-import { AppError } from '../../../common/errors/app-error';
-import { GAME_REGISTRY, POINT_RULES } from '../../../config/constants';
-import { Prisma } from '../../../generated/prisma/client';
+import { AppError } from '@/common/errors/app-error';
+import { GAME_REGISTRY, POINT_RULES } from '@/config/constants';
+import { Prisma } from '@/generated/prisma/client';
 
 /** playedAt được phép đi trước đồng hồ server tối đa chừng này (lệch giờ client) */
 const PLAYED_AT_MAX_FUTURE_MS = 60_000;

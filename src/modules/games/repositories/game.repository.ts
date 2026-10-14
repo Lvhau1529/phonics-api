@@ -1,14 +1,14 @@
 import { Injectable } from '@nestjs/common';
 import { type UpdateGameBody } from '@phonics/contracts';
-import { PrismaService } from '../../../database/prisma.service';
-import { type Tx } from '../../../database/types';
+import { PrismaService } from '@/database/prisma.service';
+import { type Tx } from '@/database/types';
 import {
   type GameAdminStats,
   type GameGate,
   type GameRow,
   type GameStats,
   type UnlockRow,
-} from '../types/game.types';
+} from '@/modules/games/types/game.types';
 
 /** Ghi mở khoá do GV / admin cấp */
 export interface AdminGrant {

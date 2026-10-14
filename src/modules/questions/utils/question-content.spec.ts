@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { type AuthUser } from '../../auth/types/auth.types';
-import { normalizeTags, questionVisibleWhere, thumbnailOf } from './question-content';
+import { type AuthUser } from '@/modules/auth/types/auth.types';
+import { normalizeTags, questionVisibleWhere, thumbnailOf } from '@/modules/questions/utils/question-content';
 
 const M = '11111111-1111-4111-8111-111111111111';
 const A = '22222222-2222-4222-8222-222222222222';

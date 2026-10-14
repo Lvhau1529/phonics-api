@@ -8,17 +8,17 @@ import {
   type TeacherSummary,
   type UpdateTeacherBody,
 } from '@phonics/contracts';
-import { AppError, notFound } from '../../../common/errors/app-error';
-import { orderBy, paginate } from '../../../common/utils/paginate';
-import { PrismaService } from '../../../database/prisma.service';
-import { type Tx } from '../../../database/types';
-import { type Prisma } from '../../../generated/prisma/client';
-import { AuditService } from '../../audit/services/audit.service';
-import { PasswordService } from '../../auth/services/password.service';
-import { TokenService } from '../../auth/services/token.service';
-import { type AuthUser } from '../../auth/types/auth.types';
-import { toTeacherSummary } from '../dto/responses/teacher.view';
-import { TEACHER_SORT_FIELDS, teacherInclude, type TeacherRow } from '../types/teacher.types';
+import { AppError, notFound } from '@/common/errors/app-error';
+import { orderBy, paginate } from '@/common/utils/paginate';
+import { PrismaService } from '@/database/prisma.service';
+import { type Tx } from '@/database/types';
+import { type Prisma } from '@/generated/prisma/client';
+import { AuditService } from '@/modules/audit/services/audit.service';
+import { PasswordService } from '@/modules/auth/services/password.service';
+import { TokenService } from '@/modules/auth/services/token.service';
+import { type AuthUser } from '@/modules/auth/types/auth.types';
+import { toTeacherSummary } from '@/modules/teachers/dto/responses/teacher.view';
+import { TEACHER_SORT_FIELDS, teacherInclude, type TeacherRow } from '@/modules/teachers/types/teacher.types';
 
 /** Quản lý tài khoản giáo viên (chỉ admin) */
 @Injectable()

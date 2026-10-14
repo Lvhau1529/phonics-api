@@ -11,18 +11,19 @@ import {
   type WorksheetSnapshot,
   collectMediaIds,
 } from '@phonics/contracts';
-import { notFound } from '../../../common/errors/app-error';
-import { orderBy, paginate } from '../../../common/utils/paginate';
-import { AccessService } from '../../../core/access/access.service';
-import { TimeService } from '../../../core/time/time.service';
-import { type Prisma } from '../../../generated/prisma/client';
-import { type AuthUser } from '../../auth/types/auth.types';
-import { MediaService } from '../../media/services/media.service';
-import { type RosterSubmission, toAssignmentSummary, toRosterRow } from '../dto/responses/assignment.view';
-import { AssignmentRepository } from '../repositories/assignment.repository';
-import { ASSIGNMENT_SORT_FIELDS, type AssignmentRow } from '../types/assignment.types';
-import { dateOnly } from '../utils/assignment-dates';
-import { AssignmentRankingService } from './assignment-ranking.service';
+import { groupBy } from 'es-toolkit';
+import { notFound } from '@/common/errors/app-error';
+import { orderBy, paginate } from '@/common/utils/paginate';
+import { AccessService } from '@/core/access/access.service';
+import { TimeService } from '@/core/time/time.service';
+import { type Prisma } from '@/generated/prisma/client';
+import { type AuthUser } from '@/modules/auth/types/auth.types';
+import { MediaService } from '@/modules/media/services/media.service';
+import { toAssignmentSummary, toRosterRow } from '@/modules/assignments/dto/responses/assignment.view';
+import { AssignmentRepository } from '@/modules/assignments/repositories/assignment.repository';
+import { ASSIGNMENT_SORT_FIELDS, type AssignmentRow } from '@/modules/assignments/types/assignment.types';
+import { dateOnly } from '@/modules/assignments/utils/assignment-dates';
+import { AssignmentRankingService } from '@/modules/assignments/services/assignment-ranking.service';
 
 /** Đọc bài giao phía giáo viên / admin (luôn kiểm tra phạm vi lớp qua AccessService) */
 @Injectable()
@@ -97,11 +98,10 @@ export class AssignmentReaderService {
       this.rankingService.rank(id),
     ]);
     const rankBy = new Map(ranks.map((r) => [r.studentId, r.rank]));
-    const byStudent = new Map<string, RosterSubmission[]>();
-    for (const s of submissions) byStudent.set(s.studentId, [...(byStudent.get(s.studentId) ?? []), s]);
+    const byStudent = groupBy(submissions, (s) => s.studentId);
     return {
       items: members.map((m) =>
-        toRosterRow(m, byStudent.get(m.studentId) ?? [], rankBy.get(m.studentId) ?? null),
+        toRosterRow(m, byStudent[m.studentId] ?? [], rankBy.get(m.studentId) ?? null),
       ),
     };
   }

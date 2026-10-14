@@ -1,5 +1,5 @@
 import { AvatarKey, DEFAULT_AVATAR, type CommentReply, type CommentView } from '@phonics/contracts';
-import { type CommentRow } from '../../types/comment.types';
+import { type CommentRow } from '@/modules/comments/types/comment.types';
 
 export function toCommentReply(row: CommentRow): CommentReply {
   return {

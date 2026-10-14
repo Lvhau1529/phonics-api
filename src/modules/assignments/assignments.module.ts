@@ -1,16 +1,16 @@
 import { Module } from '@nestjs/common';
-import { AuditModule } from '../audit/audit.module';
-import { MediaModule } from '../media/media.module';
-import { WorksheetsModule } from '../worksheets/worksheets.module';
-import { AssignmentsMeController } from './controllers/assignments-me.controller';
-import { AssignmentsController } from './controllers/assignments.controller';
-import { AssignmentsScheduler } from './jobs/assignments.scheduler';
-import { AssignmentRepository } from './repositories/assignment.repository';
-import { AssignmentLifecycleService } from './services/assignment-lifecycle.service';
-import { AssignmentRankingService } from './services/assignment-ranking.service';
-import { AssignmentReaderService } from './services/assignment-reader.service';
-import { AssignmentStudentService } from './services/assignment-student.service';
-import { AssignmentWriterService } from './services/assignment-writer.service';
+import { AuditModule } from '@/modules/audit/audit.module';
+import { MediaModule } from '@/modules/media/media.module';
+import { WorksheetsModule } from '@/modules/worksheets/worksheets.module';
+import { AssignmentsMeController } from '@/modules/assignments/controllers/assignments-me.controller';
+import { AssignmentsController } from '@/modules/assignments/controllers/assignments.controller';
+import { AssignmentsScheduler } from '@/modules/assignments/jobs/assignments.scheduler';
+import { AssignmentRepository } from '@/modules/assignments/repositories/assignment.repository';
+import { AssignmentLifecycleService } from '@/modules/assignments/services/assignment-lifecycle.service';
+import { AssignmentRankingService } from '@/modules/assignments/services/assignment-ranking.service';
+import { AssignmentReaderService } from '@/modules/assignments/services/assignment-reader.service';
+import { AssignmentStudentService } from '@/modules/assignments/services/assignment-student.service';
+import { AssignmentWriterService } from '@/modules/assignments/services/assignment-writer.service';
 
 /** Giao phiếu cho lớp: snapshot, cửa sổ thời gian, roster, xếp hạng theo bài — ADR 0017 / 0019 */
 @Module({

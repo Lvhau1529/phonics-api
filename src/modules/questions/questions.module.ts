@@ -1,10 +1,10 @@
 import { Module } from '@nestjs/common';
-import { AuditModule } from '../audit/audit.module';
-import { MediaModule } from '../media/media.module';
-import { QuestionsController } from './controllers/questions.controller';
-import { QuestionRepository } from './repositories/question.repository';
-import { QuestionReaderService } from './services/question-reader.service';
-import { QuestionWriterService } from './services/question-writer.service';
+import { AuditModule } from '@/modules/audit/audit.module';
+import { MediaModule } from '@/modules/media/media.module';
+import { QuestionsController } from '@/modules/questions/controllers/questions.controller';
+import { QuestionRepository } from '@/modules/questions/repositories/question.repository';
+import { QuestionReaderService } from '@/modules/questions/services/question-reader.service';
+import { QuestionWriterService } from '@/modules/questions/services/question-writer.service';
 
 /** Ngân hàng câu hỏi phiếu bài tập (ADR 0017) */
 @Module({

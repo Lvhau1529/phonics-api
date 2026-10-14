@@ -1,16 +1,14 @@
-import { type S3Client } from '@aws-sdk/client-s3';
-import { describe, expect, it, vi } from 'vitest';
+import { Readable } from 'node:stream';
+import { describe, expect, it } from 'vitest';
 import { mockDeep } from 'vitest-mock-extended';
-import { AppError } from '../../../common/errors/app-error';
-import { type Env } from '../../../config/env.schema';
-import { type PrismaService } from '../../../database/prisma.service';
-import { type AuthUser } from '../../auth/types/auth.types';
-import { buildObjectKey } from '../utils/media-key';
-import { MediaService } from './media.service';
-
-vi.mock('@aws-sdk/s3-request-presigner', () => ({
-  getSignedUrl: vi.fn(async () => 'https://storage.example/resources/media/x?sig=1'),
-}));
+import { AppError } from '@/common/errors/app-error';
+import { type Env } from '@/config/env.schema';
+import { type PrismaService } from '@/database/prisma.service';
+import { type DiskStorage, FileTooLargeError } from '@/infrastructure/storage/disk-storage';
+import { type AuthUser } from '@/modules/auth/types/auth.types';
+import { buildObjectKey } from '@/modules/media/utils/media-key';
+import { MediaService } from '@/modules/media/services/media.service';
+import { signUpload } from '@/modules/media/utils/upload-signature';
 
 const teacher: AuthUser = {
   id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
@@ -25,9 +23,10 @@ const other: AuthUser = {
   tokenVersion: 0,
 };
 
+const SECRET = 'test-secret-test-secret-test-secret-00';
 const env = {
-  AWS_ENDPOINT_URL_S3: 'https://storage.example',
-  MEDIA_BUCKET: 'resources',
+  API_PUBLIC_URL: 'https://api.example',
+  JWT_ACCESS_SECRET: SECRET,
   MEDIA_PRESIGN_TTL_SEC: 900,
 } as Env;
 
@@ -47,12 +46,14 @@ const pendingRow = {
   readyAt: null as Date | null,
 };
 
-function setup(withS3 = true) {
+function setup() {
   const prisma = mockDeep<PrismaService>();
-  const s3 = mockDeep<S3Client>();
-  const service = new MediaService(prisma, env, withS3 ? s3 : null);
-  return { prisma, s3, service };
+  const storage = mockDeep<DiskStorage>();
+  const service = new MediaService(prisma, env, storage);
+  return { prisma, storage, service };
 }
+
+const inFuture = () => Math.floor(Date.now() / 1000) + 600;
 
 describe('MediaService', () => {
   it('buildObjectKey: đuôi theo mime, không theo tên file', () => {
@@ -60,14 +61,7 @@ describe('MediaService', () => {
     expect(buildObjectKey('u1', 'image/jpeg')).toMatch(/\.jpg$/);
   });
 
-  it('presign: không có S3 → 503 MEDIA_STORAGE_DISABLED', async () => {
-    const { service } = setup(false);
-    await expect(
-      service.presign(teacher, { kind: 'IMAGE', mimeType: 'image/png', sizeBytes: 10, fileName: 'a.png' }),
-    ).rejects.toMatchObject({ code: 'MEDIA_STORAGE_DISABLED' });
-  });
-
-  it('presign: tạo bản ghi PENDING và trả header phải echo', async () => {
+  it('presign: tạo bản ghi PENDING, link upload của API có chữ ký, header phải echo', async () => {
     const { prisma, service } = setup();
     prisma.mediaAsset.create.mockResolvedValue(pendingRow as never);
     const r = await service.presign(teacher, {
@@ -78,38 +72,99 @@ describe('MediaService', () => {
     });
     expect(r.mediaId).toBe(pendingRow.id);
     expect(r.method).toBe('PUT');
-    expect(r.headers['Content-Type']).toBe('image/png');
+    expect(r.headers).toEqual({ 'Content-Type': 'image/png' });
+    const url = new URL(r.uploadUrl);
+    expect(`${url.origin}${url.pathname}`).toBe(`https://api.example/api/v1/media/${pendingRow.id}/upload`);
+    const exp = Number(url.searchParams.get('exp'));
+    expect(url.searchParams.get('sig')).toBe(signUpload(SECRET, pendingRow.id, exp));
     expect(prisma.mediaAsset.create.mock.calls[0][0].data).toMatchObject({
       status: 'PENDING',
       mimeType: 'image/png',
     });
   });
 
-  it('complete: HEAD thất bại → 409 MEDIA_UPLOAD_INCOMPLETE', async () => {
-    const { prisma, s3, service } = setup();
+  it('upload: chữ ký sai / hết hạn → 403, không đọc DB', async () => {
+    const { prisma, storage, service } = setup();
+    const body = Readable.from([Buffer.from('x')]);
+    const exp = inFuture();
+    await expect(
+      service.upload(pendingRow.id, { exp, sig: 'bad' }, { contentType: 'image/png' }, body),
+    ).rejects.toMatchObject({
+      code: 'FORBIDDEN',
+    });
+    const expired = Math.floor(Date.now() / 1000) - 1;
+    const sig = signUpload(SECRET, pendingRow.id, expired);
+    await expect(
+      service.upload(pendingRow.id, { exp: expired, sig }, { contentType: 'image/png' }, body),
+    ).rejects.toMatchObject({
+      code: 'FORBIDDEN',
+    });
+    expect(prisma.mediaAsset.findUnique).not.toHaveBeenCalled();
+    expect(storage.write).not.toHaveBeenCalled();
+  });
+
+  it('upload: Content-Type khác lúc presign → 415; đã READY → 409', async () => {
+    const { prisma, storage, service } = setup();
+    const exp = inFuture();
+    const link = { exp, sig: signUpload(SECRET, pendingRow.id, exp) };
     prisma.mediaAsset.findUnique.mockResolvedValue(pendingRow as never);
-    s3.send.mockRejectedValue(new Error('NotFound') as never);
+    await expect(
+      service.upload(pendingRow.id, link, { contentType: 'image/jpeg' }, Readable.from([])),
+    ).rejects.toMatchObject({
+      code: 'MEDIA_TYPE_UNSUPPORTED',
+    });
+    prisma.mediaAsset.findUnique.mockResolvedValue({ ...pendingRow, status: 'READY' } as never);
+    await expect(
+      service.upload(pendingRow.id, link, { contentType: 'image/png' }, Readable.from([])),
+    ).rejects.toMatchObject({
+      code: 'CONFLICT',
+    });
+    expect(storage.write).not.toHaveBeenCalled();
+  });
+
+  it('upload: hợp lệ → ghi đĩa với giới hạn theo loại; vượt → 413 MEDIA_TOO_LARGE', async () => {
+    const { prisma, storage, service } = setup();
+    const exp = inFuture();
+    const link = { exp, sig: signUpload(SECRET, pendingRow.id, exp) };
+    prisma.mediaAsset.findUnique.mockResolvedValue(pendingRow as never);
+    const body = Readable.from([Buffer.from('png')]);
+    await service.upload(pendingRow.id, link, { contentType: 'image/png; charset=binary' }, body);
+    expect(storage.write).toHaveBeenCalledWith(pendingRow.key, body, 5 * 1024 * 1024);
+
+    await expect(
+      service.upload(pendingRow.id, link, { contentType: 'image/png', contentLength: 6 * 1024 * 1024 }, body),
+    ).rejects.toMatchObject({ code: 'MEDIA_TOO_LARGE' });
+    expect(storage.write).toHaveBeenCalledTimes(1);
+
+    storage.write.mockRejectedValue(new FileTooLargeError());
+    await expect(
+      service.upload(pendingRow.id, link, { contentType: 'image/png' }, body),
+    ).rejects.toMatchObject({
+      code: 'MEDIA_TOO_LARGE',
+    });
+  });
+
+  it('complete: chưa có file → 409 MEDIA_UPLOAD_INCOMPLETE', async () => {
+    const { prisma, storage, service } = setup();
+    prisma.mediaAsset.findUnique.mockResolvedValue(pendingRow as never);
+    storage.size.mockResolvedValue(null);
     await expect(service.complete(teacher, pendingRow.id, {})).rejects.toMatchObject({
       code: 'MEDIA_UPLOAD_INCOMPLETE',
     });
   });
 
-  it('complete: size vượt giới hạn → xoá đối tượng và 409', async () => {
-    const { prisma, s3, service } = setup();
+  it('complete: size vượt giới hạn → xoá file và 409', async () => {
+    const { prisma, storage, service } = setup();
     prisma.mediaAsset.findUnique.mockResolvedValue(pendingRow as never);
-    s3.send.mockImplementation((async (cmd: { constructor: { name: string } }) =>
-      cmd.constructor.name === 'HeadObjectCommand'
-        ? { ContentLength: 6 * 1024 * 1024, ContentType: 'image/png' }
-        : {}) as never);
+    storage.size.mockResolvedValue(6 * 1024 * 1024);
     await expect(service.complete(teacher, pendingRow.id, {})).rejects.toBeInstanceOf(AppError);
-    const names = s3.send.mock.calls.map((c) => (c[0] as { constructor: { name: string } }).constructor.name);
-    expect(names).toContain('DeleteObjectCommand');
+    expect(storage.remove).toHaveBeenCalledWith(pendingRow.key);
   });
 
   it('complete: hợp lệ → READY với url public; gọi lại idempotent', async () => {
-    const { prisma, s3, service } = setup();
+    const { prisma, storage, service } = setup();
     prisma.mediaAsset.findUnique.mockResolvedValue(pendingRow as never);
-    s3.send.mockResolvedValue({ ContentLength: 900, ContentType: 'image/png' } as never);
+    storage.size.mockResolvedValue(900);
     const readyRow = { ...pendingRow, status: 'READY' as const, sizeBytes: 900, url: 'u' };
     prisma.mediaAsset.update.mockResolvedValue(readyRow as never);
     const view = await service.complete(teacher, pendingRow.id, { width: 10, height: 10 });
@@ -118,13 +173,13 @@ describe('MediaService', () => {
     expect(data).toMatchObject({
       status: 'READY',
       sizeBytes: 900,
-      url: `https://storage.example/resources/${pendingRow.key}`,
+      url: `https://api.example/files/${pendingRow.key}`,
     });
 
     prisma.mediaAsset.findUnique.mockResolvedValue(readyRow as never);
-    s3.send.mockClear();
+    storage.size.mockClear();
     await service.complete(teacher, pendingRow.id, {});
-    expect(s3.send).not.toHaveBeenCalled();
+    expect(storage.size).not.toHaveBeenCalled();
   });
 
   it('complete: người khác → 403', async () => {

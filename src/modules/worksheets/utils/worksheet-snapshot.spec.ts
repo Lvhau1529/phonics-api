@@ -5,7 +5,7 @@ import {
   hasManualItems,
   itemsOf,
   stripAnswerKeys,
-} from './worksheet-snapshot';
+} from '@/modules/worksheets/utils/worksheet-snapshot';
 
 const M = '11111111-1111-4111-8111-111111111111';
 const W = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';

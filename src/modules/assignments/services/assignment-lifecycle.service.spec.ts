@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { mockDeep } from 'vitest-mock-extended';
-import { type TimeService } from '../../../core/time/time.service';
-import { type PrismaService } from '../../../database/prisma.service';
-import { type NotificationsService } from '../../notifications/services/notifications.service';
-import { AssignmentRepository } from '../repositories/assignment.repository';
-import { dateOnly } from '../utils/assignment-dates';
-import { AssignmentLifecycleService } from './assignment-lifecycle.service';
+import { type TimeService } from '@/core/time/time.service';
+import { type PrismaService } from '@/database/prisma.service';
+import { type NotificationsService } from '@/modules/notifications/services/notifications.service';
+import { AssignmentRepository } from '@/modules/assignments/repositories/assignment.repository';
+import { dateOnly } from '@/modules/assignments/utils/assignment-dates';
+import { AssignmentLifecycleService } from '@/modules/assignments/services/assignment-lifecycle.service';
 
 const openRow = {
   id: '77777777-7777-4777-8777-777777777777',

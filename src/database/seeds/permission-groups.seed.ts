@@ -1,4 +1,4 @@
-import { type PrismaClient } from '../../generated/prisma/client';
+import { type PrismaClient } from '@/generated/prisma/client';
 
 /** Nhóm quyền mẫu (hệ thống): admin có thể sửa quyền, không xoá được */
 export async function seedPermissionGroups(prisma: PrismaClient): Promise<void> {

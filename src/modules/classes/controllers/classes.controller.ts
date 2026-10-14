@@ -12,19 +12,19 @@ import {
   Query,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
-import { CurrentUser } from '../../../common/decorators/current-user.decorator';
-import { Roles } from '../../../common/decorators/roles.decorator';
-import { API_V1 } from '../../../config/api-version';
-import { type AuthUser } from '../../auth/types/auth.types';
-import { StudentReaderService } from '../../students/services/student-reader.service';
-import { ClassesService } from '../services/classes.service';
+import { CurrentUser } from '@/common/decorators/current-user.decorator';
+import { Roles } from '@/common/decorators/roles.decorator';
+import { API_V1 } from '@/config/api-version';
+import { type AuthUser } from '@/modules/auth/types/auth.types';
+import { StudentReaderService } from '@/modules/students/services/student-reader.service';
+import { ClassesService } from '@/modules/classes/services/classes.service';
 import {
   ClassListQueryDto,
   ClassStudentsQueryDto,
   CreateClassDto,
   SetClassTeachersDto,
   UpdateClassDto,
-} from '../dto/requests/classes.dto';
+} from '@/modules/classes/dto/requests/classes.dto';
 
 /**
  * Lớp học. Ranking / sổ điểm / điểm thưởng theo lớp nằm ở module points (`PointsClassController`),

@@ -1,11 +1,11 @@
 import { Global, Module } from '@nestjs/common';
-import { AuditModule } from '../audit/audit.module';
-import { PermissionGroupsAdminController } from './controllers/permission-groups-admin.controller';
-import { PermissionsAdminController } from './controllers/permissions-admin.controller';
-import { PermissionRepository } from './repositories/permission.repository';
-import { PermissionGroupsService } from './services/permission-groups.service';
-import { PermissionsService } from './services/permissions.service';
-import { UserPermissionsWriterService } from './services/user-permissions-writer.service';
+import { AuditModule } from '@/modules/audit/audit.module';
+import { PermissionGroupsAdminController } from '@/modules/permissions/controllers/permission-groups-admin.controller';
+import { PermissionsAdminController } from '@/modules/permissions/controllers/permissions-admin.controller';
+import { PermissionRepository } from '@/modules/permissions/repositories/permission.repository';
+import { PermissionGroupsService } from '@/modules/permissions/services/permission-groups.service';
+import { PermissionsService } from '@/modules/permissions/services/permissions.service';
+import { UserPermissionsWriterService } from '@/modules/permissions/services/user-permissions-writer.service';
 
 /** Global vì PermissionsGuard (APP_GUARD) cần PermissionsService */
 @Global()

@@ -7,16 +7,17 @@ import {
   type UnlockClassResponse,
   type UnlockWithGemsBody,
 } from '@phonics/contracts';
-import { AppError, notFound } from '../../../common/errors/app-error';
-import { AccessService } from '../../../core/access/access.service';
-import { type Tx } from '../../../database/types';
-import { AuditService } from '../../audit/services/audit.service';
-import { type AuthUser } from '../../auth/types/auth.types';
-import { NotificationsService } from '../../notifications/services/notifications.service';
-import { gameUnlockedNotification, toStudentGameStatus } from '../dto/responses/game.view';
-import { GameRepository } from '../repositories/game.repository';
-import { type GameGate, type GameRow, NO_STATS } from '../types/game.types';
-import { GameCatalogService } from './game-catalog.service';
+import { partition } from 'es-toolkit';
+import { AppError, notFound } from '@/common/errors/app-error';
+import { AccessService } from '@/core/access/access.service';
+import { type Tx } from '@/database/types';
+import { AuditService } from '@/modules/audit/services/audit.service';
+import { type AuthUser } from '@/modules/auth/types/auth.types';
+import { NotificationsService } from '@/modules/notifications/services/notifications.service';
+import { gameUnlockedNotification, toStudentGameStatus } from '@/modules/games/dto/responses/game.view';
+import { GameRepository } from '@/modules/games/repositories/game.repository';
+import { type GameGate, type GameRow, NO_STATS } from '@/modules/games/types/game.types';
+import { GameCatalogService } from '@/modules/games/services/game-catalog.service';
 
 /** Mở khoá game theo học sinh (kim cương / GV cấp / thu hồi) và theo cả lớp */
 @Injectable()
@@ -121,8 +122,9 @@ export class GameUnlockService {
     if (game.price == null || !memberIds.length) return { unlocked: 0, alreadyUnlocked: memberIds.length };
 
     const existing = await this.repo.unlocksOf(gameId, memberIds);
-    const activeCount = existing.filter((u) => u.revokedAt == null).length;
-    const revivedIds = existing.filter((u) => u.revokedAt != null).map((u) => u.studentId);
+    const [active, revoked] = partition(existing, (u) => u.revokedAt == null);
+    const activeCount = active.length;
+    const revivedIds = revoked.map((u) => u.studentId);
     const knownIds = new Set(existing.map((u) => u.studentId));
     const newIds = memberIds.filter((id) => !knownIds.has(id));
     const grant = { grantedById: actor.id, note: body.note };

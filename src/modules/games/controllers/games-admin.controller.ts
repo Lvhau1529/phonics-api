@@ -1,11 +1,11 @@
 import { Body, Controller, Get, Param, Patch } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
-import { CurrentUser } from '../../../common/decorators/current-user.decorator';
-import { RequirePermission, Roles } from '../../../common/decorators/roles.decorator';
-import { API_V1 } from '../../../config/api-version';
-import { type AuthUser } from '../../auth/types/auth.types';
-import { GameCatalogService } from '../services/game-catalog.service';
-import { UpdateGameDto } from '../dto/requests/games.dto';
+import { CurrentUser } from '@/common/decorators/current-user.decorator';
+import { RequirePermission, Roles } from '@/common/decorators/roles.decorator';
+import { API_V1 } from '@/config/api-version';
+import { type AuthUser } from '@/modules/auth/types/auth.types';
+import { GameCatalogService } from '@/modules/games/services/game-catalog.service';
+import { UpdateGameDto } from '@/modules/games/dto/requests/games.dto';
 
 /** Quản trị catalog game */
 @ApiTags('admin')

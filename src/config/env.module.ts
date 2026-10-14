@@ -2,7 +2,7 @@ import { resolve } from 'node:path';
 import { Global, Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { config as loadDotenv } from 'dotenv';
-import { type Env, validateEnv } from './env.schema';
+import { type Env, validateEnv } from '@/config/env.schema';
 
 /** `.env` nằm ở gốc repo (cạnh package.json) — nạp theo vị trí file này để không phụ thuộc cwd */
 const ENV_FILE = resolve(__dirname, '../../.env');

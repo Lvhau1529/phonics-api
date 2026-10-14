@@ -11,18 +11,18 @@ import {
   Query,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
-import { CurrentUser } from '../../../common/decorators/current-user.decorator';
-import { RequirePermission, Roles } from '../../../common/decorators/roles.decorator';
-import { API_V1 } from '../../../config/api-version';
-import { type AuthUser } from '../../auth/types/auth.types';
-import { WorksheetReaderService } from '../services/worksheet-reader.service';
-import { WorksheetWriterService } from '../services/worksheet-writer.service';
+import { CurrentUser } from '@/common/decorators/current-user.decorator';
+import { RequirePermission, Roles } from '@/common/decorators/roles.decorator';
+import { API_V1 } from '@/config/api-version';
+import { type AuthUser } from '@/modules/auth/types/auth.types';
+import { WorksheetReaderService } from '@/modules/worksheets/services/worksheet-reader.service';
+import { WorksheetWriterService } from '@/modules/worksheets/services/worksheet-writer.service';
 import {
   CreateWorksheetDto,
   UpdateWorksheetDto,
   WorksheetListQueryDto,
   WorksheetStructureDto,
-} from '../dto/requests/worksheets.dto';
+} from '@/modules/worksheets/dto/requests/worksheets.dto';
 
 /** Phiếu bài tập: GV (quyền worksheets.manage) và admin */
 @ApiTags('worksheets')

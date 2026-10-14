@@ -5,14 +5,18 @@ import {
   type WorksheetDetail,
   type WorksheetStructureBody,
 } from '@phonics/contracts';
-import { AppError, notFound } from '../../../common/errors/app-error';
-import { AuditService } from '../../audit/services/audit.service';
-import { type AuthUser } from '../../auth/types/auth.types';
-import { QuestionReaderService } from '../../questions/services/question-reader.service';
-import { WorksheetRepository } from '../repositories/worksheet.repository';
-import { type WorksheetDetailRow } from '../types/worksheet.types';
-import { assertPublishable, assertStructureBelongs, countItems } from '../utils/worksheet-rules';
-import { WorksheetReaderService } from './worksheet-reader.service';
+import { AppError, notFound } from '@/common/errors/app-error';
+import { AuditService } from '@/modules/audit/services/audit.service';
+import { type AuthUser } from '@/modules/auth/types/auth.types';
+import { QuestionReaderService } from '@/modules/questions/services/question-reader.service';
+import { WorksheetRepository } from '@/modules/worksheets/repositories/worksheet.repository';
+import { type WorksheetDetailRow } from '@/modules/worksheets/types/worksheet.types';
+import {
+  assertPublishable,
+  assertStructureBelongs,
+  countItems,
+} from '@/modules/worksheets/utils/worksheet-rules';
+import { WorksheetReaderService } from '@/modules/worksheets/services/worksheet-reader.service';
 
 /**
  * Tạo / sửa / sắp cấu trúc / phát hành / lưu trữ / nhân bản phiếu. Chỉ chủ sở hữu / ADMIN sửa. Giao cho lớp

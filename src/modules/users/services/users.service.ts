@@ -1,8 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { AvatarKey, DEFAULT_AVATAR, type UpdateProfileBody, type User } from '@phonics/contracts';
-import { AppError, notFound } from '../../../common/errors/app-error';
-import { PrismaService } from '../../../database/prisma.service';
-import { type Prisma } from '../../../generated/prisma/client';
+import { AppError, notFound } from '@/common/errors/app-error';
+import { PrismaService } from '@/database/prisma.service';
+import { type Prisma } from '@/generated/prisma/client';
 
 export const userViewInclude = {
   studentProfile: {

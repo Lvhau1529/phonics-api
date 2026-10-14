@@ -1,5 +1,6 @@
 /** Phân bố điểm học sinh theo khoảng — hàm thuần */
 import { type DistributionBucket } from '@phonics/contracts';
+import { clamp } from 'es-toolkit';
 
 /** Bước phân bố điểm theo điểm cao nhất của lớp */
 export function distributionWidth(maxPoints: number): number {
@@ -13,12 +14,12 @@ export function distributionWidth(maxPoints: number): number {
  * Điểm âm / 0 rơi vào bucket đầu.
  */
 export function distribute(points: readonly number[]): DistributionBucket[] {
-  const max = points.reduce((m, p) => Math.max(m, p), 0);
+  const max = Math.max(0, ...points);
   const width = distributionWidth(max);
   const buckets: DistributionBucket[] = [];
   for (let from = 0; from <= max; from += width) buckets.push({ from, to: from + width, count: 0 });
   for (const p of points) {
-    const idx = Math.min(buckets.length - 1, Math.max(0, Math.floor(p / width)));
+    const idx = clamp(Math.floor(p / width), 0, buckets.length - 1);
     buckets[idx].count += 1;
   }
   return buckets;

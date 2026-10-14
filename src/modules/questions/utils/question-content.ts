@@ -1,7 +1,7 @@
 /** Hàm thuần về nội dung / phạm vi câu hỏi — dùng chung cho questions và worksheets */
 import { type MediaMap, type MediaRef, collectMediaIds } from '@phonics/contracts';
-import { type Prisma } from '../../../generated/prisma/client';
-import { type AuthUser } from '../../auth/types/auth.types';
+import { type Prisma } from '@/generated/prisma/client';
+import { type AuthUser } from '@/modules/auth/types/auth.types';
 
 /** GV thấy câu của mình ∪ câu SHARED đã PUBLISHED; ADMIN thấy tất cả */
 export function questionVisibleWhere(user: AuthUser): Prisma.QuestionWhereInput {

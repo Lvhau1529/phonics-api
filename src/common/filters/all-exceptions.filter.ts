@@ -10,8 +10,8 @@ import { type ApiErrorBody, type ErrorCode } from '@phonics/contracts';
 import { type Request, type Response } from 'express';
 import { ZodValidationException } from 'nestjs-zod';
 import { type ZodError } from 'zod';
-import { Prisma } from '../../generated/prisma/client';
-import { AppError } from '../errors/app-error';
+import { Prisma } from '@/generated/prisma/client';
+import { AppError } from '@/common/errors/app-error';
 
 /** Gom issue của zod theo field: { "email": ["Invalid email"] } */
 export function flattenZodError(error: ZodError): Record<string, string[]> {

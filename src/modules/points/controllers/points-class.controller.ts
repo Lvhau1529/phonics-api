@@ -1,18 +1,18 @@
 import { Body, Controller, Get, Param, ParseUUIDPipe, Post, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
-import { CurrentUser } from '../../../common/decorators/current-user.decorator';
-import { RequirePermission, Roles } from '../../../common/decorators/roles.decorator';
-import { API_V1 } from '../../../config/api-version';
-import { AccessService } from '../../../core/access/access.service';
-import { type AuthUser } from '../../auth/types/auth.types';
+import { CurrentUser } from '@/common/decorators/current-user.decorator';
+import { RequirePermission, Roles } from '@/common/decorators/roles.decorator';
+import { API_V1 } from '@/config/api-version';
+import { AccessService } from '@/core/access/access.service';
+import { type AuthUser } from '@/modules/auth/types/auth.types';
 import {
   AwardBonusBatchDto,
   AwardBonusDto,
   PointsListQueryDto,
   RankingQueryDto,
-} from '../dto/requests/points.dto';
-import { PointBonusService } from '../services/point-bonus.service';
-import { PointReaderService } from '../services/point-reader.service';
+} from '@/modules/points/dto/requests/points.dto';
+import { PointBonusService } from '@/modules/points/services/point-bonus.service';
+import { PointReaderService } from '@/modules/points/services/point-reader.service';
 
 /** Điểm theo lớp (admin + GV của lớp) */
 @ApiTags('classes')

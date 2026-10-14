@@ -7,6 +7,7 @@ import {
   WorksheetSnapshot,
   gradingModeOf,
 } from '@phonics/contracts';
+import { sumBy } from 'es-toolkit';
 
 /** Dữ liệu tối thiểu từ Prisma (worksheet + sections + items + question) để dựng snapshot */
 export interface SnapshotSource {
@@ -71,7 +72,7 @@ export function buildSnapshot(source: SnapshotSource, now = new Date()): Workshe
           },
         })),
     }));
-  const maxScore = sections.reduce((sum, s) => sum + s.items.reduce((x, it) => x + it.points, 0), 0);
+  const maxScore = sumBy(sections, (s) => sumBy(s.items, (it) => it.points));
   return WorksheetSnapshot.parse({
     worksheetId: source.id,
     title: source.title,

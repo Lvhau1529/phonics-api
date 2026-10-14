@@ -7,16 +7,17 @@ import {
   type TagsResponse,
   collectMediaIds,
 } from '@phonics/contracts';
-import { notFound } from '../../../common/errors/app-error';
-import { orderBy, paginate } from '../../../common/utils/paginate';
-import { type Tx } from '../../../database/types';
-import { type Prisma } from '../../../generated/prisma/client';
-import { type AuthUser } from '../../auth/types/auth.types';
-import { MediaService } from '../../media/services/media.service';
-import { toQuestionSummary, toQuestionView } from '../dto/responses/question.view';
-import { QuestionRepository } from '../repositories/question.repository';
-import { QUESTION_SORT_FIELDS, type QuestionRow } from '../types/question.types';
-import { questionMediaIds, questionVisibleWhere } from '../utils/question-content';
+import { countBy, orderBy as sortByKeys } from 'es-toolkit';
+import { notFound } from '@/common/errors/app-error';
+import { orderBy, paginate } from '@/common/utils/paginate';
+import { type Tx } from '@/database/types';
+import { type Prisma } from '@/generated/prisma/client';
+import { type AuthUser } from '@/modules/auth/types/auth.types';
+import { MediaService } from '@/modules/media/services/media.service';
+import { toQuestionSummary, toQuestionView } from '@/modules/questions/dto/responses/question.view';
+import { QuestionRepository } from '@/modules/questions/repositories/question.repository';
+import { QUESTION_SORT_FIELDS, type QuestionRow } from '@/modules/questions/types/question.types';
+import { questionMediaIds, questionVisibleWhere } from '@/modules/questions/utils/question-content';
 
 /** Đọc ngân hàng câu hỏi (ADR 0017): GV thấy câu của mình ∪ câu SHARED đã PUBLISHED */
 @Injectable()
@@ -59,12 +60,12 @@ export class QuestionReaderService {
 
   /** Tag đã dùng (trong câu visible) + số câu, để gợi ý ở editor */
   async tags(user: AuthUser): Promise<TagsResponse> {
-    const counts = new Map<string, number>();
-    for (const tags of await this.repo.visibleTags(user))
-      for (const tag of tags) counts.set(tag, (counts.get(tag) ?? 0) + 1);
-    const items = [...counts.entries()]
-      .map(([tag, count]) => ({ tag, count }))
-      .sort((a, b) => b.count - a.count);
+    const counts = countBy((await this.repo.visibleTags(user)).flat(), (tag) => tag);
+    const items = sortByKeys(
+      Object.entries(counts).map(([tag, count]) => ({ tag, count })),
+      ['count'],
+      ['desc'],
+    );
     return { items };
   }
 

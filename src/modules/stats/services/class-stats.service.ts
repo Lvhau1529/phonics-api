@@ -9,15 +9,15 @@ import {
   type TimelineQuery,
   type TopStudent,
 } from '@phonics/contracts';
-import { notFound } from '../../../common/errors/app-error';
-import { AccessService } from '../../../core/access/access.service';
-import { TimeService } from '../../../core/time/time.service';
-import { PrismaService } from '../../../database/prisma.service';
-import { type AuthUser } from '../../auth/types/auth.types';
-import { RankingService } from '../../points/services/ranking.service';
-import { StatsRepository } from '../repositories/stats.repository';
-import { type TopStudentsQuery } from '../types/stats.schemas';
-import { distribute } from '../utils/distribution';
+import { notFound } from '@/common/errors/app-error';
+import { AccessService } from '@/core/access/access.service';
+import { TimeService } from '@/core/time/time.service';
+import { PrismaService } from '@/database/prisma.service';
+import { type AuthUser } from '@/modules/auth/types/auth.types';
+import { RankingService } from '@/modules/points/services/ranking.service';
+import { StatsRepository } from '@/modules/stats/repositories/stats.repository';
+import { type TopStudentsQuery } from '@/modules/stats/types/stats.schemas';
+import { distribute } from '@/modules/stats/utils/distribution';
 
 /** Thống kê theo lớp: điểm theo thời gian, top học sinh, phân bố điểm, từng game */
 @Injectable()

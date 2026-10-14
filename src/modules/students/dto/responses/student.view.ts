@@ -6,8 +6,8 @@ import {
   type ParentContact,
   type StudentSummary,
 } from '@phonics/contracts';
-import { type GameResult } from '../../../../generated/prisma/client';
-import { type StudentRow } from '../../types/student.types';
+import { type GameResult } from '@/generated/prisma/client';
+import { type StudentRow } from '@/modules/students/types/student.types';
 
 export function toGameResultView(row: GameResult): GameResultView {
   return {

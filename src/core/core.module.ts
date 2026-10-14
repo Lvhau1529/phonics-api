@@ -1,12 +1,12 @@
 import { Module } from '@nestjs/common';
 import { ScheduleModule } from '@nestjs/schedule';
 import { ThrottlerModule } from '@nestjs/throttler';
-import { THROTTLE } from '../config/constants';
-import { EnvModule } from '../config/env.module';
-import { AccessModule } from './access/access.module';
-import { PrismaModule } from '../database/prisma.module';
-import { LoggerModule } from './logger/logger.module';
-import { TimeModule } from './time/time.module';
+import { THROTTLE } from '@/config/constants';
+import { EnvModule } from '@/config/env.module';
+import { AccessModule } from '@/core/access/access.module';
+import { PrismaModule } from '@/database/prisma.module';
+import { LoggerModule } from '@/core/logger/logger.module';
+import { TimeModule } from '@/core/time/time.module';
 
 /**
  * Hạ tầng dùng chung, không chứa nghiệp vụ: env, log, rate limit, cron, DB (Prisma), thời gian (APP_TIMEZONE),

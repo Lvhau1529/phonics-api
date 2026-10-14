@@ -1,13 +1,13 @@
 import { Body, Controller, Get, Param, ParseUUIDPipe, Post, Put, Res } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { type Response } from 'express';
-import { CurrentUser } from '../../../common/decorators/current-user.decorator';
-import { Roles } from '../../../common/decorators/roles.decorator';
-import { API_V1 } from '../../../config/api-version';
-import { type AuthUser } from '../../auth/types/auth.types';
-import { SubmissionReaderService } from '../services/submission-reader.service';
-import { SubmissionStudentService } from '../services/submission-student.service';
-import { SaveAnswersDto } from '../dto/requests/submissions.dto';
+import { CurrentUser } from '@/common/decorators/current-user.decorator';
+import { Roles } from '@/common/decorators/roles.decorator';
+import { API_V1 } from '@/config/api-version';
+import { type AuthUser } from '@/modules/auth/types/auth.types';
+import { SubmissionReaderService } from '@/modules/submissions/services/submission-reader.service';
+import { SubmissionStudentService } from '@/modules/submissions/services/submission-student.service';
+import { SaveAnswersDto } from '@/modules/submissions/dto/requests/submissions.dto';
 
 /** Làm bài của chính học sinh */
 @ApiTags('me')

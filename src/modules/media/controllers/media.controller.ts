@@ -1,13 +1,13 @@
 import { Body, Controller, Get, HttpCode, Param, ParseUUIDPipe, Post } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
-import { CurrentUser } from '../../../common/decorators/current-user.decorator';
-import { Roles } from '../../../common/decorators/roles.decorator';
-import { API_V1 } from '../../../config/api-version';
-import { THROTTLE } from '../../../config/constants';
-import { type AuthUser } from '../../auth/types/auth.types';
-import { MediaService } from '../services/media.service';
-import { CompleteMediaDto, PresignMediaDto } from '../dto/requests/media.dto';
+import { CurrentUser } from '@/common/decorators/current-user.decorator';
+import { Roles } from '@/common/decorators/roles.decorator';
+import { API_V1 } from '@/config/api-version';
+import { THROTTLE } from '@/config/constants';
+import { type AuthUser } from '@/modules/auth/types/auth.types';
+import { MediaService } from '@/modules/media/services/media.service';
+import { CompleteMediaDto, PresignMediaDto } from '@/modules/media/dto/requests/media.dto';
 
 const mediaThrottle = { default: { limit: THROTTLE.media.limit, ttl: THROTTLE.media.ttl } };
 

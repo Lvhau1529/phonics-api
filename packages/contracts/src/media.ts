@@ -3,9 +3,9 @@ import { IsoDateTime } from './common/dates.js';
 import { Id } from './common/ids.js';
 
 /**
- * Media (ảnh / audio) tải lên Neon Object Storage bằng presigned PUT (ADR 0018):
- *   POST /media/presign → client PUT file thẳng lên `uploadUrl` với đúng `headers` → POST /media/:id/complete.
- * API không bao giờ chạm byte; khi complete chỉ HEAD đối tượng để kiểm size / mime rồi đánh dấu READY.
+ * Media (ảnh / audio) tải lên bằng link PUT có chữ ký (ADR 0018 / 0024):
+ *   POST /media/presign → client PUT file lên `uploadUrl` với đúng `headers` → POST /media/:id/complete.
+ * `uploadUrl` là URL tuyệt đối do API dựng (hiện là API trên VPS lưu đĩa); client không tự ghép, không gửi bearer.
  */
 export const MediaKind = z.enum(['IMAGE', 'AUDIO']);
 export type MediaKind = z.infer<typeof MediaKind>;

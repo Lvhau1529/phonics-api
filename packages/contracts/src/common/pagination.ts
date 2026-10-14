@@ -2,6 +2,10 @@ import { z } from 'zod';
 
 export const PAGE_SIZE_MAX = 100;
 
+/** Chiều sắp xếp trong `sort=field:dir` */
+export const SortDir = z.enum(['asc', 'desc']);
+export type SortDir = z.infer<typeof SortDir>;
+
 /** Query phân trang + sắp xếp + tìm kiếm chung cho mọi danh sách */
 export const PageQuery = z.object({
   page: z.coerce.number().int().min(1).default(1),
@@ -28,8 +32,8 @@ export const paginated = <T extends z.ZodType>(item: T) =>
   z.object({ items: z.array(item), total: z.int().min(0), page: z.int().min(1), pageSize: z.int().min(1) });
 
 /** Tách `sort=field:dir` (đã validate bằng PageQuery) */
-export function parseSort(sort: string | undefined): { field: string; dir: 'asc' | 'desc' } | undefined {
+export function parseSort(sort: string | undefined): { field: string; dir: SortDir } | undefined {
   if (!sort) return undefined;
   const [field, dir] = sort.split(':');
-  return { field, dir: dir === 'asc' ? 'asc' : 'desc' };
+  return { field, dir: dir === SortDir.enum.asc ? SortDir.enum.asc : SortDir.enum.desc };
 }

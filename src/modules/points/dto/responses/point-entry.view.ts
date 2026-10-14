@@ -1,5 +1,5 @@
 import { type PointEntryView } from '@phonics/contracts';
-import { type PointEntryRow } from '../../types/point.types';
+import { type PointEntryRow } from '@/modules/points/types/point.types';
 
 export function toEntryView(row: PointEntryRow): PointEntryView {
   return {

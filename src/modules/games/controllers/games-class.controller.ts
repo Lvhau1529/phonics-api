@@ -1,12 +1,12 @@
 import { Body, Controller, Param, ParseUUIDPipe, Post } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
-import { CurrentUser } from '../../../common/decorators/current-user.decorator';
-import { RequirePermission, Roles } from '../../../common/decorators/roles.decorator';
-import { AppError } from '../../../common/errors/app-error';
-import { API_V1 } from '../../../config/api-version';
-import { type AuthUser } from '../../auth/types/auth.types';
-import { GameUnlockService } from '../services/game-unlock.service';
-import { UnlockClassDto } from '../dto/requests/games.dto';
+import { CurrentUser } from '@/common/decorators/current-user.decorator';
+import { RequirePermission, Roles } from '@/common/decorators/roles.decorator';
+import { AppError } from '@/common/errors/app-error';
+import { API_V1 } from '@/config/api-version';
+import { type AuthUser } from '@/modules/auth/types/auth.types';
+import { GameUnlockService } from '@/modules/games/services/game-unlock.service';
+import { UnlockClassDto } from '@/modules/games/dto/requests/games.dto';
 
 /** Mở khoá game cho cả lớp */
 @ApiTags('classes')

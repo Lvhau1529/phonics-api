@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { mockDeep } from 'vitest-mock-extended';
-import { AppError } from '../../../common/errors/app-error';
-import { type AccessService } from '../../../core/access/access.service';
-import { type PrismaService } from '../../../database/prisma.service';
-import { type AuditService } from '../../audit/services/audit.service';
-import { type AuthUser } from '../../auth/types/auth.types';
-import { ClassesService } from './classes.service';
+import { AppError } from '@/common/errors/app-error';
+import { type AccessService } from '@/core/access/access.service';
+import { type PrismaService } from '@/database/prisma.service';
+import { type AuditService } from '@/modules/audit/services/audit.service';
+import { type AuthUser } from '@/modules/auth/types/auth.types';
+import { ClassesService } from '@/modules/classes/services/classes.service';
 
 const admin: AuthUser = { id: 'admin-1', role: 'ADMIN', status: 'ACTIVE', tokenVersion: 0 };
 

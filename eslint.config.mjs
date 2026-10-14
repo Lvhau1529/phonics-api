@@ -24,5 +24,25 @@ export default tseslint.config(
       ],
     },
   },
+  {
+    // API import bằng alias `@/` → src; packages/contracts là gói riêng (build bằng tsc) nên vẫn dùng đường dẫn tương đối
+    files: ['src/**/*.ts', 'scripts/**/*.ts'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        { patterns: [{ group: ['../*'], message: 'Dùng alias `@/` thay cho đường dẫn `../`.' }] },
+      ],
+    },
+  },
+  {
+    // test/ import helper của chính nó bằng đường dẫn tương đối; mã nguồn API vẫn qua `@/`
+    files: ['test/**/*.ts'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        { patterns: [{ group: ['**/src/*'], message: 'Dùng alias `@/` thay cho đường dẫn tới src.' }] },
+      ],
+    },
+  },
   prettier,
 );

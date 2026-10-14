@@ -1,19 +1,20 @@
 import { Injectable } from '@nestjs/common';
 import { type GradeSubmissionBody, type SubmissionDetail } from '@phonics/contracts';
-import { AppError } from '../../../common/errors/app-error';
-import { AuditService } from '../../audit/services/audit.service';
-import { type AuthUser } from '../../auth/types/auth.types';
-import { NotificationsService } from '../../notifications/services/notifications.service';
-import { round2 } from '../grading/index';
-import { SubmissionRepository } from '../repositories/submission.repository';
+import { sumBy } from 'es-toolkit';
+import { AppError } from '@/common/errors/app-error';
+import { AuditService } from '@/modules/audit/services/audit.service';
+import { type AuthUser } from '@/modules/auth/types/auth.types';
+import { NotificationsService } from '@/modules/notifications/services/notifications.service';
+import { round2 } from '@/modules/submissions/grading/index';
+import { SubmissionRepository } from '@/modules/submissions/repositories/submission.repository';
 import {
   assertGradesValid,
   itemMapOf,
   pendingManualItems,
   snapshotOf,
   totalOf,
-} from '../utils/submission-rules';
-import { SubmissionReaderService } from './submission-reader.service';
+} from '@/modules/submissions/utils/submission-rules';
+import { SubmissionReaderService } from '@/modules/submissions/services/submission-reader.service';
 
 /** Giáo viên chấm bài (lớp mình): chấm tay / ghi đè điểm, chốt điểm, cho làm lại */
 @Injectable()
@@ -69,7 +70,7 @@ export class SubmissionGradingService {
       const totalScore = totalOf(answers);
       const updated = await this.repo.update(tx, submissionId, {
         status: 'GRADED',
-        manualScore: round2(answers.reduce((s, a) => s + (a.manualScore ?? 0), 0)),
+        manualScore: round2(sumBy(answers, (a) => a.manualScore ?? 0)),
         totalScore,
         gradedAt: now,
         gradedById: actor.id,

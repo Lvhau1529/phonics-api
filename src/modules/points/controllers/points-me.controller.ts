@@ -1,11 +1,11 @@
 import { Controller, Get, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
-import { CurrentUser } from '../../../common/decorators/current-user.decorator';
-import { Roles } from '../../../common/decorators/roles.decorator';
-import { API_V1 } from '../../../config/api-version';
-import { type AuthUser } from '../../auth/types/auth.types';
-import { PointsListQueryDto, RankingQueryDto } from '../dto/requests/points.dto';
-import { PointReaderService } from '../services/point-reader.service';
+import { CurrentUser } from '@/common/decorators/current-user.decorator';
+import { Roles } from '@/common/decorators/roles.decorator';
+import { API_V1 } from '@/config/api-version';
+import { type AuthUser } from '@/modules/auth/types/auth.types';
+import { PointsListQueryDto, RankingQueryDto } from '@/modules/points/dto/requests/points.dto';
+import { PointReaderService } from '@/modules/points/services/point-reader.service';
 
 /** Điểm của chính học sinh */
 @ApiTags('me')

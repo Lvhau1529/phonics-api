@@ -5,6 +5,8 @@
  * Versioning theo URI (ADR 0015): server phục vụ song song nhiều version (`/api/v1`, `/api/v2`...);
  * `API_VERSION` là version mà client trong monorepo đang dùng. Riêng `/api/health` không có version.
  */
+import type { ReportFormat } from './reports.js';
+
 export const API_ROOT = '/api';
 export const API_VERSION = 'v1';
 export const API_PREFIX = `${API_ROOT}/${API_VERSION}`;
@@ -131,7 +133,7 @@ export const ENDPOINTS = {
     game: (id: string) => `/admin/games/${id}`,
   },
   reports: {
-    classRanking: (id: string, format: 'xlsx' | 'pdf') => `/reports/classes/${id}/ranking.${format}`,
+    classRanking: (id: string, format: ReportFormat) => `/reports/classes/${id}/ranking.${format}`,
     classPoints: (id: string) => `/reports/classes/${id}/points.xlsx`,
     assignmentResults: (id: string) => `/reports/assignments/${id}/results.xlsx`,
   },

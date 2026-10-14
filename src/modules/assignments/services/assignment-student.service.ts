@@ -8,18 +8,19 @@ import {
   type WorksheetSnapshot,
   collectMediaIds,
 } from '@phonics/contracts';
-import { AppError, notFound } from '../../../common/errors/app-error';
-import { paginate } from '../../../common/utils/paginate';
-import { type Prisma } from '../../../generated/prisma/client';
-import { type AuthUser } from '../../auth/types/auth.types';
-import { MediaService } from '../../media/services/media.service';
-import { toSubmissionSummary } from '../../submissions/dto/responses/submission.view';
-import { stripAnswerKeys } from '../../worksheets/utils/worksheet-snapshot';
-import { type MySubmissionBrief, toMyAssignmentSummary } from '../dto/responses/assignment.view';
-import { AssignmentRepository } from '../repositories/assignment.repository';
-import { type AssignmentRow } from '../types/assignment.types';
-import { AssignmentRankingService } from './assignment-ranking.service';
-import { AssignmentReaderService } from './assignment-reader.service';
+import { groupBy } from 'es-toolkit';
+import { AppError, notFound } from '@/common/errors/app-error';
+import { paginate } from '@/common/utils/paginate';
+import { type Prisma } from '@/generated/prisma/client';
+import { type AuthUser } from '@/modules/auth/types/auth.types';
+import { MediaService } from '@/modules/media/services/media.service';
+import { toSubmissionSummary } from '@/modules/submissions/dto/responses/submission.view';
+import { stripAnswerKeys } from '@/modules/worksheets/utils/worksheet-snapshot';
+import { toMyAssignmentSummary } from '@/modules/assignments/dto/responses/assignment.view';
+import { AssignmentRepository } from '@/modules/assignments/repositories/assignment.repository';
+import { type AssignmentRow } from '@/modules/assignments/types/assignment.types';
+import { AssignmentRankingService } from '@/modules/assignments/services/assignment-ranking.service';
+import { AssignmentReaderService } from '@/modules/assignments/services/assignment-reader.service';
 
 /** Bài giao nhìn từ học sinh (/me/assignments): chỉ bài của lớp đang học, SCHEDULED coi như chưa tồn tại */
 @Injectable()
@@ -90,10 +91,9 @@ export class AssignmentStudentService {
       Promise.all(ids.map((id) => this.rankingService.rankOf(id, user.id))),
     ]);
     const rankBy = new Map(ids.map((id, i) => [id, ranks[i]?.rank ?? null]));
-    const grouped = new Map<string, MySubmissionBrief[]>();
-    for (const s of submissions) grouped.set(s.assignmentId, [...(grouped.get(s.assignmentId) ?? []), s]);
+    const grouped = groupBy(submissions, (s) => s.assignmentId);
     return rows.map((row) =>
-      toMyAssignmentSummary(row, grouped.get(row.id) ?? [], rankBy.get(row.id) ?? null, now),
+      toMyAssignmentSummary(row, grouped[row.id] ?? [], rankBy.get(row.id) ?? null, now),
     );
   }
 }

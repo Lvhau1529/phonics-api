@@ -1,12 +1,15 @@
 import { Injectable } from '@nestjs/common';
 import { type ClassWorksheetOverview, type WorksheetStatsQuery } from '@phonics/contracts';
-import { AccessService } from '../../../core/access/access.service';
-import { TimeService } from '../../../core/time/time.service';
-import { Prisma } from '../../../generated/prisma/client';
-import { dateOnly } from '../../assignments/utils/assignment-dates';
-import { type AuthUser } from '../../auth/types/auth.types';
-import { WorksheetStatsRepository, scheduledRangeSql } from '../repositories/worksheet-stats.repository';
-import { avg, isPastDue } from '../utils/worksheet-stats.math';
+import { AccessService } from '@/core/access/access.service';
+import { TimeService } from '@/core/time/time.service';
+import { Prisma } from '@/generated/prisma/client';
+import { dateOnly } from '@/modules/assignments/utils/assignment-dates';
+import { type AuthUser } from '@/modules/auth/types/auth.types';
+import {
+  WorksheetStatsRepository,
+  scheduledRangeSql,
+} from '@/modules/worksheet-stats/repositories/worksheet-stats.repository';
+import { avg, isPastDue } from '@/modules/worksheet-stats/utils/worksheet-stats.math';
 
 /** Tổng quan phiếu của một lớp trong khoảng thời gian (theo ngày trên lịch) */
 @Injectable()
