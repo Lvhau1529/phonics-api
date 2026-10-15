@@ -35,14 +35,14 @@ export class AssignmentStudentService {
   /** Lớp đang học của học sinh (404 nếu chưa có lớp) */
   async myClassId(user: AuthUser): Promise<string> {
     const classId = await this.repo.currentClassId(user.id);
-    if (!classId) throw new AppError('NOT_FOUND', 404, { message: 'Bạn chưa thuộc lớp nào' });
+    if (!classId) throw new AppError('NOT_FOUND', 404, { message: 'noClassYet' });
     return classId;
   }
 
   /** Bài giao của lớp học sinh đang học; SCHEDULED coi như chưa tồn tại */
   async loadForStudent(user: AuthUser, id: string): Promise<AssignmentRow> {
     const row = await this.repo.findInClass(id, await this.myClassId(user));
-    if (!row || row.status === 'SCHEDULED') throw notFound('Không tìm thấy bài tập');
+    if (!row || row.status === 'SCHEDULED') throw notFound('homeworkNotFound');
     return row;
   }
 

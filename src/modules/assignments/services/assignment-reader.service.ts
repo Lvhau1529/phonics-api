@@ -39,7 +39,7 @@ export class AssignmentReaderService {
   /** Load + kiểm tra phạm vi lớp (GV) */
   async load(user: AuthUser, id: string): Promise<AssignmentRow> {
     const row = await this.repo.findById(id);
-    if (!row) throw notFound('Không tìm thấy bài giao');
+    if (!row) throw notFound('assignmentNotFound');
     await this.access.assertClassAccess(user, row.classId);
     return row;
   }

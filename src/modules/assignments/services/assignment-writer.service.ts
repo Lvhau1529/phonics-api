@@ -20,7 +20,7 @@ import { AssignmentLifecycleService } from '@/modules/assignments/services/assig
 import { AssignmentReaderService } from '@/modules/assignments/services/assignment-reader.service';
 
 const dueAfterOpenError = () =>
-  new AppError('VALIDATION_ERROR', 400, { details: { dueAt: ['Hạn nộp phải sau thời điểm mở'] } });
+  new AppError('VALIDATION_ERROR', 400, { fieldErrors: { dueAt: ['dueAfterOpen'] } });
 
 /**
  * Tạo / sửa / đóng / mở lại / xoá bài giao (ADR 0017): snapshot nội dung lúc giao, cửa sổ thời gian, số lần làm.
@@ -162,7 +162,7 @@ export class AssignmentWriterService {
   async remove(actor: AuthUser, id: string): Promise<void> {
     const current = await this.reader.load(actor, id);
     if ((await this.repo.countSubmissions(id)) > 0)
-      throw new AppError('CONFLICT', 409, { message: 'Đã có bài nộp — hãy đóng bài thay vì xoá' });
+      throw new AppError('CONFLICT', 409, { message: 'assignmentHasSubmissions' });
     await this.repo.delete(id);
     await this.audit.record(actor, 'assignment.delete', 'Assignment', id, toAssignmentAudit(current), null);
     void this.scheduler.reschedule();

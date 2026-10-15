@@ -133,7 +133,7 @@ export class AuthService {
     const row = await this.prisma.user.findUniqueOrThrow({ where: { id: user.id } });
     if (row.passwordHash) {
       if (!body.currentPassword || !(await this.passwords.verify(row.passwordHash, body.currentPassword))) {
-        throw new AppError('INVALID_CREDENTIALS', 401, { message: 'Mật khẩu hiện tại không đúng' });
+        throw new AppError('INVALID_CREDENTIALS', 401, { message: 'wrongCurrentPassword' });
       }
     }
     await this.prisma.user.update({
@@ -148,7 +148,7 @@ export class AuthService {
 
   private async assertEmailFree(email: string): Promise<void> {
     const exists = await this.prisma.user.findUnique({ where: { email }, select: { id: true } });
-    if (exists) throw new AppError('EMAIL_TAKEN', 409, { details: { email: ['Email đã được sử dụng'] } });
+    if (exists) throw new AppError('EMAIL_TAKEN', 409, { fieldErrors: { email: ['EMAIL_TAKEN'] } });
   }
 
   private async createStudent(
@@ -171,7 +171,7 @@ export class AuthService {
     });
     if (!cls || !cls.joinVisible || cls.archivedAt)
       throw new AppError('CLASS_NOT_JOINABLE', 400, {
-        details: { classId: ['Lớp không nhận học sinh mới'] },
+        fieldErrors: { classId: ['CLASS_NOT_JOINABLE'] },
       });
 
     return tx.user.create({

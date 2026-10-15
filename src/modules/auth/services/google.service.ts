@@ -22,8 +22,7 @@ export class GoogleService {
   }
 
   async verify(idToken: string): Promise<GoogleIdentity> {
-    if (!this.enabled)
-      throw new AppError('GOOGLE_TOKEN_INVALID', 400, { message: 'Đăng nhập Google chưa được bật' });
+    if (!this.enabled) throw new AppError('GOOGLE_TOKEN_INVALID', 400, { message: 'googleLoginDisabled' });
     let payload;
     try {
       const ticket = await this.client.verifyIdToken({ idToken, audience: this.env.GOOGLE_CLIENT_IDS });

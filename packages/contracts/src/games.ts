@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { IsoDateTime } from './common/dates.js';
 import { Id } from './common/ids.js';
+import { ValidationMessage } from './common/validation-messages.js';
 
 /**
  * Id game = `manifest.id` trong apps/game/src/games/<id>/manifest.ts (không đổi sau khi phát hành).
@@ -54,7 +55,7 @@ export const UpdateGameBody = z
     sortOrder: z.int().min(0).max(1000),
   })
   .partial()
-  .refine((b) => Object.keys(b).length > 0, { message: 'Cần ít nhất một trường' });
+  .refine((b) => Object.keys(b).length > 0, ValidationMessage.atLeastOneField);
 export type UpdateGameBody = z.infer<typeof UpdateGameBody>;
 
 export const UnlockSource = z.enum(['GEMS', 'ADMIN', 'FREE']);

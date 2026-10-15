@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { IsoDate, IsoDateTime } from './common/dates.js';
 import { Id } from './common/ids.js';
 import { PageQuery } from './common/pagination.js';
+import { ValidationMessage } from './common/validation-messages.js';
 import { MediaMap } from './media.js';
 import { RosterStatus, SubmissionStatus, SubmissionSummary } from './submissions.js';
 import { AvatarKey, DisplayName } from './users.js';
@@ -33,7 +34,7 @@ export const CreateAssignmentBody = z
   // So sánh mốc thời gian, không so chuỗi (ISO có thể khác offset)
   .refine((b) => !b.dueAt || !b.availableFrom || Date.parse(b.dueAt) > Date.parse(b.availableFrom), {
     path: ['dueAt'],
-    message: 'Hạn nộp phải sau thời điểm mở',
+    message: ValidationMessage.dueAfterOpen,
   });
 export type CreateAssignmentBody = z.infer<typeof CreateAssignmentBody>;
 
@@ -47,7 +48,7 @@ export const UpdateAssignmentBody = z
     showAnswersAfterSubmit: z.boolean(),
   })
   .partial()
-  .refine((b) => Object.keys(b).length > 0, { message: 'Cần ít nhất một trường' });
+  .refine((b) => Object.keys(b).length > 0, ValidationMessage.atLeastOneField);
 export type UpdateAssignmentBody = z.infer<typeof UpdateAssignmentBody>;
 
 export const AssignmentCounts = z.object({

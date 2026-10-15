@@ -97,6 +97,6 @@ export class ClassStatsService {
 
   private async assertClass(user: AuthUser, classId: string): Promise<void> {
     await this.access.assertClassAccess(user, classId);
-    if (!(await this.repo.classExists(classId))) throw notFound('Không tìm thấy lớp');
+    if (!(await this.repo.classExists(classId))) throw notFound('classNotFound');
   }
 }

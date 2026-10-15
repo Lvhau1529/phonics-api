@@ -61,8 +61,7 @@ export class GameUnlockService {
     const game = await this.catalog.getGame(gameId);
     if (game.price == null) return this.statusOf(studentId, game);
     const existing = await this.repo.findUnlock(studentId, gameId);
-    if (existing?.revokedAt)
-      throw new AppError('FORBIDDEN', 403, { message: 'Game is locked by your teacher' });
+    if (existing?.revokedAt) throw new AppError('FORBIDDEN', 403, { message: 'gameLocked' });
     if (!existing) await this.repo.createGemsUnlock(studentId, gameId, body.gemsSpent);
     return this.statusOf(studentId, game);
   }
@@ -76,7 +75,7 @@ export class GameUnlockService {
   ): Promise<StudentGameStatus> {
     await this.access.assertStudentAccess(actor, studentId);
     const game = await this.catalog.getGame(gameId);
-    if (!(await this.repo.studentExists(studentId))) throw notFound('Không tìm thấy học sinh');
+    if (!(await this.repo.studentExists(studentId))) throw notFound('studentNotFound');
 
     const before = await this.statusOf(studentId, game);
     // Chỉ thông báo khi trước đó chưa có dòng unlock đang hoạt động (FREE không tính)
@@ -115,7 +114,7 @@ export class GameUnlockService {
   ): Promise<UnlockClassResponse> {
     await this.access.assertClassAccess(actor, classId);
     const game = await this.catalog.getGame(gameId);
-    if (!(await this.repo.classExists(classId))) throw notFound('Không tìm thấy lớp');
+    if (!(await this.repo.classExists(classId))) throw notFound('classNotFound');
 
     const memberIds = await this.repo.activeMemberIds(classId);
     // Game miễn phí: ai cũng đã mở, không có gì để làm

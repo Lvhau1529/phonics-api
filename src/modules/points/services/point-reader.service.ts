@@ -64,13 +64,13 @@ export class PointReaderService {
   /** GET /me/class/ranking */
   async myClassRanking(user: AuthUser, query: RankingQuery): Promise<RankingResponse> {
     const classId = await this.repo.currentClassId(user.id);
-    if (!classId) throw new AppError('NOT_FOUND', 404, { message: 'Bạn chưa thuộc lớp nào' });
+    if (!classId) throw new AppError('NOT_FOUND', 404, { message: 'noClassYet' });
     return this.classRanking(classId, query, user.id);
   }
 
   async classRanking(classId: string, query: RankingQuery, meId?: string): Promise<RankingResponse> {
     const className = await this.repo.className(classId);
-    if (className === null) throw notFound('Không tìm thấy lớp');
+    if (className === null) throw notFound('classNotFound');
     const items = await this.ranking.rankingEntries(
       classId,
       { range: this.time.resolveRange(query), gameId: query.gameId ?? null },

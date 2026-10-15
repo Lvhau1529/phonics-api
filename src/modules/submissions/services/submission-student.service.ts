@@ -94,7 +94,7 @@ export class SubmissionStudentService {
     const row = await this.repo.transaction(async (tx) => {
       if ((await this.repo.markSubmitted(tx, submissionId, user.id)) === 0) {
         if (!(await this.repo.existsForStudent(tx, submissionId, user.id)))
-          throw notFound('Không tìm thấy bài làm');
+          throw notFound('submissionNotFound');
         throw new AppError('SUBMISSION_NOT_EDITABLE', 409);
       }
       const current = await this.repo.findByIdOrThrow(submissionId, tx);

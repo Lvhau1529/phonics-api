@@ -55,7 +55,7 @@ export function assertGradesValid(
   if (unknown.length) throw new AppError('VALIDATION_ERROR', 400, { details: { worksheetItemId: unknown } });
   if (overMax.length)
     throw new AppError('VALIDATION_ERROR', 400, {
-      details: { manualScore: overMax.map((id) => `${id}: vượt điểm tối đa`) },
+      fieldErrors: { manualScore: overMax.map((id) => ['overMaxScore', { id }] as const) },
     });
 }
 

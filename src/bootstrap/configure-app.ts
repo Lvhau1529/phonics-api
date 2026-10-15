@@ -5,6 +5,8 @@ import { API_ROOT } from '@phonics/contracts';
 import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
 import { AllExceptionsFilter } from '@/common/filters/all-exceptions.filter';
+import { configureZodLocale } from '@/common/i18n/zod-locale';
+import { localeMiddleware } from '@/common/middleware/locale.middleware';
 import { requestIdMiddleware } from '@/common/middleware/request-id.middleware';
 import { WORKSHEETS } from '@/config/constants';
 import { type Env } from '@/config/env.schema';
@@ -15,7 +17,7 @@ import { type Env } from '@/config/env.schema';
  *
  * Thứ tự xử lý một request:
  *   (file media `/files/*` → trả thẳng từ MEDIA_DIR, không qua phần dưới)
- *   middleware (request-id → helmet → cookie-parser → CORS → pino-http)
+ *   middleware (request-id → locale → helmet → cookie-parser → CORS → pino-http)
  *   → guard (Throttler → Jwt → Roles → Permissions, AppModule)
  *   → pipe (ZodValidationPipe) → controller → service
  *   → lỗi bất kỳ → AllExceptionsFilter (envelope ApiErrorBody)
@@ -46,6 +48,9 @@ export function configureApp(app: NestExpressApplication, env: Env): void {
   });
 
   app.use(requestIdMiddleware);
+  // Message lỗi theo Accept-Language (ADR 0025): middleware gắn locale, zod sinh message mặc định theo locale đó
+  configureZodLocale();
+  app.use(localeMiddleware);
   app.use(helmet({ contentSecurityPolicy: false })); // Swagger UI cần inline script
   app.use(cookieParser(env.COOKIE_SECRET));
   app.enableCors({

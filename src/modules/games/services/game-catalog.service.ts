@@ -22,7 +22,7 @@ export class GameCatalogService {
 
   async getGame(gameId: string): Promise<GameRow> {
     const game = await this.repo.findById(gameId);
-    if (!game) throw notFound('Không tìm thấy game');
+    if (!game) throw notFound('gameNotFound');
     return game;
   }
 

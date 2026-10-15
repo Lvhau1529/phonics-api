@@ -44,7 +44,7 @@ export class CommentsService {
     const isStudent = user.role === 'STUDENT';
     if (isStudent && !body.parentId)
       throw new AppError('VALIDATION_ERROR', 400, {
-        details: { parentId: ['Học sinh chỉ trả lời nhận xét của giáo viên'] },
+        fieldErrors: { parentId: ['studentRepliesOnly'] },
       });
     if (isStudent && submission.status === 'IN_PROGRESS') throw new AppError('SUBMISSION_NOT_SUBMITTED', 409);
 
@@ -55,7 +55,7 @@ export class CommentsService {
         where: { id: body.parentId, submissionId, deletedAt: null },
         include: commentInclude,
       });
-      if (!parent) throw notFound('Không tìm thấy nhận xét gốc');
+      if (!parent) throw notFound('parentCommentNotFound');
       // Chỉ lồng một cấp: trả lời một reply → gắn vào gốc của nó
       if (parent.parentId) {
         parent = await this.prisma.comment.findUniqueOrThrow({
@@ -68,7 +68,7 @@ export class CommentsService {
       const snapshot = submission.assignment.snapshot as unknown as WorksheetSnapshot;
       if (!itemsOf(snapshot).some((it) => it.worksheetItemId === worksheetItemId))
         throw new AppError('VALIDATION_ERROR', 400, {
-          details: { worksheetItemId: ['Không có câu này trong bài'] },
+          fieldErrors: { worksheetItemId: ['itemNotInSubmission'] },
         });
     }
 
@@ -123,7 +123,7 @@ export class CommentsService {
   /** Chỉ tác giả sửa được */
   async update(user: AuthUser, id: string, body: UpdateCommentBody): Promise<CommentView> {
     const current = await this.prisma.comment.findUnique({ where: { id }, include: commentInclude });
-    if (!current || current.deletedAt) throw notFound('Không tìm thấy nhận xét');
+    if (!current || current.deletedAt) throw notFound('commentNotFound');
     if (current.authorId !== user.id) throw new AppError('FORBIDDEN_SCOPE', 403);
     const row = await this.prisma.comment.update({
       where: { id },
@@ -141,7 +141,7 @@ export class CommentsService {
   /** Tác giả hoặc admin; xoá mềm (giữ cây) */
   async remove(user: AuthUser, id: string): Promise<void> {
     const current = await this.prisma.comment.findUnique({ where: { id } });
-    if (!current || current.deletedAt) throw notFound('Không tìm thấy nhận xét');
+    if (!current || current.deletedAt) throw notFound('commentNotFound');
     if (current.authorId !== user.id && user.role !== 'ADMIN') throw new AppError('FORBIDDEN_SCOPE', 403);
     await this.prisma.comment.update({ where: { id }, data: { deletedAt: new Date() } });
     if (user.role === 'ADMIN' && current.authorId !== user.id)
@@ -167,9 +167,9 @@ export class CommentsService {
         assignment: { select: { classId: true, snapshot: true } },
       },
     });
-    if (!row) throw notFound('Không tìm thấy bài làm');
+    if (!row) throw notFound('submissionNotFound');
     if (user.role === 'STUDENT') {
-      if (row.studentId !== user.id) throw notFound('Không tìm thấy bài làm');
+      if (row.studentId !== user.id) throw notFound('submissionNotFound');
     } else {
       await this.access.assertClassAccess(user, row.assignment.classId);
     }

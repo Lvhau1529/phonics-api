@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { IsoDateTime } from './common/dates.js';
 import { Id } from './common/ids.js';
 import { PageQuery } from './common/pagination.js';
+import { ValidationMessage } from './common/validation-messages.js';
 import { Grade } from './classes.js';
 import { MediaMap } from './media.js';
 import {
@@ -60,7 +61,7 @@ export const UpdateWorksheetBody = z
     note: z.string().trim().max(1000).nullable(),
   })
   .partial()
-  .refine((b) => Object.keys(b).length > 0, { message: 'Cần ít nhất một trường' });
+  .refine((b) => Object.keys(b).length > 0, ValidationMessage.atLeastOneField);
 export type UpdateWorksheetBody = z.infer<typeof UpdateWorksheetBody>;
 
 /** PUT /worksheets/:id/structure — thay toàn bộ sections + items. Có `id` thì giữ (ổn định cho snapshot), không có = tạo mới */

@@ -153,7 +153,7 @@ export class TeachersService {
 
   private async findTeacher(id: string): Promise<TeacherRow> {
     const row = await this.prisma.user.findUnique({ where: { id }, include: teacherInclude });
-    if (!row || row.role !== 'TEACHER') throw notFound('Không tìm thấy giáo viên');
+    if (!row || row.role !== 'TEACHER') throw notFound('teacherNotFound');
     return row;
   }
 
@@ -166,8 +166,8 @@ export class TeachersService {
     const missing = unique.filter((id) => !found.has(id));
     if (missing.length) {
       throw new AppError('VALIDATION_ERROR', 400, {
-        message: 'Có lớp không tồn tại',
-        details: { classIds: missing.map((id) => `Không tìm thấy lớp ${id}`) },
+        message: 'classesMissing',
+        fieldErrors: { classIds: missing.map((id) => ['classIdNotFound', { id }] as const) },
       });
     }
     return unique;
@@ -178,6 +178,6 @@ export class TeachersService {
       where: { email, NOT: exceptId ? { id: exceptId } : undefined },
       select: { id: true },
     });
-    if (taken) throw new AppError('EMAIL_TAKEN', 409, { details: { email: ['Email đã được sử dụng'] } });
+    if (taken) throw new AppError('EMAIL_TAKEN', 409, { fieldErrors: { email: ['EMAIL_TAKEN'] } });
   }
 }

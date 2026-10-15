@@ -24,13 +24,13 @@ export class SubmissionReaderService {
 
   async loadOwn(user: AuthUser, submissionId: string): Promise<SubmissionRow> {
     const row = await this.repo.findOwn(submissionId, user.id);
-    if (!row) throw notFound('Không tìm thấy bài làm');
+    if (!row) throw notFound('submissionNotFound');
     return row;
   }
 
   async loadForTeacher(user: AuthUser, submissionId: string): Promise<SubmissionRow> {
     const row = await this.repo.findById(submissionId);
-    if (!row) throw notFound('Không tìm thấy bài làm');
+    if (!row) throw notFound('submissionNotFound');
     await this.access.assertClassAccess(user, row.assignment.classId);
     return row;
   }

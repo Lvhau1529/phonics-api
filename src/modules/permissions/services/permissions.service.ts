@@ -34,7 +34,7 @@ export class PermissionsService {
 
   async forUser(userId: string): Promise<UserPermissionsResponse> {
     const user = await this.repo.findUserRole(userId);
-    if (!user) throw notFound('Không tìm thấy người dùng');
+    if (!user) throw notFound('userNotFound');
     const [overrides, groups, effective] = await Promise.all([
       this.repo.overridesWithGranter(userId),
       this.repo.groupsOf(userId),

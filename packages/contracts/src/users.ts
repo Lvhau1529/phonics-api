@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { IsoDateTime } from './common/dates.js';
 import { Id } from './common/ids.js';
+import { ValidationMessage } from './common/validation-messages.js';
 
 export const Role = z.enum(['ADMIN', 'TEACHER', 'STUDENT']);
 export type Role = z.infer<typeof Role>;
@@ -78,7 +79,7 @@ export type User = z.infer<typeof User>;
 export const UpdateProfileBody = z
   .strictObject({ displayName: DisplayName, avatarKey: AvatarKey, email: Email })
   .partial()
-  .refine((b) => Object.keys(b).length > 0, { message: 'Cần ít nhất một trường' });
+  .refine((b) => Object.keys(b).length > 0, ValidationMessage.atLeastOneField);
 export type UpdateProfileBody = z.infer<typeof UpdateProfileBody>;
 
 export const ChangePasswordBody = z.strictObject({

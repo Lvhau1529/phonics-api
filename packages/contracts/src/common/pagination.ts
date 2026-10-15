@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { ValidationMessage } from './validation-messages.js';
 
 export const PAGE_SIZE_MAX = 100;
 
@@ -13,7 +14,7 @@ export const PageQuery = z.object({
   /** `field:asc` | `field:desc` — mỗi endpoint có whitelist field riêng */
   sort: z
     .string()
-    .regex(/^[a-zA-Z][a-zA-Z0-9.]*:(asc|desc)$/, 'sort phải có dạng field:asc|desc')
+    .regex(/^[a-zA-Z][a-zA-Z0-9.]*:(asc|desc)$/, ValidationMessage.sortFormat)
     .optional(),
   /** Tìm kiếm tự do (tên, email...) */
   q: z.string().trim().max(100).optional(),

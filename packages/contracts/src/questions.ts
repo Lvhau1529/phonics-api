@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { IsoDateTime } from './common/dates.js';
 import { Id } from './common/ids.js';
 import { PageQuery } from './common/pagination.js';
+import { addValidationIssue, ValidationMessage } from './common/validation-messages.js';
 import { MediaMap, MediaRef } from './media.js';
 
 /**
@@ -51,7 +52,7 @@ export const Word = z.string().trim().min(1).max(40);
 export const Letter = z
   .string()
   .trim()
-  .regex(/^[a-z]{1,3}$/i, 'Chữ cái hoặc digraph (1-3 ký tự a-z)');
+  .regex(/^[a-z]{1,3}$/i, ValidationMessage.letterOrDigraph);
 export const OptionId = z.string().trim().min(1).max(20);
 export const Cell = z.object({ r: z.int().min(0).max(14), c: z.int().min(0).max(14) });
 export type Cell = z.infer<typeof Cell>;
@@ -74,7 +75,7 @@ const uniqueBy = <T>(arr: readonly T[], key: (t: T) => string): boolean =>
 export const MissingSoundPattern = z
   .string()
   .trim()
-  .regex(/^[a-z_]+(-[a-z_]+)*$/i, 'Mẫu dạng m-a-_')
+  .regex(/^[a-z_]+(-[a-z_]+)*$/i, ValidationMessage.patternFormat)
   .max(30);
 export const blankCount = (pattern: string): number => (pattern.match(/_/g) ?? []).length;
 
@@ -147,7 +148,7 @@ export const UnscrambleWordConfig = z.object({
   scrambled: z
     .string()
     .trim()
-    .regex(/^[a-z]{2,12}$/i, 'Chỉ chữ cái a-z (2-12 ký tự)'),
+    .regex(/^[a-z]{2,12}$/i, ValidationMessage.lettersOnly),
 });
 export const UnscrambleWordAnswerKey = z.object({
   type: z.literal('UNSCRAMBLE_WORD'),
@@ -476,8 +477,8 @@ export type AnswerOf<T extends QuestionType> = Extract<QuestionAnswer, { type: T
 
 // ---------- Kiểm tra chéo config ↔ answerKey ----------
 type Ctx = z.RefinementCtx;
-const issue = (ctx: Ctx, path: (string | number)[], message: string) =>
-  ctx.addIssue({ code: 'custom', path, message });
+/** Issue custom với message là khoá (`common/validation-messages.ts`), có kiểm kiểu tham số */
+const issue = addValidationIssue;
 
 const pair = <T extends QuestionType, C, K>(
   type: T,
@@ -493,59 +494,59 @@ const pair = <T extends QuestionType, C, K>(
 export const QuestionContent = z.discriminatedUnion('type', [
   pair('MISSING_SOUND', MissingSoundConfig, MissingSoundAnswerKey, (c, k, ctx) => {
     if (blankCount(c.pattern) !== k.letters.length)
-      issue(ctx, ['answerKey', 'letters'], 'Số chữ phải bằng số ô trống trong mẫu');
+      issue(ctx, ['answerKey', 'letters'], 'blankCountMismatch');
   }),
   pair('CROSSWORD', CrosswordConfig, CrosswordAnswerKey, (c, k, ctx) => {
     if (!uniqueBy(c.words, (w) => `${w.number}:${w.direction}`))
-      issue(ctx, ['config', 'words'], 'Số thứ tự + hướng bị trùng');
+      issue(ctx, ['config', 'words'], 'duplicateNumberDirection');
     c.words.forEach((w, i) => {
       const endR = w.direction === Direction.enum.down ? w.start.r + w.length - 1 : w.start.r;
       const endC = w.direction === Direction.enum.across ? w.start.c + w.length - 1 : w.start.c;
-      if (endR >= c.rows || endC >= c.cols) issue(ctx, ['config', 'words', i], 'Từ vượt ngoài lưới');
+      if (endR >= c.rows || endC >= c.cols) issue(ctx, ['config', 'words', i], 'wordOutOfGrid');
     });
     k.words.forEach((kw, i) => {
       const cw = c.words.find((w) => w.number === kw.number && w.direction === kw.direction);
-      if (!cw) issue(ctx, ['answerKey', 'words', i], 'Không có từ tương ứng trong lưới');
+      if (!cw) issue(ctx, ['answerKey', 'words', i], 'wordNotInGrid');
       else if (lower(kw.answer).length !== cw.length)
-        issue(ctx, ['answerKey', 'words', i, 'answer'], `Đáp án phải dài ${cw.length} chữ`);
+        issue(ctx, ['answerKey', 'words', i, 'answer'], 'answerLength', { length: cw.length });
     });
-    if (k.words.length !== c.words.length) issue(ctx, ['answerKey', 'words'], 'Thiếu đáp án cho một số từ');
+    if (k.words.length !== c.words.length) issue(ctx, ['answerKey', 'words'], 'missingAnswers');
   }),
   pair('UNSCRAMBLE_WORD', UnscrambleWordConfig, UnscrambleWordAnswerKey, (c, k, ctx) => {
     if (sortedLetters(k.word) !== sortedLetters(c.scrambled))
-      issue(ctx, ['answerKey', 'word'], 'Đáp án phải dùng đúng các chữ đã xáo');
+      issue(ctx, ['answerKey', 'word'], 'answerUsesScrambledLetters');
   }),
   pair('PICK_LETTERS', PickLettersConfig, PickLettersAnswerKey, (c, k, ctx) => {
-    if (!uniqueBy(c.letters, (l) => l.id)) issue(ctx, ['config', 'letters'], 'id chữ bị trùng');
+    if (!uniqueBy(c.letters, (l) => l.id)) issue(ctx, ['config', 'letters'], 'duplicateLetterId');
     const byId = new Map(c.letters.map((l) => [l.id, l.letter]));
     if (!uniqueBy(k.letterIds, (id) => id) || k.letterIds.some((id) => !byId.has(id)))
-      issue(ctx, ['answerKey', 'letterIds'], 'letterIds phải là các id khác nhau trong lưới');
+      issue(ctx, ['answerKey', 'letterIds'], 'letterIdsDistinctInGrid');
     else if (lower(k.letterIds.map((id) => byId.get(id) ?? '').join('')) !== lower(k.word))
-      issue(ctx, ['answerKey', 'word'], 'Các chữ chọn phải ghép thành từ');
+      issue(ctx, ['answerKey', 'word'], 'lettersMustFormWord');
   }),
   pair('WORD_SEARCH', WordSearchConfig, WordSearchAnswerKey, (c, k, ctx) => {
     if (c.grid.length !== c.rows || c.grid.some((row) => row.length !== c.cols))
-      issue(ctx, ['config', 'grid'], 'Lưới phải đúng rows × cols');
+      issue(ctx, ['config', 'grid'], 'gridSizeMismatch');
     const placed = new Set(k.placements.map((p) => lower(p.word)));
     c.words.forEach((w, i) => {
       if (!placed.has(lower(w.word)))
-        issue(ctx, ['answerKey', 'placements'], `Thiếu vị trí cho từ "${w.word}" (#${i + 1})`);
+        issue(ctx, ['answerKey', 'placements'], 'placementMissing', { word: w.word, index: i + 1 });
     });
   }),
   pair('ODD_ONE_OUT', OddOneOutConfig, OddOneOutAnswerKey, (c, k, ctx) => {
-    if (!uniqueBy(c.options, (o) => o.id)) issue(ctx, ['config', 'options'], 'id lựa chọn bị trùng');
+    if (!uniqueBy(c.options, (o) => o.id)) issue(ctx, ['config', 'options'], 'duplicateOptionId');
     if (!c.options.some((o) => o.id === k.optionId))
-      issue(ctx, ['answerKey', 'optionId'], 'Đáp án không có trong lựa chọn');
+      issue(ctx, ['answerKey', 'optionId'], 'answerNotInOptions');
   }),
   pair('PATTERN_NEXT', PatternNextConfig, PatternNextAnswerKey, (c, k, ctx) => {
-    if (!uniqueBy(c.options, (o) => o.id)) issue(ctx, ['config', 'options'], 'id lựa chọn bị trùng');
+    if (!uniqueBy(c.options, (o) => o.id)) issue(ctx, ['config', 'options'], 'duplicateOptionId');
     if (!c.options.some((o) => o.id === k.optionId))
-      issue(ctx, ['answerKey', 'optionId'], 'Đáp án không có trong lựa chọn');
-    if (c.requireWord && !k.word) issue(ctx, ['answerKey', 'word'], 'Cần từ đúng khi bật viết từ');
+      issue(ctx, ['answerKey', 'optionId'], 'answerNotInOptions');
+    if (c.requireWord && !k.word) issue(ctx, ['answerKey', 'word'], 'wordRequired');
   }),
   pair('NUMBER_PICTURES', NumberPicturesConfig, NumberPicturesAnswerKey, (c, k, ctx) => {
-    if (!uniqueBy(c.words, (w) => String(w.number))) issue(ctx, ['config', 'words'], 'Số thứ tự bị trùng');
-    if (!uniqueBy(c.images, (im) => im.id)) issue(ctx, ['config', 'images'], 'id ảnh bị trùng');
+    if (!uniqueBy(c.words, (w) => String(w.number))) issue(ctx, ['config', 'words'], 'duplicateNumber');
+    if (!uniqueBy(c.images, (im) => im.id)) issue(ctx, ['config', 'images'], 'duplicateImageId');
     const numbers = new Set(c.words.map((w) => w.number));
     const imageIds = new Set(c.images.map((im) => im.id));
     if (
@@ -553,58 +554,60 @@ export const QuestionContent = z.discriminatedUnion('type', [
       !uniqueBy(k.numbers, (n) => n.imageId) ||
       k.numbers.some((n) => !imageIds.has(n.imageId))
     )
-      issue(ctx, ['answerKey', 'numbers'], 'Mỗi ảnh phải có đúng một số');
+      issue(ctx, ['answerKey', 'numbers'], 'oneNumberPerImage');
     if (!uniqueBy(k.numbers, (n) => String(n.number)) || k.numbers.some((n) => !numbers.has(n.number)))
-      issue(ctx, ['answerKey', 'numbers'], 'Mỗi số chỉ gán cho một ảnh và phải có trong danh sách từ');
+      issue(ctx, ['answerKey', 'numbers'], 'numberUsedOnce');
   }),
   pair('MULTIPLE_CHOICE', MultipleChoiceConfig, MultipleChoiceAnswerKey, (c, k, ctx) => {
-    if (!uniqueBy(c.options, (o) => o.id)) issue(ctx, ['config', 'options'], 'id lựa chọn bị trùng');
+    if (!uniqueBy(c.options, (o) => o.id)) issue(ctx, ['config', 'options'], 'duplicateOptionId');
     if (!c.options.some((o) => o.id === k.optionId))
-      issue(ctx, ['answerKey', 'optionId'], 'Đáp án không có trong lựa chọn');
+      issue(ctx, ['answerKey', 'optionId'], 'answerNotInOptions');
   }),
   pair('FILL_BLANK_WORD_BANK', FillBlankConfig, FillBlankAnswerKey, (c, k, ctx) => {
-    if (!uniqueBy(c.sentences, (s) => s.id)) issue(ctx, ['config', 'sentences'], 'id câu bị trùng');
+    if (!uniqueBy(c.sentences, (s) => s.id)) issue(ctx, ['config', 'sentences'], 'duplicateSentenceId');
     const bank = new Set(c.wordBank.map(lower));
     const expected = new Set<string>();
     c.sentences.forEach((s, i) => {
       const n = countBlanks(s.text);
-      if (n === 0) issue(ctx, ['config', 'sentences', i, 'text'], `Câu phải có ít nhất một ${BLANK_TOKEN}`);
+      if (n === 0)
+        issue(ctx, ['config', 'sentences', i, 'text'], 'sentenceNeedsBlank', { token: BLANK_TOKEN });
       for (let b = 0; b < n; b++) expected.add(`${s.id}:${b}`);
     });
     const got = new Set(k.blanks.map((b) => `${b.sentenceId}:${b.index}`));
     if (got.size !== k.blanks.length || got.size !== expected.size || [...expected].some((e) => !got.has(e)))
-      issue(ctx, ['answerKey', 'blanks'], 'Mỗi chỗ trống phải có đúng một đáp án');
+      issue(ctx, ['answerKey', 'blanks'], 'oneAnswerPerBlank');
     k.blanks.forEach((b, i) => {
-      if (!bank.has(lower(b.word)))
-        issue(ctx, ['answerKey', 'blanks', i, 'word'], 'Đáp án phải nằm trong word bank');
+      if (!bank.has(lower(b.word))) issue(ctx, ['answerKey', 'blanks', i, 'word'], 'answerNotInWordBank');
     });
   }),
   pair('WORD_ORDER', WordOrderConfig, WordOrderAnswerKey, (c, k, ctx) => {
     const n = c.words.length;
     k.accepted.forEach((order, i) => {
       const ok = order.length === n && new Set(order).size === n && order.every((idx) => idx < n);
-      if (!ok) issue(ctx, ['answerKey', 'accepted', i], 'Phải là hoán vị của các thẻ từ');
+      if (!ok) issue(ctx, ['answerKey', 'accepted', i], 'notPermutation');
     });
   }),
   pair('INLINE_CHOICE', InlineChoiceConfig, InlineChoiceAnswerKey, (c, k, ctx) => {
-    if (!uniqueBy(c.blanks, (b) => b.id)) issue(ctx, ['config', 'blanks'], 'id chỗ trống bị trùng');
+    if (!uniqueBy(c.blanks, (b) => b.id)) issue(ctx, ['config', 'blanks'], 'duplicateBlankId');
     c.blanks.forEach((b, i) => {
       if (!c.text.includes(inlinePlaceholder(b.id)))
-        issue(ctx, ['config', 'blanks', i], `Đoạn văn thiếu ${inlinePlaceholder(b.id)}`);
+        issue(ctx, ['config', 'blanks', i], 'passageMissingPlaceholder', {
+          placeholder: inlinePlaceholder(b.id),
+        });
     });
     const byId = new Map(c.blanks.map((b) => [b.id, b.options]));
     if (k.picks.length !== c.blanks.length || !uniqueBy(k.picks, (p) => p.blankId))
-      issue(ctx, ['answerKey', 'picks'], 'Mỗi chỗ trống phải có đúng một đáp án');
+      issue(ctx, ['answerKey', 'picks'], 'oneAnswerPerBlank');
     k.picks.forEach((p, i) => {
       const opts = byId.get(p.blankId);
-      if (!opts) issue(ctx, ['answerKey', 'picks', i, 'blankId'], 'Không có chỗ trống này');
-      else if (!opts.includes(p.option))
-        issue(ctx, ['answerKey', 'picks', i, 'option'], 'Đáp án phải là một trong các lựa chọn');
+      if (!opts) issue(ctx, ['answerKey', 'picks', i, 'blankId'], 'unknownBlank');
+      else if (!opts.includes(p.option)) issue(ctx, ['answerKey', 'picks', i, 'option'], 'pickNotInOptions');
     });
   }),
   pair('TRACE_AND_READ', TraceAndReadConfig, TraceAndReadAnswerKey, (c, _k, ctx) => {
-    if (!c.sentence.includes(c.tracePart)) issue(ctx, ['config', 'tracePart'], 'Phần tô phải nằm trong câu');
-    if (!c.requireTrace && !c.requireRecording) issue(ctx, ['config', 'requireTrace'], 'Cần tô hoặc ghi âm');
+    if (!c.sentence.includes(c.tracePart)) issue(ctx, ['config', 'tracePart'], 'tracePartNotInSentence');
+    if (!c.requireTrace && !c.requireRecording)
+      issue(ctx, ['config', 'requireTrace'], 'traceOrRecordRequired');
   }),
   pair('SPEAK', SpeakConfig, SpeakAnswerKey, () => undefined),
 ]);
@@ -640,11 +643,21 @@ const checkContent = (
   v: { type: QuestionType; config: QuestionConfig; answerKey: QuestionAnswerKey },
   ctx: Ctx,
 ): void => {
-  if (v.config.type !== v.type) issue(ctx, ['config', 'type'], 'config.type phải trùng type');
-  if (v.answerKey.type !== v.type) issue(ctx, ['answerKey', 'type'], 'answerKey.type phải trùng type');
+  if (v.config.type !== v.type) issue(ctx, ['config', 'type'], 'configTypeMismatch');
+  if (v.answerKey.type !== v.type) issue(ctx, ['answerKey', 'type'], 'answerKeyTypeMismatch');
   if (v.config.type !== v.type || v.answerKey.type !== v.type) return;
   const r = QuestionContent.safeParse({ type: v.type, config: v.config, answerKey: v.answerKey });
-  if (!r.success) for (const i of r.error.issues) issue(ctx, i.path as (string | number)[], i.message);
+  // Giữ nguyên khoá + params của issue con (client / API dịch sau)
+  if (!r.success)
+    for (const i of r.error.issues) {
+      const params = (i as { params?: Record<string, unknown> }).params;
+      ctx.addIssue({
+        code: 'custom',
+        path: i.path as (string | number)[],
+        message: i.message,
+        ...(params && { params }),
+      });
+    }
 };
 
 export const CreateQuestionBody = QuestionFields.superRefine(checkContent);
@@ -664,11 +677,11 @@ export const UpdateQuestionBody = z
   })
   .partial()
   .superRefine((b, ctx) => {
-    if (Object.keys(b).length === 0) issue(ctx, [], 'Cần ít nhất một trường');
+    if (Object.keys(b).length === 0) issue(ctx, [], 'atLeastOneField');
     if ((b.config === undefined) !== (b.answerKey === undefined))
-      issue(ctx, ['answerKey'], 'config và answerKey phải gửi cùng nhau');
+      issue(ctx, ['answerKey'], 'configAnswerKeyTogether');
     if (b.config && b.answerKey && b.config.type !== b.answerKey.type)
-      issue(ctx, ['answerKey', 'type'], 'answerKey.type phải trùng config.type');
+      issue(ctx, ['answerKey', 'type'], 'answerKeyConfigTypeMismatch');
   });
 export type UpdateQuestionBody = z.infer<typeof UpdateQuestionBody>;
 

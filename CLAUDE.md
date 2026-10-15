@@ -34,8 +34,8 @@ Cấu trúc thư mục + versioning: [README > Cấu trúc](README.md#cấu-trú
 - `database/`: `PrismaModule`, `PrismaService`, kiểu `Tx` (`database/types.ts`); `database/seeds/` = seed theo miền.
   Migration vẫn ở `prisma/migrations` (Prisma CLI + `docker-entrypoint.sh`).
 - `infrastructure/`: hạ tầng ngoài nghiệp vụ (`storage/` — `DiskStorage`, file media trên đĩa `MEDIA_DIR`, ADR 0024).
-- `common/`: khối của request pipeline — `middleware/`, `guards/`, `decorators/`, `filters/`, `errors/`, `dto/`,
-  `utils/`. Thêm interceptor / pipe riêng thì tạo `common/interceptors/`, `common/pipes/`.
+- `common/`: khối của request pipeline — `middleware/`, `guards/`, `decorators/`, `filters/`, `errors/`, `i18n/`
+  (message lỗi vi / en, locale theo request), `dto/`, `utils/`. Thêm interceptor / pipe riêng thì tạo `common/interceptors/`, `common/pipes/`.
 - `bootstrap/configure-app.ts`: prefix, versioning, middleware (`app.use`), CORS, filter — dùng chung cho `main.ts`
   và e2e. Không cấu hình HTTP rải rác trong `main.ts`.
 - `modules/<module>/`: một bounded context, layout feature-based (ADR 0020; chỉ tạo thư mục con khi cần):
@@ -64,7 +64,14 @@ Cấu trúc thư mục + versioning: [README > Cấu trúc](README.md#cấu-trú
   kiểm tra trong service bằng `AccessService.assertClassAccess / assertStudentAccess / scopedClassIds`.
 - Validate: DTO = `class XDto extends createZodDto(X)` với `X` từ `@phonics/contracts` (không viết schema riêng
   trong API). `ZodValidationPipe` toàn cục. Mọi lỗi ra ngoài qua `AllExceptionsFilter` → envelope `ApiErrorBody`;
-  lỗi nghiệp vụ ném `new AppError('CODE', status, { message?, details? })` với `CODE` thuộc `ErrorCode` của contracts.
+  lỗi nghiệp vụ ném `new AppError('CODE', status, { message?, fieldErrors?, details? })` với `CODE` thuộc `ErrorCode`
+  của contracts.
+- **Message lỗi song ngữ (ADR 0025)**: `message` / `details` trả về theo `Accept-Language` (vi | en, mặc định vi) —
+  client hiện thẳng. Nơi ném lỗi **không viết chuỗi**: `message` và `fieldErrors` là khoá trong
+  `common/i18n/messages.vi.ts` + `messages.en.ts` (thêm khoá vào **cả hai**, `en` thiếu là lỗi typecheck), khoá có
+  tham số dạng `['notTeacherId', { id }]`; `details` chỉ chứa dữ liệu thô không cần dịch (id, mã quyền).
+  `notFound('classNotFound')`. Message mặc định của zod theo locale nhờ `localeMiddleware` + `configureZodLocale`;
+  message tự viết trong contracts là khoá, `flattenZodError` dịch bằng `translateIssueMessage` của contracts.
 - Prisma 7: client sinh ra ở `src/generated/prisma` (gitignored; `pnpm prisma:generate`). Import
   `{ Prisma }` từ `src/generated/prisma/client` (`@/generated/prisma/client`). Transaction:
   `prisma.$transaction(async (tx) => …)`, kiểu `Tx` (`database/types.ts`).
@@ -101,7 +108,7 @@ sinh ra (index partial / SQL đặc biệt thêm tay vào file migration, không
 - TypeScript 6 (classic) cho app này (Nest cần decorator metadata; TS 7 chưa có compiler API). Build bằng SWC
   (`nest-cli.json`), typecheck bằng `tsc --noEmit`.
 - Import bằng alias `@/` → `src` (ESLint cấm `../`; khai báo ở `tsconfig.json`, `.swcrc`, `vitest.config.ts`), inline `import { type X }`. Comment / JSDoc tiếng Việt, identifier tiếng Anh,
-  chuỗi thông báo cho học sinh (notification title/body) tiếng Anh ngắn gọn, message lỗi tiếng Việt.
+  chuỗi thông báo cho học sinh (notification title/body) tiếng Anh ngắn gọn, message lỗi qua khoá i18n (vi + en).
 - Không bao giờ trả `passwordHash`, `googleSub`, `tokenVersion`, token ra ngoài. Không log secret
   (pino đã redact `authorization` / `cookie`).
 - Secret chỉ trong `.env` (gitignored); thêm biến mới = sửa `config/env.schema.ts` + `.env.example` + README.

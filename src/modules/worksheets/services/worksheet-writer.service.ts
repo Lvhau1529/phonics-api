@@ -82,7 +82,7 @@ export class WorksheetWriterService {
     );
     if (missing.length) {
       throw new AppError('VALIDATION_ERROR', 400, {
-        message: 'Có câu hỏi không tồn tại, đã lưu trữ hoặc bạn không được dùng',
+        message: 'questionsUnavailable',
         details: { questionIds: missing },
       });
     }
@@ -134,7 +134,7 @@ export class WorksheetWriterService {
   /** Bản sao DRAFT (metadata + Part + câu; không sao chép bài giao) */
   async duplicate(actor: AuthUser, id: string): Promise<WorksheetDetail> {
     const source = await this.repo.findVisible(actor, id);
-    if (!source) throw notFound('Không tìm thấy phiếu bài tập');
+    if (!source) throw notFound('worksheetNotFound');
     const title = `${source.title} (copy)`.slice(0, 120);
     const newId = await this.repo.transaction((tx) => this.repo.duplicate(tx, source, actor.id, title));
     await this.audit.record(actor, 'worksheet.create', 'Worksheet', newId, null, {
@@ -146,7 +146,7 @@ export class WorksheetWriterService {
 
   private async loadEditable(user: AuthUser, id: string): Promise<WorksheetDetailRow> {
     const row = await this.repo.findById(id);
-    if (!row) throw notFound('Không tìm thấy phiếu bài tập');
+    if (!row) throw notFound('worksheetNotFound');
     if (row.createdById !== user.id && user.role !== 'ADMIN') throw new AppError('FORBIDDEN_SCOPE', 403);
     return row;
   }

@@ -57,7 +57,7 @@ export class WorksheetReaderService {
 
   async get(user: AuthUser, id: string): Promise<WorksheetDetail> {
     const row = await this.repo.findVisible(user, id);
-    if (!row) throw notFound('Không tìm thấy phiếu bài tập');
+    if (!row) throw notFound('worksheetNotFound');
     return this.detail(row);
   }
 
@@ -72,7 +72,7 @@ export class WorksheetReaderService {
   /** Dữ liệu để đóng băng khi giao bài (assignments) — phải visible với người giao */
   async loadForSnapshot(user: AuthUser, id: string, tx?: Tx): Promise<SnapshotSource & { status: string }> {
     const row = await this.repo.findSnapshotSource(user, id, tx);
-    if (!row) throw notFound('Không tìm thấy phiếu bài tập');
+    if (!row) throw notFound('worksheetNotFound');
     return row;
   }
 }

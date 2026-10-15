@@ -43,7 +43,7 @@ export class StudentWriterService {
     assertCanEditFields(actor, body);
     const emailChanged = !!body.email && body.email !== current.email;
     if (emailChanged && (await this.repo.isEmailTaken(body.email!, id)))
-      throw new AppError('EMAIL_TAKEN', 409, { details: { email: ['Email đã được sử dụng'] } });
+      throw new AppError('EMAIL_TAKEN', 409, { fieldErrors: { email: ['EMAIL_TAKEN'] } });
 
     const profileData = profileUpdateOf(body);
     const updated = await this.repo.update(id, {
@@ -77,11 +77,11 @@ export class StudentWriterService {
     const student = await this.reader.findStudent(id);
     const current = student.studentProfile?.memberships[0]?.class ?? null;
     if (current?.id === body.classId)
-      throw new AppError('CONFLICT', 409, { message: 'Học sinh đang ở lớp này rồi' });
+      throw new AppError('CONFLICT', 409, { message: 'studentAlreadyInClass' });
     const target = await this.repo.findClass(body.classId);
-    if (!target) throw notFound('Không tìm thấy lớp');
+    if (!target) throw notFound('classNotFound');
     if (target.archivedAt)
-      throw new AppError('CLASS_NOT_JOINABLE', 400, { details: { classId: ['Lớp đã lưu trữ'] } });
+      throw new AppError('CLASS_NOT_JOINABLE', 400, { fieldErrors: { classId: ['classArchived'] } });
     // TEACHER phải dạy cả lớp cũ (nếu có) lẫn lớp mới; ADMIN luôn qua
     if (current) await this.access.assertClassAccess(actor, current.id);
     await this.access.assertClassAccess(actor, target.id);
