@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { IsoDateTime } from './common/dates.js';
 import { Id } from './common/ids.js';
 import { PageQuery } from './common/pagination.js';
+import { ValidationMessage } from './common/validation-messages.js';
 import { EndedBy, GameId } from './games.js';
 
 /** Luật quy đổi điểm (API là nguồn sự thật; client chỉ dùng để hiện ước lượng) */
@@ -36,7 +37,10 @@ export const GameResultBody = z
     /** Dữ liệu riêng từng game (từ sai, sao, streak...), lưu JSON */
     details: z.record(z.string(), z.unknown()).default({}),
   })
-  .refine((r) => r.correct <= r.total, { message: 'correct phải ≤ total', path: ['correct'] });
+  .refine((r) => r.correct <= r.total, {
+    message: ValidationMessage.correctNotAboveTotal,
+    path: ['correct'],
+  });
 export type GameResultBody = z.infer<typeof GameResultBody>;
 
 /** Vì sao điểm nhận được thấp hơn điểm tính từ số câu đúng */

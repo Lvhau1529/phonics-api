@@ -16,7 +16,7 @@ export function assertCanEditFields(actor: AuthUser, body: UpdateStudentBody): v
   const denied = keys.filter((k) => !TEACHER_EDITABLE_FIELDS.includes(k));
   if (denied.length) {
     throw new AppError('FORBIDDEN_PERMISSION', 403, {
-      message: 'Giáo viên chỉ được sửa tên hiển thị và avatar',
+      message: 'teacherFieldsOnly',
       details: { fields: denied.map(String) },
     });
   }

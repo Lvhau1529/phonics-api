@@ -67,7 +67,7 @@ export class ClassesService {
   /** Một lớp (TEACHER phải là giáo viên của lớp) */
   async get(user: AuthUser, id: string): Promise<ClassSummary> {
     const row = await this.prisma.class.findUnique({ where: { id }, include: classSummaryInclude });
-    if (!row) throw notFound('Không tìm thấy lớp');
+    if (!row) throw notFound('classNotFound');
     await this.access.assertClassAccess(user, id);
     return toClassSummary(row);
   }
@@ -99,7 +99,7 @@ export class ClassesService {
   /** Sửa thông tin / lưu trữ (archived: true → archivedAt = now, false → mở lại) */
   async update(actor: AuthUser, id: string, body: UpdateClassBody): Promise<ClassSummary> {
     const current = await this.prisma.class.findUnique({ where: { id } });
-    if (!current) throw notFound('Không tìm thấy lớp');
+    if (!current) throw notFound('classNotFound');
 
     const name = body.name ?? current.name;
     const schoolYear = body.schoolYear ?? current.schoolYear;
@@ -152,7 +152,7 @@ export class ClassesService {
       where: { id },
       select: { teachers: { select: { teacherId: true }, orderBy: { assignedAt: 'asc' } } },
     });
-    if (!current) throw notFound('Không tìm thấy lớp');
+    if (!current) throw notFound('classNotFound');
     const teacherIds = await this.assertTeacherIds(body.teacherIds);
 
     const row = await this.prisma.$transaction(async (tx) => {
@@ -193,8 +193,8 @@ export class ClassesService {
     const missing = unique.filter((id) => !found.has(id));
     if (missing.length) {
       throw new AppError('VALIDATION_ERROR', 400, {
-        message: 'Có id không phải giáo viên',
-        details: { teacherIds: missing.map((id) => `${id} không phải giáo viên`) },
+        message: 'notTeacherIds',
+        fieldErrors: { teacherIds: missing.map((id) => ['notTeacherId', { id }] as const) },
       });
     }
     return unique;
@@ -208,8 +208,8 @@ export class ClassesService {
     });
     if (dup) {
       throw new AppError('CONFLICT', 409, {
-        message: 'Lớp cùng tên đã tồn tại trong năm học này',
-        details: { name: ['Lớp cùng tên đã tồn tại trong năm học này'] },
+        message: 'classNameTaken',
+        fieldErrors: { name: ['classNameTaken'] },
       });
     }
   }

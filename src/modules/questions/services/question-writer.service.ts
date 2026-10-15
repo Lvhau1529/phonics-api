@@ -58,7 +58,7 @@ export class QuestionWriterService {
     if (body.config && body.answerKey) {
       if (body.config.type !== current.type || body.answerKey.type !== current.type)
         throw new AppError('VALIDATION_ERROR', 400, {
-          details: { 'config.type': ['Không đổi được dạng câu hỏi'] },
+          fieldErrors: { 'config.type': ['questionTypeImmutable'] },
         });
       const check = QuestionContent.safeParse({
         type: current.type,
@@ -165,7 +165,7 @@ export class QuestionWriterService {
 
   private async loadEditable(user: AuthUser, id: string): Promise<QuestionRow> {
     const row = await this.repo.findById(id);
-    if (!row) throw notFound('Không tìm thấy câu hỏi');
+    if (!row) throw notFound('questionNotFound');
     if (row.createdById !== user.id && user.role !== 'ADMIN') throw new AppError('FORBIDDEN_SCOPE', 403);
     return row;
   }

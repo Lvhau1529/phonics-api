@@ -45,7 +45,7 @@ export class UserPermissionsWriterService {
     await this.assertEditableTarget(userId);
     const ids = [...new Set(body.groupIds)];
     if ((await this.repo.countGroups(ids)) !== ids.length) {
-      throw new AppError('VALIDATION_ERROR', 400, { details: { groupIds: ['Có nhóm quyền không tồn tại'] } });
+      throw new AppError('VALIDATION_ERROR', 400, { fieldErrors: { groupIds: ['permissionGroupsMissing'] } });
     }
     const before = await this.reader.forUser(userId);
     await this.repo.replaceUserGroups(userId, ids);
@@ -63,8 +63,7 @@ export class UserPermissionsWriterService {
 
   private async assertEditableTarget(userId: string): Promise<void> {
     const target = await this.repo.findUserRole(userId);
-    if (!target) throw notFound('Không tìm thấy người dùng');
-    if (target.role === 'ADMIN')
-      throw new AppError('FORBIDDEN', 403, { message: 'Không sửa quyền của admin' });
+    if (!target) throw notFound('userNotFound');
+    if (target.role === 'ADMIN') throw new AppError('FORBIDDEN', 403, { message: 'adminPermissionsLocked' });
   }
 }

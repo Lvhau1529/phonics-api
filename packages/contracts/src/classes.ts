@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { IsoDateTime } from './common/dates.js';
 import { Id } from './common/ids.js';
 import { PageQuery } from './common/pagination.js';
+import { ValidationMessage } from './common/validation-messages.js';
 import { AvatarKey, DisplayName, Email } from './users.js';
 
 export const ClassName = z.string().trim().min(1).max(60);
@@ -9,7 +10,7 @@ export const Grade = z.string().trim().min(1).max(20);
 export const SchoolYear = z
   .string()
   .trim()
-  .regex(/^\d{4}-\d{4}$/, 'Năm học dạng 2026-2027');
+  .regex(/^\d{4}-\d{4}$/, ValidationMessage.schoolYearFormat);
 
 /** Lớp hiện ở form đăng ký của học sinh (public) */
 export const PublicClass = z.object({
@@ -63,7 +64,7 @@ export const UpdateClassBody = z
     archived: z.boolean(),
   })
   .partial()
-  .refine((b) => Object.keys(b).length > 0, { message: 'Cần ít nhất một trường' });
+  .refine((b) => Object.keys(b).length > 0, ValidationMessage.atLeastOneField);
 export type UpdateClassBody = z.infer<typeof UpdateClassBody>;
 
 export const SetClassTeachersBody = z.strictObject({ teacherIds: z.array(Id).max(20) });

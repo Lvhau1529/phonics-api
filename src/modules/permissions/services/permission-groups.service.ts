@@ -57,7 +57,7 @@ export class PermissionGroupsService {
 
   async remove(actor: AuthUser, id: string): Promise<void> {
     const existing = await this.load(id);
-    if (existing.isSystem) throw new AppError('FORBIDDEN', 403, { message: 'Không xoá nhóm quyền hệ thống' });
+    if (existing.isSystem) throw new AppError('FORBIDDEN', 403, { message: 'systemGroupUndeletable' });
     await this.repo.deleteGroup(id);
     await this.audit.record(
       actor,
@@ -71,13 +71,13 @@ export class PermissionGroupsService {
 
   private async load(id: string): Promise<PermissionGroupRow> {
     const row = await this.repo.findGroup(id);
-    if (!row) throw notFound('Không tìm thấy nhóm quyền');
+    if (!row) throw notFound('permissionGroupNotFound');
     return row;
   }
 
   private async assertNameFree(name: string): Promise<void> {
     if (await this.repo.groupNameTaken(name)) {
-      throw new AppError('CONFLICT', 409, { details: { name: ['Tên nhóm quyền đã tồn tại'] } });
+      throw new AppError('CONFLICT', 409, { fieldErrors: { name: ['permissionGroupNameTaken'] } });
     }
   }
 }

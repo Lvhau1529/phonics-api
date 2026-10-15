@@ -34,6 +34,6 @@ export class GameStatsService {
   }
 
   private async assertGame(gameId: string): Promise<void> {
-    if (!(await this.repo.gameExists(gameId))) throw notFound('Không tìm thấy game');
+    if (!(await this.repo.gameExists(gameId))) throw notFound('gameNotFound');
   }
 }

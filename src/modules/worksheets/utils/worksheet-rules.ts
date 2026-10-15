@@ -19,12 +19,12 @@ export function assertStructureBelongs(current: WorksheetDetailRow, body: Worksh
   for (const s of body.sections) {
     if (s.id && !sections.has(s.id))
       throw new AppError('VALIDATION_ERROR', 400, {
-        details: { sections: [`Part ${s.id} không thuộc phiếu này`] },
+        fieldErrors: { sections: [['sectionNotInWorksheet', { id: s.id }]] },
       });
     for (const it of s.items) {
       if (it.id && !items.has(it.id))
         throw new AppError('VALIDATION_ERROR', 400, {
-          details: { items: [`Câu ${it.id} không thuộc phiếu này`] },
+          fieldErrors: { items: [['itemNotInWorksheet', { id: it.id }]] },
         });
     }
   }

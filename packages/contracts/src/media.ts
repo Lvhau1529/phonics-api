@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { IsoDateTime } from './common/dates.js';
 import { Id } from './common/ids.js';
+import { ValidationMessage } from './common/validation-messages.js';
 
 /**
  * Media (ảnh / audio) tải lên bằng link PUT có chữ ký (ADR 0018 / 0024):
@@ -59,10 +60,10 @@ export const PresignMediaBody = z
   })
   .superRefine((b, ctx) => {
     if (!isMimeAllowed(b.kind, b.mimeType)) {
-      ctx.addIssue({ code: 'custom', path: ['mimeType'], message: 'Định dạng file không hỗ trợ' });
+      ctx.addIssue({ code: 'custom', path: ['mimeType'], message: ValidationMessage.mediaTypeUnsupported });
     }
     if (b.sizeBytes > MEDIA_LIMITS[b.kind].maxBytes) {
-      ctx.addIssue({ code: 'custom', path: ['sizeBytes'], message: 'File quá lớn' });
+      ctx.addIssue({ code: 'custom', path: ['sizeBytes'], message: ValidationMessage.fileTooLarge });
     }
   });
 export type PresignMediaBody = z.infer<typeof PresignMediaBody>;

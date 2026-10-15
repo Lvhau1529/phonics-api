@@ -43,7 +43,7 @@ export class UsersService {
 
   async view(id: string): Promise<User> {
     const row = await this.prisma.user.findUnique({ where: { id }, include: userViewInclude });
-    if (!row) throw notFound('Không tìm thấy người dùng');
+    if (!row) throw notFound('userNotFound');
     return toUserView(row);
   }
 
@@ -54,7 +54,7 @@ export class UsersService {
         where: { email: body.email, NOT: { id } },
         select: { id: true },
       });
-      if (taken) throw new AppError('EMAIL_TAKEN', 409, { details: { email: ['Email đã được sử dụng'] } });
+      if (taken) throw new AppError('EMAIL_TAKEN', 409, { fieldErrors: { email: ['EMAIL_TAKEN'] } });
     }
     const row = await this.prisma.user.update({
       where: { id },

@@ -308,3 +308,54 @@ describe('ROLE_DEFAULT_PERMISSIONS (worksheets)', () => {
       expect(ROLE_DEFAULT_PERMISSIONS.TEACHER).toContain(p);
   });
 });
+
+import {
+  UpdateClassBody,
+  VALIDATION_MESSAGES,
+  ValidationMessage,
+  isValidationMessageKey,
+  translateIssueMessage,
+} from './index.js';
+
+describe('Message validate song ngữ (khoá + translateIssueMessage)', () => {
+  it('vi và en có cùng bộ khoá; ValidationMessage.x === x', () => {
+    expect(Object.keys(VALIDATION_MESSAGES.en).sort()).toEqual(Object.keys(VALIDATION_MESSAGES.vi).sort());
+    expect(ValidationMessage.atLeastOneField).toBe('atLeastOneField');
+    expect(isValidationMessageKey('atLeastOneField')).toBe(true);
+    expect(isValidationMessageKey('toString')).toBe(false);
+  });
+
+  it('refine trả khoá, dịch theo ngôn ngữ', () => {
+    const r = UpdateClassBody.safeParse({});
+    expect(r.success).toBe(false);
+    if (r.success) return;
+    const issue = r.error.issues[0];
+    expect(issue.message).toBe('atLeastOneField');
+    expect(translateIssueMessage(issue, 'vi')).toBe('Cần ít nhất một trường');
+    expect(translateIssueMessage(issue, 'en')).toBe('At least one field is required');
+  });
+
+  it('khoá có tham số đi qua kiểm tra chéo của CreateQuestionBody (giữ params)', () => {
+    const r = CreateQuestionBody.safeParse({
+      type: 'CROSSWORD',
+      instruction: 'Look and write.',
+      config: {
+        type: 'CROSSWORD',
+        rows: 5,
+        cols: 5,
+        words: [{ number: 1, direction: 'across', start: { r: 0, c: 0 }, length: 3, clueMediaId: MEDIA_A }],
+      },
+      answerKey: { type: 'CROSSWORD', words: [{ number: 1, direction: 'across', answer: 'cats' }] },
+    });
+    expect(r.success).toBe(false);
+    if (r.success) return;
+    const issue = r.error.issues.find((i) => i.message === 'answerLength');
+    expect(issue?.path).toEqual(['answerKey', 'words', 0, 'answer']);
+    expect(issue && translateIssueMessage(issue, 'en')).toBe('The answer must be 3 letters long');
+    expect(issue && translateIssueMessage(issue, 'vi')).toBe('Đáp án phải dài 3 chữ');
+  });
+
+  it('message không phải khoá (mặc định của zod) giữ nguyên', () => {
+    expect(translateIssueMessage({ message: 'Too small' }, 'vi')).toBe('Too small');
+  });
+});

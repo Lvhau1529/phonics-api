@@ -27,7 +27,7 @@ export class GamesClassController {
   ) {
     if (body.classId !== classId) {
       throw new AppError('VALIDATION_ERROR', 400, {
-        details: { classId: ['classId phải trùng với classId trên URL'] },
+        fieldErrors: { classId: ['classIdMismatch'] },
       });
     }
     return this.games.unlockClass(user, classId, gameId, body);

@@ -10,6 +10,7 @@ export * from './common/dates.js';
 export * from './common/range.js';
 export * from './common/pagination.js';
 export * from './common/api-error.js';
+export * from './common/validation-messages.js';
 export * from './users.js';
 export * from './permissions.js';
 export * from './auth.js';

@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { IsoDateTime } from './common/dates.js';
 import { Id } from './common/ids.js';
+import { ValidationMessage } from './common/validation-messages.js';
 import { Role } from './users.js';
 
 /**
@@ -129,7 +130,7 @@ export const UpdatePermissionGroupBody = z
     permissions: z.array(PermissionCode).max(50),
   })
   .partial()
-  .refine((b) => Object.keys(b).length > 0, { message: 'Cần ít nhất một trường' });
+  .refine((b) => Object.keys(b).length > 0, ValidationMessage.atLeastOneField);
 export type UpdatePermissionGroupBody = z.infer<typeof UpdatePermissionGroupBody>;
 
 /** Thay toàn bộ nhóm quyền của một user */
@@ -157,6 +158,6 @@ export const UpdateUserPermissionsBody = z
     note: z.string().trim().max(200).optional(),
   })
   .refine((b) => (b.grant?.length ?? 0) + (b.revoke?.length ?? 0) + (b.reset?.length ?? 0) > 0, {
-    message: 'Cần ít nhất một thay đổi',
+    message: ValidationMessage.atLeastOneChange,
   });
 export type UpdateUserPermissionsBody = z.infer<typeof UpdateUserPermissionsBody>;

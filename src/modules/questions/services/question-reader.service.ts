@@ -75,7 +75,7 @@ export class QuestionReaderService {
 
   async loadVisible(user: AuthUser, id: string): Promise<QuestionRow> {
     const row = await this.repo.findVisible(user, id);
-    if (!row) throw notFound('Không tìm thấy câu hỏi');
+    if (!row) throw notFound('questionNotFound');
     return row;
   }
 

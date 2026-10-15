@@ -157,7 +157,7 @@ export class ReportsService {
   private async loadClass(user: AuthUser, classId: string): Promise<{ name: string }> {
     await this.access.assertClassAccess(user, classId);
     const cls = await this.prisma.class.findUnique({ where: { id: classId }, select: { name: true } });
-    if (!cls) throw notFound('Không tìm thấy lớp');
+    if (!cls) throw notFound('classNotFound');
     return cls;
   }
 

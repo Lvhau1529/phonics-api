@@ -37,7 +37,7 @@ export class PointBonusService {
     if (body.points < 0 && actor.role !== 'ADMIN') throw revokeForbidden();
     const members = await this.repo.activeMemberIds(classId, [body.studentId]);
     if (!members.has(body.studentId)) {
-      throw new AppError('NOT_FOUND', 404, { message: 'Học sinh không thuộc lớp này' });
+      throw new AppError('NOT_FOUND', 404, { message: 'studentNotInClass' });
     }
 
     const result = await this.repo.transaction(async (tx) => {
@@ -86,7 +86,7 @@ export class PointBonusService {
       body.entries.map((e) => e.studentId),
     );
     if (body.entries.some((e) => !memberIds.has(e.studentId))) {
-      throw new AppError('NOT_FOUND', 404, { message: 'Có học sinh không thuộc lớp này' });
+      throw new AppError('NOT_FOUND', 404, { message: 'studentsNotInClass' });
     }
 
     const entries = await this.repo.transaction(async (tx) => {

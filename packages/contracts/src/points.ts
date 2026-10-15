@@ -3,6 +3,7 @@ import { IsoDateTime } from './common/dates.js';
 import { Id } from './common/ids.js';
 import { PageQuery } from './common/pagination.js';
 import { RangeQuery } from './common/range.js';
+import { ValidationMessage } from './common/validation-messages.js';
 import { GameId } from './games.js';
 import { AvatarKey, DisplayName } from './users.js';
 
@@ -79,7 +80,7 @@ export const BonusPoints = z
   .int()
   .min(-100)
   .max(100)
-  .refine((n) => n !== 0, { message: 'Điểm phải khác 0' });
+  .refine((n) => n !== 0, ValidationMessage.pointsNonZero);
 
 export const AwardBonusBody = z.strictObject({
   studentId: Id,

@@ -62,7 +62,7 @@ export class StudentReaderService {
 
   async findStudent(id: string): Promise<StudentRow> {
     const row = await this.repo.findById(id);
-    if (!row || row.role !== 'STUDENT') throw notFound('Không tìm thấy học sinh');
+    if (!row || row.role !== 'STUDENT') throw notFound('studentNotFound');
     return row;
   }
 

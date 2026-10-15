@@ -86,13 +86,13 @@ export class MediaService {
     body: Readable,
   ): Promise<void> {
     if (!verifyUpload(this.env.JWT_ACCESS_SECRET, id, link.exp, link.sig, dayjs().unix())) {
-      throw new AppError('FORBIDDEN', 403, { message: 'Link tải lên không hợp lệ hoặc đã hết hạn' });
+      throw new AppError('FORBIDDEN', 403, { message: 'uploadLinkInvalid' });
     }
     const row = await this.prisma.mediaAsset.findUnique({ where: { id } });
-    if (!row) throw notFound('Không tìm thấy file');
-    if (row.status !== 'PENDING') throw new AppError('CONFLICT', 409, { message: 'File đã tải lên xong' });
+    if (!row) throw notFound('fileNotFound');
+    if (row.status !== 'PENDING') throw new AppError('CONFLICT', 409, { message: 'fileAlreadyUploaded' });
     if (baseMimeType(request.contentType) !== row.mimeType) {
-      throw new AppError('MEDIA_TYPE_UNSUPPORTED', 415, { message: 'Content-Type khác lúc presign' });
+      throw new AppError('MEDIA_TYPE_UNSUPPORTED', 415, { message: 'contentTypeMismatch' });
     }
     const maxBytes = MEDIA_LIMITS[row.kind].maxBytes;
     if (request.contentLength !== undefined && request.contentLength > maxBytes) {
@@ -112,7 +112,7 @@ export class MediaService {
    */
   async complete(user: AuthUser, id: string, body: CompleteMediaBody): Promise<MediaView> {
     const row = await this.prisma.mediaAsset.findUnique({ where: { id } });
-    if (!row) throw notFound('Không tìm thấy file');
+    if (!row) throw notFound('fileNotFound');
     if (row.ownerId !== user.id && user.role !== 'ADMIN') throw new AppError('FORBIDDEN_SCOPE', 403);
     if (row.status === 'READY') return toMediaView(row);
 
@@ -122,7 +122,7 @@ export class MediaService {
     if (size <= 0 || size > limit) {
       await this.deleteObject(row.key);
       throw new AppError('MEDIA_UPLOAD_INCOMPLETE', 409, {
-        details: { sizeBytes: size > limit ? ['File quá lớn'] : ['File rỗng'] },
+        fieldErrors: { sizeBytes: [size > limit ? 'MEDIA_TOO_LARGE' : 'fileEmpty'] },
       });
     }
 
@@ -144,7 +144,7 @@ export class MediaService {
   /** GV / admin xem bất kỳ; học sinh chỉ file của mình */
   async get(user: AuthUser, id: string): Promise<MediaView> {
     const row = await this.prisma.mediaAsset.findUnique({ where: { id } });
-    if (!row) throw notFound('Không tìm thấy file');
+    if (!row) throw notFound('fileNotFound');
     if (user.role === 'STUDENT' && row.ownerId !== user.id) throw new AppError('FORBIDDEN_SCOPE', 403);
     return toMediaView(row);
   }

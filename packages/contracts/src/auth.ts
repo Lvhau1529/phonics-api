@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { Id } from './common/ids.js';
+import { ValidationMessage } from './common/validation-messages.js';
 import { PermissionCode } from './permissions.js';
 import { AvatarKey, DisplayName, Email, Password, User } from './users.js';
 
@@ -20,7 +21,7 @@ export const ParentContact = z.strictObject({
   phone: z
     .string()
     .trim()
-    .regex(/^[0-9+\-\s().]{6,20}$/, 'Số điện thoại không hợp lệ')
+    .regex(/^[0-9+\-\s().]{6,20}$/, ValidationMessage.phoneInvalid)
     .optional(),
 });
 export type ParentContact = z.infer<typeof ParentContact>;
