@@ -7,7 +7,7 @@ import {
 } from '@/modules/events/services/events.service';
 
 const CLIENT_ID = '11111111-1111-4111-8111-111111111111';
-const KNOWN = new Set(['bread-catcher', 'food-stream', 'phonics-ocean']);
+const KNOWN = new Set(['bread-catcher', 'food-stream', 'phonics-ocean', 'odd-one-out', 'english-explorers']);
 const NOW = Date.parse('2026-10-01T08:30:00.000Z');
 
 const ev = (overrides: Partial<GameEventInput> = {}): GameEventInput => ({

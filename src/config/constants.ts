@@ -8,6 +8,9 @@ export const GAME_REGISTRY: Record<string, { maxTotal: number; maxScore: number 
   'food-stream': { maxTotal: 30, maxScore: 100_000 },
   // total = số từ cần để qua màn (12–15); điểm tối đa ~300 / từ + combo vần + vật phẩm
   'phonics-ocean': { maxTotal: 30, maxScore: 50_000 },
+  // Câu đố / câu nói: ≤ 15 câu mỗi ván, tối đa 15 điểm / câu (chọn đúng 10 + nói 5)
+  'odd-one-out': { maxTotal: 30, maxScore: 1_000 },
+  'english-explorers': { maxTotal: 30, maxScore: 1_000 },
 };
 
 /** Khi nào tạo thông báo đổi hạng: 'all' mọi thay đổi, 'improve' chỉ khi lên hạng */

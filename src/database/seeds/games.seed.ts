@@ -5,6 +5,8 @@ const GAME_TITLES: Record<GameId, string> = {
   'bread-catcher': 'Bread Catcher',
   'food-stream': 'Food Stream',
   'phonics-ocean': 'Phonics Ocean',
+  'odd-one-out': 'Odd One Out',
+  'english-explorers': 'Little English Explorers',
 };
 
 /** Catalog game: chỉ tạo khi thiếu — không ghi đè title / enabled / price admin đã chỉnh */

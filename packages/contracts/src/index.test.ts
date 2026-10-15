@@ -37,6 +37,15 @@ describe('GameResultBody', () => {
     expect(r.gameId).toBe('phonics-ocean');
   });
 
+  it('nhận game Odd One Out / Little English Explorers (contracts 1.4.0)', () => {
+    expect(GameResultBody.parse({ ...valid, gameId: 'odd-one-out', levelId: 'easy', total: 6 }).gameId).toBe(
+      'odd-one-out',
+    );
+    expect(
+      GameResultBody.parse({ ...valid, gameId: 'english-explorers', levelId: 'habitats', total: 10 }).gameId,
+    ).toBe('english-explorers');
+  });
+
   it('từ chối game chưa đăng ký', () => {
     expect(GameResultBody.safeParse({ ...valid, gameId: 'unknown-game' }).success).toBe(false);
   });
