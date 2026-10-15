@@ -29,7 +29,7 @@ RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
 # Tải schema engine của Prisma (cần cho `migrate deploy`) ngay lúc build để runtime không phải tải về.
 # `migrate diff --from-empty` không kết nối DB; DIRECT_URL giả chỉ để prisma.config.ts nạp được.
 RUN DIRECT_URL=postgresql://build:build@localhost:5432/build \
-    node_modules/.bin/prisma migrate diff --from-empty --to-schema prisma/schema.prisma --script > /dev/null \
+    node_modules/.bin/prisma migrate diff --from-empty --to-schema prisma/schema --script > /dev/null \
  && sed -i 's/\r$//' docker-entrypoint.sh && chmod +x docker-entrypoint.sh
 
 # ---------- runtime ----------

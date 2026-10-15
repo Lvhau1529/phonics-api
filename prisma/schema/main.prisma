@@ -1,0 +1,12 @@
+// Mô hình dữ liệu Phonics Arcade. Xem docs/erd.md.
+// Schema nhiều file: mọi file `.prisma` trong thư mục này được gộp lại; model ở file khác tham chiếu thẳng bằng tên.
+// Prisma 7: URL kết nối nằm ở prisma.config.ts (CLI) và PrismaService (runtime, driver adapter pg).
+
+generator client {
+  provider = "prisma-client"
+  output   = "../../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}

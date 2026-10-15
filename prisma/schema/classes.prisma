@@ -1,0 +1,57 @@
+// Lớp học: lớp, giáo viên dạy lớp, học sinh thuộc lớp
+
+model Class {
+  id          String    @id @default(uuid()) @db.Uuid
+  name        String
+  /// "K2", "Lớp 1"… — text tự do, lọc được
+  grade       String
+  /// "2026-2027"
+  schoolYear  String    @map("school_year")
+  /// Hiện ở danh sách lớp khi học sinh đăng ký
+  joinVisible Boolean   @default(true) @map("join_visible")
+  archivedAt  DateTime? @map("archived_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  teachers     ClassTeacher[]
+  memberships  ClassMembership[]
+  pointEntries PointEntry[]
+  gameResults  GameResult[]
+  assignments  Assignment[]
+
+  @@unique([name, schoolYear])
+  @@index([joinVisible, archivedAt])
+  @@map("classes")
+}
+
+/// Giáo viên dạy lớp (nhiều-nhiều)
+model ClassTeacher {
+  classId    String   @map("class_id") @db.Uuid
+  teacherId  String   @map("teacher_id") @db.Uuid
+  assignedAt DateTime @default(now()) @map("assigned_at")
+  class      Class    @relation(fields: [classId], references: [id], onDelete: Cascade)
+  teacher    User     @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+
+  @@id([classId, teacherId])
+  @@index([teacherId])
+  @@map("class_teachers")
+}
+
+/// Học sinh thuộc lớp. Mỗi học sinh chỉ có MỘT membership đang hoạt động (left_at IS NULL):
+/// partial unique index `class_memberships_active_student` được thêm tay trong migration SQL.
+model ClassMembership {
+  id         String    @id @default(uuid()) @db.Uuid
+  studentId  String    @map("student_id") @db.Uuid
+  classId    String    @map("class_id") @db.Uuid
+  joinedAt   DateTime  @default(now()) @map("joined_at")
+  leftAt     DateTime? @map("left_at")
+  /// Hạng (tổng điểm, mọi thời gian) ở lần tính gần nhất — để phát hiện đổi hạng
+  lastRank   Int?      @map("last_rank")
+  lastRankAt DateTime? @map("last_rank_at")
+  student    StudentProfile @relation(fields: [studentId], references: [userId], onDelete: Cascade)
+  class      Class          @relation(fields: [classId], references: [id], onDelete: Cascade)
+
+  @@index([classId, leftAt])
+  @@index([studentId, leftAt])
+  @@map("class_memberships")
+}

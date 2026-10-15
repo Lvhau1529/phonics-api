@@ -1,0 +1,47 @@
+// Hệ thống: thông báo, nhật ký audit
+
+enum NotificationType {
+  BONUS_AWARDED
+  RANK_CHANGED
+  CLASS_CHANGED
+  GAME_UNLOCKED
+  SYSTEM
+  ASSIGNMENT_NEW
+  SUBMISSION_GRADED
+  COMMENT_REPLY
+}
+
+model Notification {
+  id        String           @id @default(uuid()) @db.Uuid
+  userId    String           @map("user_id") @db.Uuid
+  type      NotificationType
+  title     String
+  body      String
+  data      Json?
+  readAt    DateTime?        @map("read_at")
+  createdAt DateTime         @default(now()) @map("created_at")
+  updatedAt DateTime         @updatedAt @map("updated_at")
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, readAt, createdAt(sort: Desc)])
+  @@map("notifications")
+}
+
+/// Nhật ký hành động của admin / giáo viên
+model AuditLog {
+  id         String   @id @default(uuid()) @db.Uuid
+  actorId    String?  @map("actor_id") @db.Uuid
+  action     String
+  targetType String   @map("target_type")
+  targetId   String?  @map("target_id")
+  before     Json?
+  after      Json?
+  ip         String?
+  createdAt  DateTime @default(now()) @map("created_at")
+  actor      User?    @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([targetType, targetId])
+  @@index([actorId, createdAt])
+  @@index([action, createdAt])
+  @@map("audit_logs")
+}

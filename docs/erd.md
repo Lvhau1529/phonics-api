@@ -1,6 +1,6 @@
 # ERD
 
-Nguồn sự thật: [`apps/api/prisma/schema.prisma`](../../apps/api/prisma/schema.prisma) (tên bảng / cột snake_case).
+Nguồn sự thật: [`prisma/schema/`](../prisma/schema/) (mỗi domain một file `.prisma`; tên bảng / cột snake_case).
 
 ```mermaid
 erDiagram

@@ -15,7 +15,7 @@ const seedCommand =
     : 'tsx src/database/seeds/seed.ts';
 
 export default defineConfig({
-  schema: 'prisma/schema.prisma',
+  schema: 'prisma/schema',
   migrations: {
     path: 'prisma/migrations',
     seed: seedCommand,

@@ -54,7 +54,7 @@ Cấu trúc thư mục + versioning: [README > Cấu trúc](README.md#cấu-trú
   - `types/`: `xInclude` + `XRow = Prisma.XGetPayload<…>`, hằng `X_SORT_FIELDS`, schema zod riêng của module.
   - `utils/`: hàm thuần (luật nghiệp vụ / tính toán) + `.spec.ts`. Thư mục đặc thù: `jobs/` (cron), `grading/`,
     `writers/`.
-  - Không có `entities/` (Prisma, không TypeORM): model ở `prisma/schema.prisma`.
+  - Không có `entities/` (Prisma, không TypeORM): model ở `prisma/schema/*.prisma` (mỗi domain một file).
 - Versioning URI: `@Controller({ path: 'x', version: API_V1 })` (`config/api-version.ts`) → `/api/v1/x`.
   Controller thiếu `version` sẽ không có prefix version — chỉ dùng cho health (`VERSION_NEUTRAL`).
 - Module `@Global()`: Env, Prisma, Time, Access (core) và Notifications, Permissions, Auth — inject thẳng, không
@@ -99,7 +99,9 @@ Cấu trúc thư mục + versioning: [README > Cấu trúc](README.md#cấu-trú
 
 ## Đổi schema DB
 
-`prisma/schema.prisma` → `pnpm prisma:migrate --name <ten>` (dùng `DIRECT_URL`, Postgres local của phonics-dev) → kiểm tra SQL
+Sửa file domain trong `prisma/schema/` (`main.prisma` chỉ có generator + datasource; model mới đặt vào file domain
+phù hợp hoặc tạo file `.prisma` mới — Prisma gộp cả thư mục, relation khác file tham chiếu thẳng bằng tên) →
+`pnpm prisma:migrate --name <ten>` (dùng `DIRECT_URL`, Postgres local của phonics-dev) → kiểm tra SQL
 sinh ra (index partial / SQL đặc biệt thêm tay vào file migration, không chỉ sửa schema) → commit cả thư mục
 `prisma/migrations`. Production chạy `prisma migrate deploy` (docker-entrypoint.sh).
 

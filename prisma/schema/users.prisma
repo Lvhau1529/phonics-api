@@ -1,0 +1,102 @@
+// Tài khoản: user, hồ sơ học sinh, refresh token
+
+enum Role {
+  ADMIN
+  TEACHER
+  STUDENT
+}
+
+enum UserStatus {
+  ACTIVE
+  DISABLED
+}
+
+enum AuthProvider {
+  LOCAL
+  GOOGLE
+}
+
+/// Tài khoản chung cho admin / giáo viên / học sinh
+model User {
+  id            String       @id @default(uuid()) @db.Uuid
+  /// Lưu chữ thường, đã trim
+  email         String       @unique
+  emailVerified Boolean      @default(false) @map("email_verified")
+  /// null với tài khoản chỉ đăng nhập Google
+  passwordHash  String?      @map("password_hash")
+  googleSub     String?      @unique @map("google_sub")
+  provider      AuthProvider @default(LOCAL)
+  role          Role
+  status        UserStatus   @default(ACTIVE)
+  displayName   String       @map("display_name")
+  /// Key avatar preset (contracts AVATARS)
+  avatarKey     String       @default("pip") @map("avatar_key")
+  /// Tăng để vô hiệu mọi access token đang có
+  tokenVersion  Int          @default(0) @map("token_version")
+  lastLoginAt   DateTime?    @map("last_login_at")
+  createdAt     DateTime     @default(now()) @map("created_at")
+  updatedAt     DateTime     @updatedAt @map("updated_at")
+
+  studentProfile   StudentProfile?
+  teachingClasses  ClassTeacher[]
+  permissions      UserPermission[]   @relation("UserPermissions")
+  permissionGroups UserPermissionGroup[]
+  grantedPerms     UserPermission[]   @relation("GrantedBy")
+  refreshTokens    RefreshToken[]
+  notifications    Notification[]
+  pointEntriesMade PointEntry[]       @relation("PointEntryCreatedBy")
+  unlocksGranted   StudentGameUnlock[] @relation("UnlockGrantedBy")
+  auditLogs        AuditLog[]
+  gameEvents       GameEvent[]
+  mediaAssets       MediaAsset[]       @relation("MediaOwner")
+  questionsCreated  Question[]         @relation("QuestionCreatedBy")
+  worksheetsCreated Worksheet[]        @relation("WorksheetCreatedBy")
+  assignmentsMade   Assignment[]       @relation("AssignmentAssignedBy")
+  submissionsGraded Submission[]       @relation("SubmissionGradedBy")
+  answersGraded     SubmissionAnswer[] @relation("AnswerGradedBy")
+  comments          Comment[]          @relation("CommentAuthor")
+
+  @@index([role, status])
+  @@map("users")
+}
+
+/// Thông tin riêng của học sinh (liên hệ phụ huynh)
+model StudentProfile {
+  userId      String   @id @map("user_id") @db.Uuid
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  parentName  String?  @map("parent_name")
+  parentEmail String?  @map("parent_email")
+  parentPhone String?  @map("parent_phone")
+  /// Ghi chú nội bộ của admin
+  notes       String?
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  memberships  ClassMembership[]
+  gameResults  GameResult[]
+  pointEntries PointEntry[]
+  gameUnlocks  StudentGameUnlock[]
+  submissions  Submission[]
+
+  @@map("student_profiles")
+}
+
+/// Refresh token: lưu hash, xoay vòng mỗi lần dùng, phát hiện dùng lại theo family
+model RefreshToken {
+  id           String    @id @default(uuid()) @db.Uuid
+  userId       String    @map("user_id") @db.Uuid
+  tokenHash    String    @unique @map("token_hash")
+  familyId     String    @map("family_id") @db.Uuid
+  expiresAt    DateTime  @map("expires_at")
+  revokedAt    DateTime? @map("revoked_at")
+  replacedById String?   @map("replaced_by_id") @db.Uuid
+  userAgent    String?   @map("user_agent")
+  ip           String?
+  createdAt    DateTime  @default(now()) @map("created_at")
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([familyId])
+  @@index([expiresAt])
+  @@map("refresh_tokens")
+}

@@ -1,0 +1,37 @@
+// Media do giáo viên / học sinh tải lên (ADR 0018 / 0024)
+
+enum MediaKind {
+  IMAGE
+  AUDIO
+}
+
+enum MediaStatus {
+  PENDING
+  READY
+}
+
+/// File do giáo viên / học sinh tải lên, lưu trên ổ đĩa VPS (MEDIA_DIR, ADR 0024):
+/// presign (link PUT có chữ ký) → client PUT lên API → POST complete (kiểm size trên đĩa rồi đánh dấu READY).
+/// PENDING quá 24h bị cron xoá.
+model MediaAsset {
+  id         String      @id @default(uuid()) @db.Uuid
+  ownerId    String      @map("owner_id") @db.Uuid
+  kind       MediaKind
+  /// `media/{ownerId}/{uuid}.{ext}` — bất biến
+  key        String      @unique
+  /// URL public (bucket public_read); null khi PENDING
+  url        String?
+  mimeType   String      @map("mime_type")
+  sizeBytes  Int         @map("size_bytes")
+  width      Int?
+  height     Int?
+  durationMs Int?        @map("duration_ms")
+  status     MediaStatus @default(PENDING)
+  createdAt  DateTime    @default(now()) @map("created_at")
+  readyAt    DateTime?   @map("ready_at")
+  owner      User        @relation("MediaOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+
+  @@index([ownerId, createdAt])
+  @@index([status, createdAt])
+  @@map("media_assets")
+}

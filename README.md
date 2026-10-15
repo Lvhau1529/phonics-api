@@ -16,7 +16,7 @@ Feature-based, phụ thuộc một chiều `modules → common / core / database
 phonics-api
 ├── packages/contracts/     gói hợp đồng zod dùng chung (phát hành lên GitHub Packages)
 ├── docs/                   api.md (bảng endpoint), erd.md
-├── prisma/                 schema.prisma, migrations/ (Prisma CLI + docker-entrypoint đọc ở đây)
+├── prisma/                 schema/ (mỗi domain một file .prisma), migrations/ (Prisma CLI + docker-entrypoint đọc ở đây)
 ├── prisma.config.ts        Prisma CLI: DIRECT_URL (kết nối thẳng), lệnh seed
 ├── src/
 │   ├── main.ts             khởi động: configureApp + Swagger + listen
@@ -61,7 +61,7 @@ phonics-api
     └── e2e/                *.e2e-spec.ts (cần DATABASE_URL_TEST)
 ```
 
-Không dùng TypeORM nên không có `entities/`: model nằm ở `prisma/schema.prisma`, kiểu row lấy bằng
+Không dùng TypeORM nên không có `entities/`: model nằm ở `prisma/schema/*.prisma`, kiểu row lấy bằng
 `Prisma.XGetPayload` trong `types/`. Module nhỏ (vd `audit`, `events`) chỉ có `controllers/` + `services/`.
 
 **Versioning:** route theo URI `/api/v1/...` (client lấy `API_PREFIX` từ contracts), version khai báo ở decorator
