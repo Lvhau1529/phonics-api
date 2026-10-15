@@ -61,23 +61,23 @@ enum SubmissionStatus {
 /// Ngân hàng câu hỏi. `config` / `answerKey` là JSON theo discriminated union trong contracts (khoá `type`).
 /// Không xoá cứng (worksheet_items tham chiếu), chỉ ARCHIVED.
 model Question {
-  id            String        @id @default(uuid()) @db.Uuid
+  id            String          @id @default(uuid()) @db.Uuid
   type          QuestionType
-  gradingMode   GradingMode   @map("grading_mode")
+  gradingMode   GradingMode     @map("grading_mode")
   instruction   String
-  instructionVi String?       @map("instruction_vi")
-  points        Int           @default(1)
-  tags          String[]      @default([])
+  instructionVi String?         @map("instruction_vi")
+  points        Int             @default(1)
+  tags          String[]        @default([])
   /// Ví dụ mẫu "E.g." (contracts QuestionExample)
   example       Json?
   config        Json
-  answerKey     Json          @map("answer_key")
-  status        ContentStatus @default(DRAFT)
-  visibility    Visibility    @default(SHARED)
-  createdById   String        @map("created_by_id") @db.Uuid
-  createdAt     DateTime      @default(now()) @map("created_at")
-  updatedAt     DateTime      @updatedAt @map("updated_at")
-  createdBy     User          @relation("QuestionCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  answerKey     Json            @map("answer_key")
+  status        ContentStatus   @default(DRAFT)
+  visibility    Visibility      @default(SHARED)
+  createdById   String          @map("created_by_id") @db.Uuid
+  createdAt     DateTime        @default(now()) @map("created_at")
+  updatedAt     DateTime        @updatedAt @map("updated_at")
+  createdBy     User            @relation("QuestionCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
   items         WorksheetItem[]
 
   @@index([createdById, status])
@@ -90,23 +90,23 @@ model Question {
 
 /// Phiếu bài tập: metadata + Part (section) + câu (item)
 model Worksheet {
-  id          String        @id @default(uuid()) @db.Uuid
+  id          String             @id @default(uuid()) @db.Uuid
   title       String
-  subject     Subject       @default(PHONICS)
+  subject     Subject            @default(PHONICS)
   /// "Letter Nn"
   topic       String?
   grade       String?
   week        Int?
   /// 1..5 (D1..D5)
   day         Int?
-  kind        WorksheetKind @default(WORKSHEET)
-  status      ContentStatus @default(DRAFT)
-  visibility  Visibility    @default(SHARED)
+  kind        WorksheetKind      @default(WORKSHEET)
+  status      ContentStatus      @default(DRAFT)
+  visibility  Visibility         @default(SHARED)
   note        String?
-  createdById String        @map("created_by_id") @db.Uuid
-  createdAt   DateTime      @default(now()) @map("created_at")
-  updatedAt   DateTime      @updatedAt @map("updated_at")
-  createdBy   User          @relation("WorksheetCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  createdById String             @map("created_by_id") @db.Uuid
+  createdAt   DateTime           @default(now()) @map("created_at")
+  updatedAt   DateTime           @updatedAt @map("updated_at")
+  createdBy   User               @relation("WorksheetCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
   sections    WorksheetSection[]
   items       WorksheetItem[]
   assignments Assignment[]
@@ -118,13 +118,13 @@ model Worksheet {
 }
 
 model WorksheetSection {
-  id          String    @id @default(uuid()) @db.Uuid
-  worksheetId String    @map("worksheet_id") @db.Uuid
+  id          String          @id @default(uuid()) @db.Uuid
+  worksheetId String          @map("worksheet_id") @db.Uuid
   order       Int
   /// "Part 1"
   title       String
   instruction String?
-  worksheet   Worksheet @relation(fields: [worksheetId], references: [id], onDelete: Cascade)
+  worksheet   Worksheet       @relation(fields: [worksheetId], references: [id], onDelete: Cascade)
   items       WorksheetItem[]
 
   @@index([worksheetId, order])
@@ -188,29 +188,29 @@ model Assignment {
 /// Một lần làm bài. Partial unique `submissions_one_in_progress (assignment_id, student_id) WHERE status = 'IN_PROGRESS'`
 /// thêm tay trong migration.
 model Submission {
-  id           String           @id @default(uuid()) @db.Uuid
-  assignmentId String           @map("assignment_id") @db.Uuid
-  studentId    String           @map("student_id") @db.Uuid
-  attemptNo    Int              @map("attempt_no")
-  status       SubmissionStatus @default(IN_PROGRESS)
-  startedAt    DateTime         @default(now()) @map("started_at")
-  submittedAt  DateTime?        @map("submitted_at")
-  gradedAt     DateTime?        @map("graded_at")
-  gradedById   String?          @map("graded_by_id") @db.Uuid
+  id           String             @id @default(uuid()) @db.Uuid
+  assignmentId String             @map("assignment_id") @db.Uuid
+  studentId    String             @map("student_id") @db.Uuid
+  attemptNo    Int                @map("attempt_no")
+  status       SubmissionStatus   @default(IN_PROGRESS)
+  startedAt    DateTime           @default(now()) @map("started_at")
+  submittedAt  DateTime?          @map("submitted_at")
+  gradedAt     DateTime?          @map("graded_at")
+  gradedById   String?            @map("graded_by_id") @db.Uuid
   /// Tổng điểm phần tự chấm (sau submit)
-  autoScore    Float            @default(0) @map("auto_score")
+  autoScore    Float              @default(0) @map("auto_score")
   /// Tổng điểm GV chấm / ghi đè (sau finalize)
-  manualScore  Float?           @map("manual_score")
+  manualScore  Float?             @map("manual_score")
   /// Chỉ có khi GRADED
-  totalScore   Float?           @map("total_score")
-  maxScore     Int              @map("max_score")
-  durationMs   Int?             @map("duration_ms")
-  late         Boolean          @default(false)
-  createdAt    DateTime         @default(now()) @map("created_at")
-  updatedAt    DateTime         @updatedAt @map("updated_at")
-  assignment   Assignment       @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
-  student      StudentProfile   @relation(fields: [studentId], references: [userId], onDelete: Cascade)
-  gradedBy     User?            @relation("SubmissionGradedBy", fields: [gradedById], references: [id], onDelete: SetNull)
+  totalScore   Float?             @map("total_score")
+  maxScore     Int                @map("max_score")
+  durationMs   Int?               @map("duration_ms")
+  late         Boolean            @default(false)
+  createdAt    DateTime           @default(now()) @map("created_at")
+  updatedAt    DateTime           @updatedAt @map("updated_at")
+  assignment   Assignment         @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  student      StudentProfile     @relation(fields: [studentId], references: [userId], onDelete: Cascade)
+  gradedBy     User?              @relation("SubmissionGradedBy", fields: [gradedById], references: [id], onDelete: SetNull)
   answers      SubmissionAnswer[]
   comments     Comment[]
 

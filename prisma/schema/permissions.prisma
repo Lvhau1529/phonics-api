@@ -39,9 +39,9 @@ model PermissionGroup {
 }
 
 model UserPermissionGroup {
-  userId     String   @map("user_id") @db.Uuid
-  groupId    String   @map("group_id") @db.Uuid
-  assignedAt DateTime @default(now()) @map("assigned_at")
+  userId     String          @map("user_id") @db.Uuid
+  groupId    String          @map("group_id") @db.Uuid
+  assignedAt DateTime        @default(now()) @map("assigned_at")
   user       User            @relation(fields: [userId], references: [id], onDelete: Cascade)
   group      PermissionGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
 

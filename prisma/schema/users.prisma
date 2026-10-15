@@ -37,24 +37,24 @@ model User {
   createdAt     DateTime     @default(now()) @map("created_at")
   updatedAt     DateTime     @updatedAt @map("updated_at")
 
-  studentProfile   StudentProfile?
-  teachingClasses  ClassTeacher[]
-  permissions      UserPermission[]   @relation("UserPermissions")
-  permissionGroups UserPermissionGroup[]
-  grantedPerms     UserPermission[]   @relation("GrantedBy")
-  refreshTokens    RefreshToken[]
-  notifications    Notification[]
-  pointEntriesMade PointEntry[]       @relation("PointEntryCreatedBy")
-  unlocksGranted   StudentGameUnlock[] @relation("UnlockGrantedBy")
-  auditLogs        AuditLog[]
-  gameEvents       GameEvent[]
-  mediaAssets       MediaAsset[]       @relation("MediaOwner")
-  questionsCreated  Question[]         @relation("QuestionCreatedBy")
-  worksheetsCreated Worksheet[]        @relation("WorksheetCreatedBy")
-  assignmentsMade   Assignment[]       @relation("AssignmentAssignedBy")
-  submissionsGraded Submission[]       @relation("SubmissionGradedBy")
-  answersGraded     SubmissionAnswer[] @relation("AnswerGradedBy")
-  comments          Comment[]          @relation("CommentAuthor")
+  studentProfile    StudentProfile?
+  teachingClasses   ClassTeacher[]
+  permissions       UserPermission[]      @relation("UserPermissions")
+  permissionGroups  UserPermissionGroup[]
+  grantedPerms      UserPermission[]      @relation("GrantedBy")
+  refreshTokens     RefreshToken[]
+  notifications     Notification[]
+  pointEntriesMade  PointEntry[]          @relation("PointEntryCreatedBy")
+  unlocksGranted    StudentGameUnlock[]   @relation("UnlockGrantedBy")
+  auditLogs         AuditLog[]
+  gameEvents        GameEvent[]
+  mediaAssets       MediaAsset[]          @relation("MediaOwner")
+  questionsCreated  Question[]            @relation("QuestionCreatedBy")
+  worksheetsCreated Worksheet[]           @relation("WorksheetCreatedBy")
+  assignmentsMade   Assignment[]          @relation("AssignmentAssignedBy")
+  submissionsGraded Submission[]          @relation("SubmissionGradedBy")
+  answersGraded     SubmissionAnswer[]    @relation("AnswerGradedBy")
+  comments          Comment[]             @relation("CommentAuthor")
 
   @@index([role, status])
   @@map("users")

@@ -22,8 +22,8 @@
     "prisma:studio": "prisma studio",
     "db:seed": "prisma db seed",
     "build:contracts": "pnpm --filter ./packages/contracts run build",
-    "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format": "prettier --write . && prisma format",
+    "format:check": "prettier --check . && prisma format --check"
   },
   "dependencies": {
     "@nestjs/common": "^11.2.7",

@@ -1,0 +1,29 @@
+{
+  // Format trong VS Code = `pnpm format` (Prettier, cấu hình ở .prettierrc.json + .prettierignore của repo).
+  // Formatter khai báo theo từng ngôn ngữ vì setting `[lang]` ở User settings thắng `editor.defaultFormatter` chung.
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "editor.formatOnSave": true,
+  // Không có .prettierrc thì không format (tránh fallback prettier.* của User settings: tab, printWidth, CRLF)
+  "prettier.requireConfig": true,
+  "editor.insertSpaces": true,
+  "editor.tabSize": 2,
+  "editor.detectIndentation": false,
+  "files.eol": "\n",
+  "files.insertFinalNewline": true,
+  "files.trimTrailingWhitespace": true,
+  "[javascript]": { "editor.defaultFormatter": "esbenp.prettier-vscode" },
+  "[javascriptreact]": { "editor.defaultFormatter": "esbenp.prettier-vscode" },
+  "[typescript]": { "editor.defaultFormatter": "esbenp.prettier-vscode" },
+  "[typescriptreact]": { "editor.defaultFormatter": "esbenp.prettier-vscode" },
+  "[json]": { "editor.defaultFormatter": "esbenp.prettier-vscode" },
+  "[jsonc]": { "editor.defaultFormatter": "esbenp.prettier-vscode" },
+  "[css]": { "editor.defaultFormatter": "esbenp.prettier-vscode" },
+  "[scss]": { "editor.defaultFormatter": "esbenp.prettier-vscode" },
+  "[html]": { "editor.defaultFormatter": "esbenp.prettier-vscode" },
+  "[yaml]": { "editor.defaultFormatter": "esbenp.prettier-vscode" },
+  "[dockercompose]": { "editor.defaultFormatter": "esbenp.prettier-vscode" },
+  // *.md nằm trong .prettierignore → Prettier bỏ qua; không tự sửa khi lưu
+  "[markdown]": { "editor.defaultFormatter": "esbenp.prettier-vscode", "editor.formatOnSave": false },
+  // Prettier không hỗ trợ .prisma → dùng formatter của extension Prisma (giống `prisma format`)
+  "[prisma]": { "editor.defaultFormatter": "Prisma.prisma" }
+}

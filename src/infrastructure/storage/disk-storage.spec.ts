@@ -30,9 +30,9 @@ describe('DiskStorage', () => {
 
   it('vượt maxBytes → FileTooLargeError, không để lại file (kể cả file tạm)', async () => {
     const key = 'media/u1/big.png';
-    await expect(storage.write(key, Readable.from([Buffer.alloc(6), Buffer.alloc(6)]), 10)).rejects.toBeInstanceOf(
-      FileTooLargeError,
-    );
+    await expect(
+      storage.write(key, Readable.from([Buffer.alloc(6), Buffer.alloc(6)]), 10),
+    ).rejects.toBeInstanceOf(FileTooLargeError);
     expect(await storage.size(key)).toBeNull();
     expect(await readdir(join(dir, '.tmp'))).toEqual([]);
   });

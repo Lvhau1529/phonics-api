@@ -37,14 +37,14 @@ model Game {
 
 /// Học sinh đã mở khoá game (bằng kim cương ở client hoặc admin cấp). revoked_at != null = bị thu hồi.
 model StudentGameUnlock {
-  studentId   String       @map("student_id") @db.Uuid
-  gameId      String       @map("game_id")
+  studentId   String         @map("student_id") @db.Uuid
+  gameId      String         @map("game_id")
   source      UnlockSource
-  gemsSpent   Int?         @map("gems_spent")
-  grantedById String?      @map("granted_by_id") @db.Uuid
+  gemsSpent   Int?           @map("gems_spent")
+  grantedById String?        @map("granted_by_id") @db.Uuid
   note        String?
-  unlockedAt  DateTime     @default(now()) @map("unlocked_at")
-  revokedAt   DateTime?    @map("revoked_at")
+  unlockedAt  DateTime       @default(now()) @map("unlocked_at")
+  revokedAt   DateTime?      @map("revoked_at")
   student     StudentProfile @relation(fields: [studentId], references: [userId], onDelete: Cascade)
   game        Game           @relation(fields: [gameId], references: [id], onDelete: Cascade)
   grantedBy   User?          @relation("UnlockGrantedBy", fields: [grantedById], references: [id], onDelete: SetNull)
@@ -77,26 +77,26 @@ model GameEvent {
 
 /// Kết quả một ván SOLO do game client gửi
 model GameResult {
-  id              String   @id @default(uuid()) @db.Uuid
-  studentId       String   @map("student_id") @db.Uuid
+  id              String         @id @default(uuid()) @db.Uuid
+  studentId       String         @map("student_id") @db.Uuid
   /// Lớp tại thời điểm chơi (null nếu chưa vào lớp)
-  classId         String?  @map("class_id") @db.Uuid
-  gameId          String   @map("game_id")
-  mode            String   @default("solo")
-  levelId         String   @map("level_id")
-  packId          String?  @map("pack_id")
+  classId         String?        @map("class_id") @db.Uuid
+  gameId          String         @map("game_id")
+  mode            String         @default("solo")
+  levelId         String         @map("level_id")
+  packId          String?        @map("pack_id")
   correct         Int
   total           Int
   score           Int
-  durationMs      Int?     @map("duration_ms")
-  endedBy         String   @map("ended_by")
-  playedAt        DateTime @map("played_at")
+  durationMs      Int?           @map("duration_ms")
+  endedBy         String         @map("ended_by")
+  playedAt        DateTime       @map("played_at")
   /// Khoá idempotent do client sinh
-  clientSessionId String   @map("client_session_id") @db.Uuid
-  pointsAwarded   Int      @default(0) @map("points_awarded")
-  pointsReason    String?  @map("points_reason")
-  details         Json     @default("{}")
-  createdAt       DateTime @default(now()) @map("created_at")
+  clientSessionId String         @map("client_session_id") @db.Uuid
+  pointsAwarded   Int            @default(0) @map("points_awarded")
+  pointsReason    String?        @map("points_reason")
+  details         Json           @default("{}")
+  createdAt       DateTime       @default(now()) @map("created_at")
   student         StudentProfile @relation(fields: [studentId], references: [userId], onDelete: Cascade)
   class           Class?         @relation(fields: [classId], references: [id], onDelete: SetNull)
   game            Game           @relation(fields: [gameId], references: [id], onDelete: Restrict)
@@ -110,20 +110,20 @@ model GameResult {
 
 /// Sổ điểm (ledger). Tổng điểm học sinh = SUM(points); điểm đi theo học sinh khi đổi lớp.
 model PointEntry {
-  id           String    @id @default(uuid()) @db.Uuid
-  studentId    String    @map("student_id") @db.Uuid
+  id           String         @id @default(uuid()) @db.Uuid
+  studentId    String         @map("student_id") @db.Uuid
   /// Lớp tại thời điểm cộng (để báo cáo), có thể null
-  classId      String?   @map("class_id") @db.Uuid
+  classId      String?        @map("class_id") @db.Uuid
   /// GAME: bắt buộc; BONUS: tuỳ chọn (thưởng theo game)
-  gameId       String?   @map("game_id")
+  gameId       String?        @map("game_id")
   kind         PointKind
   /// BONUS có thể âm (sửa điểm)
   points       Int
   note         String?
-  gameResultId String?   @unique @map("game_result_id") @db.Uuid
+  gameResultId String?        @unique @map("game_result_id") @db.Uuid
   /// null = hệ thống (game)
-  createdById  String?   @map("created_by_id") @db.Uuid
-  createdAt    DateTime  @default(now()) @map("created_at")
+  createdById  String?        @map("created_by_id") @db.Uuid
+  createdAt    DateTime       @default(now()) @map("created_at")
   student      StudentProfile @relation(fields: [studentId], references: [userId], onDelete: Cascade)
   class        Class?         @relation(fields: [classId], references: [id], onDelete: SetNull)
   game         Game?          @relation(fields: [gameId], references: [id], onDelete: SetNull)

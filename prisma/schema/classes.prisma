@@ -40,14 +40,14 @@ model ClassTeacher {
 /// Học sinh thuộc lớp. Mỗi học sinh chỉ có MỘT membership đang hoạt động (left_at IS NULL):
 /// partial unique index `class_memberships_active_student` được thêm tay trong migration SQL.
 model ClassMembership {
-  id         String    @id @default(uuid()) @db.Uuid
-  studentId  String    @map("student_id") @db.Uuid
-  classId    String    @map("class_id") @db.Uuid
-  joinedAt   DateTime  @default(now()) @map("joined_at")
-  leftAt     DateTime? @map("left_at")
+  id         String         @id @default(uuid()) @db.Uuid
+  studentId  String         @map("student_id") @db.Uuid
+  classId    String         @map("class_id") @db.Uuid
+  joinedAt   DateTime       @default(now()) @map("joined_at")
+  leftAt     DateTime?      @map("left_at")
   /// Hạng (tổng điểm, mọi thời gian) ở lần tính gần nhất — để phát hiện đổi hạng
-  lastRank   Int?      @map("last_rank")
-  lastRankAt DateTime? @map("last_rank_at")
+  lastRank   Int?           @map("last_rank")
+  lastRankAt DateTime?      @map("last_rank_at")
   student    StudentProfile @relation(fields: [studentId], references: [userId], onDelete: Cascade)
   class      Class          @relation(fields: [classId], references: [id], onDelete: Cascade)
 
