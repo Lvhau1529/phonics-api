@@ -14,8 +14,9 @@ phonics-dev (`docs/`). Rule riêng của gói hợp đồng: [packages/contracts
 ## Hạ tầng (ADR 0024)
 
 Production = một VPS, `docker-compose.yml`: `db` (Postgres 18, volume `pgdata`) + `api` + `caddy` + `backup`
-(`deploy/backup.sh`). Media lưu đĩa (volume `media`), API tự phục vụ `/files/*`. Không dùng Neon / S3 / dịch vụ DB
-ngoài. Job theo thời gian không truy vấn DB định kỳ dày (hẹn timer theo mốc dữ liệu như `AssignmentsScheduler`).
+(`deploy/backup.sh`). Media qua `MediaStorage` theo `MEDIA_STORAGE`: `disk` (volume `media`, API tự phục vụ `/files/*`)
+hoặc `r2` (Cloudflare R2, client PUT thẳng presigned URL; README > Media trên Cloudflare R2). Không dùng Neon / dịch
+vụ DB ngoài. Job theo thời gian không truy vấn DB định kỳ dày (hẹn timer theo mốc dữ liệu như `AssignmentsScheduler`).
 
 ## Dev cùng các repo khác
 
@@ -35,7 +36,7 @@ Cấu trúc thư mục + versioning: [README > Cấu trúc](README.md#cấu-trú
 - `core/`: hạ tầng `@Global` không nghiệp vụ (logger, time, access) — gom trong `CoreModule` (kèm `PrismaModule`).
 - `database/`: `PrismaModule`, `PrismaService`, kiểu `Tx` (`database/types.ts`); `database/seeds/` = seed theo miền.
   Migration vẫn ở `prisma/migrations` (Prisma CLI + `docker-entrypoint.sh`).
-- `infrastructure/`: hạ tầng ngoài nghiệp vụ (`storage/` — `DiskStorage`, file media trên đĩa `MEDIA_DIR`, ADR 0024).
+- `infrastructure/`: hạ tầng ngoài nghiệp vụ (`storage/` — `MediaStorage` trừu tượng: `DiskStorage` trên đĩa `MEDIA_DIR` (ADR 0024) / `R2Storage`; chọn ở `mediaStorageProvider`).
 - `common/`: khối của request pipeline — `middleware/`, `guards/`, `decorators/`, `filters/`, `errors/`, `i18n/`
   (message lỗi vi / en, locale theo request), `dto/`, `utils/`. Thêm interceptor / pipe riêng thì tạo `common/interceptors/`, `common/pipes/`.
 - `bootstrap/configure-app.ts`: prefix, versioning, middleware (`app.use`), CORS, filter — dùng chung cho `main.ts`

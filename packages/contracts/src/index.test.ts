@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
   AVATARS,
+  isMimeAllowed,
+  MEDIA_LIMITS,
+  mediaLimitsFor,
+  STUDENT_MEDIA_LIMITS,
   AvatarKey,
   AwardBonusBody,
   DEFAULT_AVATAR,
@@ -366,5 +370,27 @@ describe('Message validate song ngữ (khoá + translateIssueMessage)', () => {
 
   it('message không phải khoá (mặc định của zod) giữ nguyên', () => {
     expect(translateIssueMessage({ message: 'Too small' }, 'vi')).toBe('Too small');
+  });
+});
+
+describe('media limits', () => {
+  it('học sinh: chỉ PNG / ghi âm của game, trần nhỏ hơn GV; GV / admin theo MEDIA_LIMITS', () => {
+    expect(mediaLimitsFor('STUDENT')).toBe(STUDENT_MEDIA_LIMITS);
+    expect(mediaLimitsFor('TEACHER')).toBe(MEDIA_LIMITS);
+    expect(mediaLimitsFor('ADMIN')).toBe(MEDIA_LIMITS);
+    for (const kind of ['IMAGE', 'AUDIO'] as const) {
+      expect(STUDENT_MEDIA_LIMITS[kind].maxBytes).toBeLessThan(MEDIA_LIMITS[kind].maxBytes);
+      for (const mime of STUDENT_MEDIA_LIMITS[kind].mimeTypes) expect(isMimeAllowed(kind, mime)).toBe(true);
+    }
+  });
+
+  it('PresignMediaBody chặn vượt MEDIA_LIMITS', () => {
+    const body = { kind: 'AUDIO', mimeType: 'audio/wav', fileName: 'a.wav' };
+    expect(PresignMediaBody.safeParse({ ...body, sizeBytes: MEDIA_LIMITS.AUDIO.maxBytes }).success).toBe(
+      true,
+    );
+    expect(PresignMediaBody.safeParse({ ...body, sizeBytes: MEDIA_LIMITS.AUDIO.maxBytes + 1 }).success).toBe(
+      false,
+    );
   });
 });

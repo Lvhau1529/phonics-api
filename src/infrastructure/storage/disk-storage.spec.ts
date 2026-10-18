@@ -12,19 +12,19 @@ describe('DiskStorage', () => {
 
   beforeEach(async () => {
     dir = await mkdtemp(join(tmpdir(), 'phonics-media-'));
-    storage = new DiskStorage({ MEDIA_DIR: dir } as Env);
+    storage = new DiskStorage({ MEDIA_DIR: dir, API_PUBLIC_URL: 'http://localhost:3000' } as Env);
   });
   afterEach(() => rm(dir, { recursive: true, force: true }));
 
-  it('ghi file theo key (tạo thư mục con), đọc size, xoá', async () => {
+  it('ghi file theo key (tạo thư mục con), đọc stat, xoá', async () => {
     const key = 'media/u1/a.png';
-    expect(await storage.size(key)).toBeNull();
+    expect(await storage.stat(key)).toBeNull();
     const written = await storage.write(key, Readable.from([Buffer.from('ab'), Buffer.from('cd')]), 10);
     expect(written).toBe(4);
     expect(await readFile(join(dir, key), 'utf8')).toBe('abcd');
-    expect(await storage.size(key)).toBe(4);
+    expect(await storage.stat(key)).toEqual({ size: 4, contentType: null });
     await storage.remove(key);
-    expect(await storage.size(key)).toBeNull();
+    expect(await storage.stat(key)).toBeNull();
     await expect(storage.remove(key)).resolves.toBeUndefined();
   });
 
@@ -33,7 +33,7 @@ describe('DiskStorage', () => {
     await expect(
       storage.write(key, Readable.from([Buffer.alloc(6), Buffer.alloc(6)]), 10),
     ).rejects.toBeInstanceOf(FileTooLargeError);
-    expect(await storage.size(key)).toBeNull();
+    expect(await storage.stat(key)).toBeNull();
     expect(await readdir(join(dir, '.tmp'))).toEqual([]);
   });
 

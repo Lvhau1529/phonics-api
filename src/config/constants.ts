@@ -44,4 +44,6 @@ export const WORKSHEETS = {
   maxDurationMs: 6 * 3600 * 1000,
   /** Đường dẫn API phục vụ file media (ngoài `/api`): `${API_PUBLIC_URL}/files/media/<owner>/<uuid>.<ext>` */
   mediaFilesPath: '/files',
+  /** File media có tên bất biến (uuid) → cache 1 năm (đĩa: express static; R2: header lưu kèm đối tượng) */
+  mediaCacheControl: 'public, max-age=31536000, immutable',
 } as const;

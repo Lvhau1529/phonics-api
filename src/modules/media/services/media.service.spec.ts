@@ -4,7 +4,7 @@ import { mockDeep } from 'vitest-mock-extended';
 import { AppError } from '@/common/errors/app-error';
 import { type Env } from '@/config/env.schema';
 import { type PrismaService } from '@/database/prisma.service';
-import { type DiskStorage, FileTooLargeError } from '@/infrastructure/storage/disk-storage';
+import { FileTooLargeError, type MediaStorage } from '@/infrastructure/storage/media-storage';
 import { type AuthUser } from '@/modules/auth/types/auth.types';
 import { buildObjectKey } from '@/modules/media/utils/media-key';
 import { MediaService } from '@/modules/media/services/media.service';
@@ -48,7 +48,9 @@ const pendingRow = {
 
 function setup() {
   const prisma = mockDeep<PrismaService>();
-  const storage = mockDeep<DiskStorage>();
+  const storage = mockDeep<MediaStorage>();
+  Object.assign(storage, { publicBaseUrl: 'https://api.example/files' });
+  storage.presignPut.mockResolvedValue(null);
   const service = new MediaService(prisma, env, storage);
   return { prisma, storage, service };
 }
@@ -80,6 +82,59 @@ describe('MediaService', () => {
     expect(prisma.mediaAsset.create.mock.calls[0][0].data).toMatchObject({
       status: 'PENDING',
       mimeType: 'image/png',
+    });
+  });
+
+  it('presign: học sinh chỉ tải file game sinh, trần nhỏ hơn GV (STUDENT_MEDIA_LIMITS)', async () => {
+    const { prisma, service } = setup();
+    prisma.mediaAsset.create.mockResolvedValue(pendingRow as never);
+    const student: AuthUser = { ...other, role: 'STUDENT' };
+    const presign = (kind: 'IMAGE' | 'AUDIO', mimeType: string, sizeBytes: number, user = student) =>
+      service.presign(user, { kind, mimeType, sizeBytes, fileName: 'f' });
+
+    await expect(presign('IMAGE', 'image/jpeg', 1000)).rejects.toMatchObject({
+      code: 'MEDIA_TYPE_UNSUPPORTED',
+    });
+    await expect(presign('IMAGE', 'image/png', 2 * 1024 * 1024)).rejects.toMatchObject({
+      code: 'MEDIA_TOO_LARGE',
+    });
+    await expect(presign('AUDIO', 'audio/wav', 1000)).rejects.toMatchObject({
+      code: 'MEDIA_TYPE_UNSUPPORTED',
+    });
+    await expect(presign('AUDIO', 'audio/webm;codecs=opus', 3 * 1024 * 1024)).rejects.toMatchObject({
+      code: 'MEDIA_TOO_LARGE',
+    });
+    expect(prisma.mediaAsset.create).not.toHaveBeenCalled();
+
+    await expect(presign('IMAGE', 'image/png', 200_000)).resolves.toBeDefined();
+    await expect(presign('AUDIO', 'audio/mp4', 500_000)).resolves.toBeDefined();
+    // GV vẫn theo MEDIA_LIMITS
+    await expect(presign('IMAGE', 'image/jpeg', 4 * 1024 * 1024, teacher)).resolves.toBeDefined();
+  });
+
+  it('presign (R2): trả nguyên presigned URL + header của storage', async () => {
+    const { prisma, storage, service } = setup();
+    prisma.mediaAsset.create.mockResolvedValue(pendingRow as never);
+    const headers = { 'Content-Type': 'image/png', 'Cache-Control': 'public, max-age=31536000, immutable' };
+    storage.presignPut.mockResolvedValue({
+      url: 'https://acc.r2.cloudflarestorage.com/b/k?X-Amz-Signature=s',
+      headers,
+    });
+    const r = await service.presign(teacher, {
+      kind: 'IMAGE',
+      mimeType: 'image/png',
+      sizeBytes: 1000,
+      fileName: 'a.png',
+    });
+    expect(storage.presignPut).toHaveBeenCalledWith({
+      key: expect.stringMatching(/^media\//),
+      mimeType: 'image/png',
+      sizeBytes: 1000,
+      expiresInSec: 900,
+    });
+    expect(r).toMatchObject({
+      uploadUrl: 'https://acc.r2.cloudflarestorage.com/b/k?X-Amz-Signature=s',
+      headers,
     });
   });
 
@@ -122,17 +177,17 @@ describe('MediaService', () => {
     expect(storage.write).not.toHaveBeenCalled();
   });
 
-  it('upload: hợp lệ → ghi đĩa với giới hạn theo loại; vượt → 413 MEDIA_TOO_LARGE', async () => {
+  it('upload: hợp lệ → ghi đĩa, trần = sizeBytes đã khai; vượt → 413 MEDIA_TOO_LARGE', async () => {
     const { prisma, storage, service } = setup();
     const exp = inFuture();
     const link = { exp, sig: signUpload(SECRET, pendingRow.id, exp) };
     prisma.mediaAsset.findUnique.mockResolvedValue(pendingRow as never);
     const body = Readable.from([Buffer.from('png')]);
     await service.upload(pendingRow.id, link, { contentType: 'image/png; charset=binary' }, body);
-    expect(storage.write).toHaveBeenCalledWith(pendingRow.key, body, 5 * 1024 * 1024);
+    expect(storage.write).toHaveBeenCalledWith(pendingRow.key, body, pendingRow.sizeBytes);
 
     await expect(
-      service.upload(pendingRow.id, link, { contentType: 'image/png', contentLength: 6 * 1024 * 1024 }, body),
+      service.upload(pendingRow.id, link, { contentType: 'image/png', contentLength: 1001 }, body),
     ).rejects.toMatchObject({ code: 'MEDIA_TOO_LARGE' });
     expect(storage.write).toHaveBeenCalledTimes(1);
 
@@ -147,24 +202,34 @@ describe('MediaService', () => {
   it('complete: chưa có file → 409 MEDIA_UPLOAD_INCOMPLETE', async () => {
     const { prisma, storage, service } = setup();
     prisma.mediaAsset.findUnique.mockResolvedValue(pendingRow as never);
-    storage.size.mockResolvedValue(null);
+    storage.stat.mockResolvedValue(null);
     await expect(service.complete(teacher, pendingRow.id, {})).rejects.toMatchObject({
       code: 'MEDIA_UPLOAD_INCOMPLETE',
     });
   });
 
-  it('complete: size vượt giới hạn → xoá file và 409', async () => {
+  it('complete: size vượt sizeBytes đã khai → xoá file và 409', async () => {
     const { prisma, storage, service } = setup();
     prisma.mediaAsset.findUnique.mockResolvedValue(pendingRow as never);
-    storage.size.mockResolvedValue(6 * 1024 * 1024);
+    storage.stat.mockResolvedValue({ size: 1001, contentType: null });
     await expect(service.complete(teacher, pendingRow.id, {})).rejects.toBeInstanceOf(AppError);
+    expect(storage.remove).toHaveBeenCalledWith(pendingRow.key);
+  });
+
+  it('complete: mime đối tượng khác lúc presign → xoá và 409', async () => {
+    const { prisma, storage, service } = setup();
+    prisma.mediaAsset.findUnique.mockResolvedValue(pendingRow as never);
+    storage.stat.mockResolvedValue({ size: 900, contentType: 'text/html' });
+    await expect(service.complete(teacher, pendingRow.id, {})).rejects.toMatchObject({
+      code: 'MEDIA_UPLOAD_INCOMPLETE',
+    });
     expect(storage.remove).toHaveBeenCalledWith(pendingRow.key);
   });
 
   it('complete: hợp lệ → READY với url public; gọi lại idempotent', async () => {
     const { prisma, storage, service } = setup();
     prisma.mediaAsset.findUnique.mockResolvedValue(pendingRow as never);
-    storage.size.mockResolvedValue(900);
+    storage.stat.mockResolvedValue({ size: 900, contentType: null });
     const readyRow = { ...pendingRow, status: 'READY' as const, sizeBytes: 900, url: 'u' };
     prisma.mediaAsset.update.mockResolvedValue(readyRow as never);
     const view = await service.complete(teacher, pendingRow.id, { width: 10, height: 10 });
@@ -177,9 +242,9 @@ describe('MediaService', () => {
     });
 
     prisma.mediaAsset.findUnique.mockResolvedValue(readyRow as never);
-    storage.size.mockClear();
+    storage.stat.mockClear();
     await service.complete(teacher, pendingRow.id, {});
-    expect(storage.size).not.toHaveBeenCalled();
+    expect(storage.stat).not.toHaveBeenCalled();
   });
 
   it('complete: người khác → 403', async () => {

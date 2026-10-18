@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { IsoDateTime } from './common/dates.js';
 import { Id } from './common/ids.js';
 import { ValidationMessage } from './common/validation-messages.js';
+import { type Role } from './users.js';
 
 /**
  * Media (ảnh / audio) tải lên bằng link PUT có chữ ký (ADR 0018 / 0024):
@@ -14,11 +15,16 @@ export type MediaKind = z.infer<typeof MediaKind>;
 export const MediaStatus = z.enum(['PENDING', 'READY']);
 export type MediaStatus = z.infer<typeof MediaStatus>;
 
-/** Giới hạn theo loại (client kiểm trước, API kiểm lại ở presign và complete) */
+/**
+ * Giới hạn file nội dung câu hỏi do GV / admin tải lên (file có sẵn, không nén phía client). Client kiểm trước,
+ * API kiểm lại ở presign, PUT và complete.
+ * - IMAGE 5 MB: ảnh chụp điện thoại (JPG 12 MP ~3–5 MB) vẫn qua khi admin chưa thu nhỏ ảnh.
+ * - AUDIO 5 MB: audio mẫu là một từ / một câu ngắn — ≈ 30 s WAV 16-bit 44.1 kHz stereo, vài phút MP3.
+ */
 export const MEDIA_LIMITS = {
   IMAGE: { maxBytes: 5 * 1024 * 1024, mimeTypes: ['image/jpeg', 'image/png', 'image/webp'] },
   AUDIO: {
-    maxBytes: 10 * 1024 * 1024,
+    maxBytes: 5 * 1024 * 1024,
     mimeTypes: [
       'audio/mpeg',
       'audio/mp4',
@@ -30,6 +36,26 @@ export const MEDIA_LIMITS = {
     ],
   },
 } as const satisfies Record<MediaKind, { maxBytes: number; mimeTypes: readonly string[] }>;
+
+/** Thời lượng ghi âm tối đa của học sinh trong game (bài SPEAK / TRACE_AND_READ) */
+export const MAX_RECORDING_SECONDS = 30;
+
+/**
+ * Giới hạn file câu trả lời học sinh — chỉ những gì game tự sinh:
+ * - IMAGE: ảnh tô chữ (TracePad `canvas.toBlob('image/png')`, cao ≤ 360 px) — nét vẽ trên nền trong, ≪ 1 MB.
+ * - AUDIO: ghi âm ≤ MAX_RECORDING_SECONDS bằng MediaRecorder (webm/opus, Safari mp4/aac, ogg), tính dư ở 512 kbps
+ *   (mặc định trình duyệt ~32–128 kbps) → ~1.9 MB.
+ */
+export const STUDENT_MEDIA_LIMITS = {
+  IMAGE: { maxBytes: 1024 * 1024, mimeTypes: ['image/png'] },
+  AUDIO: {
+    maxBytes: MAX_RECORDING_SECONDS * 64 * 1024,
+    mimeTypes: ['audio/webm', 'audio/mp4', 'audio/ogg'],
+  },
+} as const satisfies Record<MediaKind, { maxBytes: number; mimeTypes: readonly string[] }>;
+
+/** Giới hạn áp cho người tải lên: học sinh → STUDENT_MEDIA_LIMITS, GV / admin → MEDIA_LIMITS */
+export const mediaLimitsFor = (role: Role) => (role === 'STUDENT' ? STUDENT_MEDIA_LIMITS : MEDIA_LIMITS);
 
 /** Đuôi file theo mime (key trên bucket không lấy đuôi từ tên file người dùng gửi) */
 export const MEDIA_EXT: Record<string, string> = {

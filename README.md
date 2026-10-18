@@ -29,7 +29,7 @@ phonics-api
 │   │                       APP_TIMEZONE), access/ (AccessService — GV chỉ thấy lớp mình)
 │   ├── database/           PrismaModule, PrismaService (driver adapter pg), types.ts (kiểu Tx)
 │   │   └── seeds/          seed.ts (entry `prisma db seed`) + *.seed.ts theo miền (admin, games, nhóm quyền, demo)
-│   ├── infrastructure/     hạ tầng ngoài nghiệp vụ: storage/ (DiskStorage — file media trên đĩa, MEDIA_DIR)
+│   ├── infrastructure/     hạ tầng ngoài nghiệp vụ: storage/ (MediaStorage — DiskStorage trên đĩa / R2Storage)
 │   ├── common/             KHỐI DÙNG CHUNG cho request pipeline (không chứa nghiệp vụ)
 │   │   ├── middleware/     request-id (X-Request-Id)
 │   │   ├── guards/         JwtAuthGuard, RolesGuard, PermissionsGuard
@@ -219,14 +219,53 @@ Nguồn sự thật: `src/config/env.schema.ts` (zod; thiếu / sai thì API kh�
 | `LOG_LEVEL`                 |          | `info`             | `trace` / `debug` / `info` / `warn` / `error`                           |
 | `DATABASE_URL_TEST`         |          |                    | Chỉ cho `test:e2e` (DB riêng, bị truncate)                              |
 | `API_PUBLIC_URL`            | prod ✓   | `http://localhost:${PORT}` | URL public của API (không `/api`) — dựng link upload / file media (VPS: compose đặt `https://${API_DOMAIN}`) |
-| `MEDIA_DIR`                 |          | `storage/media`    | Thư mục lưu ảnh / audio (Docker: volume `/data/media`)                  |
-| `MEDIA_PUBLIC_BASE_URL`     |          |                    | CDN / domain riêng trước file media; mặc định `${API_PUBLIC_URL}/files` |
+| `MEDIA_STORAGE`             |          | `disk`             | Nơi lưu media: `disk` (ổ đĩa VPS) hoặc `r2` (Cloudflare R2)             |
+| `MEDIA_DIR`                 |          | `storage/media`    | `disk`: thư mục lưu ảnh / audio (Docker: volume `/data/media`)          |
+| `MEDIA_PUBLIC_BASE_URL`     | r2 ✓     |                    | URL gốc public của file. disk: CDN, mặc định `${API_PUBLIC_URL}/files`; r2: custom domain / `r2.dev` của bucket |
+| `R2_ACCOUNT_ID`             | r2 ✓     |                    | Cloudflare Account ID                                                   |
+| `R2_ACCESS_KEY_ID`          | r2 ✓     |                    | Access Key ID của R2 API token                                          |
+| `R2_SECRET_ACCESS_KEY`      | r2 ✓     |                    | Secret Access Key của R2 API token                                      |
+| `R2_BUCKET`                 | r2 ✓     |                    | Tên bucket                                                              |
 | `MEDIA_PRESIGN_TTL_SEC`     |          | `900`              | Hạn link upload đã ký (giây)                                            |
 
 Media phiếu bài tập (ADR 0017 / 0018 / 0024): `POST /media/presign` trả `uploadUrl` =
 `${API_PUBLIC_URL}/api/v1/media/:id/upload?exp=…&sig=…` (HMAC theo `JWT_ACCESS_SECRET`, không cần bearer) → client PUT
-byte (giới hạn `MEDIA_LIMITS`) → `POST /media/:id/complete` → file public tại `${API_PUBLIC_URL}/files/media/...`
+byte (giới hạn theo người tải: GV / admin `MEDIA_LIMITS` — ảnh 5 MB, audio 5 MB; học sinh
+`STUDENT_MEDIA_LIMITS` — ảnh tô chữ PNG 1 MB, ghi âm ≤ 30 s webm / mp4 / ogg ~1.9 MB; contracts `media.ts`) → `POST /media/:id/complete` → file public tại `${API_PUBLIC_URL}/files/media/...`
 (API tự phục vụ, cache 1 năm, `Access-Control-Allow-Origin: *`). Chạy dev cũng upload được (lưu vào `storage/media`).
+
+### Media trên Cloudflare R2
+
+`MEDIA_STORAGE=r2`: `uploadUrl` là presigned URL (SigV4, ký cả `Content-Type` và `Content-Length` = `sizeBytes` đã
+khai lúc presign — body khác kích thước bị R2 trả 403, nên không PUT được file vượt `MEDIA_LIMITS`) của R2 — client PUT thẳng lên bucket
+với đúng `headers` trả về, API không chạm byte; `complete` HEAD đối tượng kiểm size (`MEDIA_LIMITS`) + mime, sai thì
+xoá. File public tại `${MEDIA_PUBLIC_BASE_URL}/media/...`; API không mount `/files/*`. Contracts / game / admin không
+đổi. Cài đặt một lần:
+
+1. Cloudflare dashboard > R2 > **Create bucket** (vd `phonics-media`).
+2. Bucket > Settings > **Public access**: gắn custom domain (khuyên dùng, vd `media.example.vn` — có cache CDN) hoặc
+   bật `r2.dev` (chỉ để thử, bị giới hạn tốc độ). URL đó là `MEDIA_PUBLIC_BASE_URL`.
+3. R2 > **Manage R2 API Tokens** > Create token, quyền **Object Read & Write**, giới hạn bucket trên → điền
+   `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`; `R2_ACCOUNT_ID` lấy ở trang R2 (Account details).
+4. Đặt `MEDIA_STORAGE=r2`, `R2_BUCKET` trong `.env` (prod: `.env.production`), khởi động lại API.
+5. CORS cho bucket (game / admin PUT từ trình duyệt): `pnpm media:cors` (đặt theo `CORS_ORIGINS`; cần token quyền
+   Admin Read & Write) hoặc dán tay vào bucket > Settings > CORS Policy:
+
+   ```json
+   [
+     {
+       "AllowedOrigins": ["https://game.example.vn", "https://admin.example.vn"],
+       "AllowedMethods": ["PUT", "GET", "HEAD"],
+       "AllowedHeaders": ["content-type", "cache-control"],
+       "ExposeHeaders": ["ETag"],
+       "MaxAgeSeconds": 3600
+     }
+   ]
+   ```
+
+Đổi driver không chuyển file cũ: bản ghi `media_assets` đã READY giữ `url` cũ (`/files/...`) — muốn bỏ đĩa hẳn thì
+chép thư mục `media/` lên bucket (vd `rclone copy`) và cập nhật cột `url`. Với R2, volume `media` + phần nén media
+của `backup` không còn dữ liệu mới.
 
 ## Contracts
 

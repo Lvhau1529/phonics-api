@@ -43,10 +43,20 @@ export const envSchema = z
      * `https://api.example.vn`. Bắt buộc ở production; dev mặc định `http://localhost:${PORT}`.
      */
     API_PUBLIC_URL: z.url().optional(),
-    /** Thư mục lưu ảnh / audio phiếu bài tập (ADR 0024). Docker: volume `/data/media`. */
+    /** Nơi lưu ảnh / audio phiếu bài tập: `disk` (ổ đĩa VPS, ADR 0024) hoặc `r2` (Cloudflare R2) */
+    MEDIA_STORAGE: z.enum(['disk', 'r2']).default('disk'),
+    /** Thư mục lưu media khi `MEDIA_STORAGE=disk`. Docker: volume `/data/media`. */
     MEDIA_DIR: z.string().min(1).default('storage/media'),
-    /** CDN / domain riêng đứng trước file media; mặc định `${API_PUBLIC_URL}/files` (API tự phục vụ) */
+    /**
+     * URL gốc public của file media. disk: CDN / domain riêng, mặc định `${API_PUBLIC_URL}/files` (API tự phục vụ);
+     * r2: bắt buộc — custom domain hoặc `https://pub-xxx.r2.dev` của bucket.
+     */
     MEDIA_PUBLIC_BASE_URL: z.url().optional(),
+    /** Cloudflare R2 (khi `MEDIA_STORAGE=r2`): Account ID + API token (quyền Object Read & Write) + tên bucket */
+    R2_ACCOUNT_ID: z.string().min(1).optional(),
+    R2_ACCESS_KEY_ID: z.string().min(1).optional(),
+    R2_SECRET_ACCESS_KEY: z.string().min(1).optional(),
+    R2_BUCKET: z.string().min(1).optional(),
     /** Hạn của link upload đã ký (giây) */
     MEDIA_PRESIGN_TTL_SEC: z.coerce.number().int().min(60).max(3600).default(900),
   })
@@ -57,6 +67,18 @@ export const envSchema = z
         path: ['API_PUBLIC_URL'],
         message: 'Production cần API_PUBLIC_URL (vd https://api.example.vn) để dựng link upload / file media',
       });
+    }
+    if (env.MEDIA_STORAGE === 'r2') {
+      for (const key of [
+        'R2_ACCOUNT_ID',
+        'R2_ACCESS_KEY_ID',
+        'R2_SECRET_ACCESS_KEY',
+        'R2_BUCKET',
+        'MEDIA_PUBLIC_BASE_URL',
+      ] as const) {
+        if (!env[key])
+          ctx.addIssue({ code: 'custom', path: [key], message: 'Bắt buộc khi MEDIA_STORAGE=r2' });
+      }
     }
   })
   .transform((env) => ({

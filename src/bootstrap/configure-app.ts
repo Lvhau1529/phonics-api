@@ -16,7 +16,7 @@ import { type Env } from '@/config/env.schema';
  * prefix / version / middleware như production.
  *
  * Thứ tự xử lý một request:
- *   (file media `/files/*` → trả thẳng từ MEDIA_DIR, không qua phần dưới)
+ *   (MEDIA_STORAGE=disk: file media `/files/*` → trả thẳng từ MEDIA_DIR, không qua phần dưới)
  *   middleware (request-id → locale → helmet → cookie-parser → CORS → pino-http)
  *   → guard (Throttler → Jwt → Roles → Permissions, AppModule)
  *   → pipe (ZodValidationPipe) → controller → service
@@ -31,21 +31,22 @@ export function configureApp(app: NestExpressApplication, env: Env): void {
   // Sau nginx / Caddy: lấy IP thật của client cho throttle + audit
   app.set('trust proxy', 1);
 
-  // File media đã upload (ADR 0024): public, tên bất biến (uuid) → cache 1 năm; mọi origin đọc được (<img>, <audio>,
-  // canvas). Đặt trước helmet để không bị gắn Cross-Origin-Resource-Policy: same-origin.
-  app.useStaticAssets(resolve(env.MEDIA_DIR), {
-    prefix: WORKSHEETS.mediaFilesPath,
-    index: false,
-    dotfiles: 'ignore',
-    immutable: true,
-    maxAge: '365d',
-    setHeaders: (res, path) => {
-      res.setHeader('Access-Control-Allow-Origin', '*');
-      res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
-      // .webm chỉ sinh từ audio/webm (MEDIA_EXT) — mặc định express đoán video/webm
-      if (path.endsWith('.webm')) res.setHeader('Content-Type', 'audio/webm');
-    },
-  });
+  // File media đã upload lên đĩa (ADR 0024; R2 thì bucket tự phục vụ): public, tên bất biến (uuid) → cache 1 năm;
+  // mọi origin đọc được (<img>, <audio>, canvas). Đặt trước helmet để không bị gắn Cross-Origin-Resource-Policy.
+  if (env.MEDIA_STORAGE === 'disk')
+    app.useStaticAssets(resolve(env.MEDIA_DIR), {
+      prefix: WORKSHEETS.mediaFilesPath,
+      index: false,
+      dotfiles: 'ignore',
+      immutable: true,
+      maxAge: '365d',
+      setHeaders: (res, path) => {
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+        // .webm chỉ sinh từ audio/webm (MEDIA_EXT) — mặc định express đoán video/webm
+        if (path.endsWith('.webm')) res.setHeader('Content-Type', 'audio/webm');
+      },
+    });
 
   app.use(requestIdMiddleware);
   // Message lỗi theo Accept-Language (ADR 0025): middleware gắn locale, zod sinh message mặc định theo locale đó

@@ -3,7 +3,7 @@ import { Inject, Injectable, Logger } from '@nestjs/common';
 import {
   API_PREFIX,
   baseMimeType,
-  MEDIA_LIMITS,
+  mediaLimitsFor,
   type CompleteMediaBody,
   type MediaKind,
   type MediaMap,
@@ -13,12 +13,11 @@ import {
   type PresignMediaResponse,
 } from '@phonics/contracts';
 import { AppError, notFound } from '@/common/errors/app-error';
-import { WORKSHEETS } from '@/config/constants';
 import { ENV } from '@/config/env.module';
 import { type Env } from '@/config/env.schema';
 import { PrismaService } from '@/database/prisma.service';
 import { type Tx } from '@/database/types';
-import { DiskStorage, FileTooLargeError } from '@/infrastructure/storage/disk-storage';
+import { FileTooLargeError, MediaStorage } from '@/infrastructure/storage/media-storage';
 import { type AuthUser } from '@/modules/auth/types/auth.types';
 import { toMediaView } from '@/modules/media/dto/responses/media.view';
 import { buildObjectKey } from '@/modules/media/utils/media-key';
@@ -26,10 +25,10 @@ import { signUpload, verifyUpload } from '@/modules/media/utils/upload-signature
 import { dayjs } from '@/core/time/dayjs';
 
 /**
- * Media (ảnh / audio) lưu trên ổ đĩa VPS — ADR 0024 (thay Neon Object Storage của ADR 0018, giữ nguyên contracts):
- * presign (bản ghi PENDING + link PUT có chữ ký) → client PUT byte lên API (`upload`) → complete (kiểm size) →
- * READY. File public phục vụ ở `${API_PUBLIC_URL}/files/...` (configure-app). Mọi response có media đi kèm
- * `media: MediaMap` qua `hydrate()`.
+ * Media (ảnh / audio) trên `MediaStorage` (MEDIA_STORAGE: đĩa VPS — ADR 0024, hoặc Cloudflare R2), contracts như nhau:
+ * presign (bản ghi PENDING + link PUT có chữ ký) → client PUT byte (đĩa: lên API qua `upload`; R2: thẳng lên
+ * presigned URL của bucket) → complete (kiểm size / mime) → READY. Mọi response có media đi kèm `media: MediaMap`
+ * qua `hydrate()`.
  */
 @Injectable()
 export class MediaService {
@@ -38,18 +37,25 @@ export class MediaService {
   constructor(
     private readonly prisma: PrismaService,
     @Inject(ENV) private readonly env: Env,
-    private readonly storage: DiskStorage,
+    private readonly storage: MediaStorage,
   ) {}
 
-  /** URL public của một key (API tự phục vụ, hoặc CDN qua MEDIA_PUBLIC_BASE_URL) */
+  /** URL public của một key (đĩa: API tự phục vụ / CDN; R2: domain public của bucket) */
   publicUrl(key: string): string {
-    const base = this.env.MEDIA_PUBLIC_BASE_URL ?? `${this.env.API_PUBLIC_URL}${WORKSHEETS.mediaFilesPath}`;
-    return `${base.replace(/\/+$/, '')}/${key}`;
+    return `${this.storage.publicBaseUrl.replace(/\/+$/, '')}/${key}`;
   }
 
-  /** Tạo bản ghi PENDING + link PUT đã ký. Client phải gửi đúng `headers` trả về. */
+  /**
+   * Tạo bản ghi PENDING + link PUT đã ký. Client phải gửi đúng `headers` trả về. `sizeBytes` khai ở đây (đã kiểm theo
+   * `mediaLimitsFor(role)`) là trần byte cho PUT và complete — R2 ký đúng số này, đĩa đếm byte theo nó.
+   */
   async presign(user: AuthUser, body: PresignMediaBody): Promise<PresignMediaResponse> {
     const mimeType = baseMimeType(body.mimeType);
+    // Contracts đã chặn theo MEDIA_LIMITS (nội dung của GV); học sinh hẹp hơn — chỉ file game tự sinh
+    const limits = mediaLimitsFor(user.role)[body.kind];
+    if (!(limits.mimeTypes as readonly string[]).includes(mimeType))
+      throw new AppError('MEDIA_TYPE_UNSUPPORTED', 415);
+    if (body.sizeBytes > limits.maxBytes) throw new AppError('MEDIA_TOO_LARGE', 413);
     const key = buildObjectKey(user.id, mimeType);
     const row = await this.prisma.mediaAsset.create({
       data: {
@@ -62,6 +68,21 @@ export class MediaService {
       },
     });
     const expiresAt = dayjs().add(this.env.MEDIA_PRESIGN_TTL_SEC, 'second');
+    const direct = await this.storage.presignPut({
+      key,
+      mimeType,
+      sizeBytes: body.sizeBytes,
+      expiresInSec: this.env.MEDIA_PRESIGN_TTL_SEC,
+    });
+    if (direct) {
+      return {
+        mediaId: row.id,
+        uploadUrl: direct.url,
+        method: 'PUT',
+        headers: direct.headers,
+        expiresAt: expiresAt.toISOString(),
+      };
+    }
     const exp = expiresAt.unix();
     const sig = signUpload(this.env.JWT_ACCESS_SECRET, row.id, exp);
     const uploadUrl = `${this.env.API_PUBLIC_URL}${API_PREFIX}/media/${row.id}/upload?exp=${exp}&sig=${sig}`;
@@ -76,8 +97,9 @@ export class MediaService {
 
   /**
    * PUT byte lên link đã ký (không cần đăng nhập — chữ ký là quyền ghi đúng media này, có hạn). Kiểm Content-Type
-   * khớp lúc presign và giới hạn dung lượng theo MEDIA_LIMITS: theo Content-Length trước khi đọc (trả 413 gọn), rồi
-   * đếm byte trong lúc ghi (client khai sai → cắt kết nối). Media phải còn PENDING.
+   * khớp lúc presign và giới hạn dung lượng theo `sizeBytes` đã khai: theo Content-Length trước khi đọc (trả 413 gọn), rồi
+   * đếm byte trong lúc ghi (client khai sai → cắt kết nối). Media phải còn PENDING. Chỉ storage đĩa — R2 không
+   * phát link này nên chữ ký không thể hợp lệ.
    */
   async upload(
     id: string,
@@ -94,7 +116,7 @@ export class MediaService {
     if (baseMimeType(request.contentType) !== row.mimeType) {
       throw new AppError('MEDIA_TYPE_UNSUPPORTED', 415, { message: 'contentTypeMismatch' });
     }
-    const maxBytes = MEDIA_LIMITS[row.kind].maxBytes;
+    const maxBytes = row.sizeBytes;
     if (request.contentLength !== undefined && request.contentLength > maxBytes) {
       throw new AppError('MEDIA_TOO_LARGE', 413);
     }
@@ -107,8 +129,8 @@ export class MediaService {
   }
 
   /**
-   * Xác nhận đã PUT xong: kiểm file có trên đĩa và size theo MEDIA_LIMITS; sai → xoá file, 409.
-   * Idempotent: đã READY thì trả luôn.
+   * Xác nhận đã PUT xong: kiểm file có trên storage, size ≤ `sizeBytes` đã khai lúc presign và mime (nếu storage lưu); sai → xoá
+   * file, 409. Idempotent: đã READY thì trả luôn.
    */
   async complete(user: AuthUser, id: string, body: CompleteMediaBody): Promise<MediaView> {
     const row = await this.prisma.mediaAsset.findUnique({ where: { id } });
@@ -116,14 +138,19 @@ export class MediaService {
     if (row.ownerId !== user.id && user.role !== 'ADMIN') throw new AppError('FORBIDDEN_SCOPE', 403);
     if (row.status === 'READY') return toMediaView(row);
 
-    const size = await this.storage.size(row.key);
-    if (size === null) throw new AppError('MEDIA_UPLOAD_INCOMPLETE', 409);
-    const limit = MEDIA_LIMITS[row.kind].maxBytes;
+    const stored = await this.storage.stat(row.key);
+    if (stored === null) throw new AppError('MEDIA_UPLOAD_INCOMPLETE', 409);
+    const { size, contentType } = stored;
+    const limit = row.sizeBytes;
     if (size <= 0 || size > limit) {
       await this.deleteObject(row.key);
       throw new AppError('MEDIA_UPLOAD_INCOMPLETE', 409, {
         fieldErrors: { sizeBytes: [size > limit ? 'MEDIA_TOO_LARGE' : 'fileEmpty'] },
       });
+    }
+    if (contentType !== null && baseMimeType(contentType) !== row.mimeType) {
+      await this.deleteObject(row.key);
+      throw new AppError('MEDIA_UPLOAD_INCOMPLETE', 409, { message: 'contentTypeMismatch' });
     }
 
     const updated = await this.prisma.mediaAsset.update({
@@ -189,7 +216,7 @@ export class MediaService {
     if (bad.length) throw new AppError('MEDIA_NOT_READY', 400, { details: { mediaIds: bad } });
   }
 
-  /** Xoá file trên đĩa (không có thì bỏ qua) */
+  /** Xoá file trên storage (không có thì bỏ qua) */
   async deleteObject(key: string): Promise<void> {
     try {
       await this.storage.remove(key);
