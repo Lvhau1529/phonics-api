@@ -12,7 +12,7 @@ export const envSchema = z
     NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
     PORT: z.coerce.number().int().min(1).max(65535).default(3000),
     APP_TIMEZONE: z.string().min(1).default('Asia/Ho_Chi_Minh'),
-    /** Postgres (VPS: service `db` trong docker-compose; dev: Postgres local của phonics-dev) */
+    /** Postgres (VPS: service `db` trong docker-compose; dev: Postgres của docker-compose.dev.yml) */
     DATABASE_URL: z.url(),
     /** Kết nối cho Prisma CLI (migrate / seed); thường trùng DATABASE_URL */
     DIRECT_URL: z.url().optional(),

@@ -19,8 +19,10 @@ ngoài. Job theo thời gian không truy vấn DB định kỳ dày (hẹn timer
 
 ## Dev cùng các repo khác
 
-Repo này độc lập (clone, cài, build, deploy riêng). Muốn chạy cả hệ thống cùng lúc (API + game + admin): đặt 3 repo
-nằm cạnh nhau cùng repo **phonics-dev** rồi `pnpm dev` trong phonics-dev (README ở đó). Khi chạy qua phonics-dev, game /
+Repo này độc lập (clone, cài, build, deploy riêng). Chạy dev riêng API: `pnpm docker:dev` (`docker-compose.dev.yml` —
+Postgres + API watch; README > Chạy dev bằng Docker). Hạ tầng dev của API đặt ở repo này, không đặt ở launcher.
+Muốn chạy cả hệ thống cùng lúc (API + game + admin): đặt 3 repo nằm cạnh nhau cùng repo **phonics-launcher** rồi
+`pnpm dev` trong đó (gọi lại `pnpm docker:dev` của repo này). Khi chạy qua launcher, game /
 admin đọc `@phonics/contracts` thẳng từ mã nguồn `../phonics-api/packages/contracts` (biến `PHONICS_CONTRACTS_SRC`,
 xem `vite.config.ts` của game / admin) — sửa contracts thấy ngay, không cần phát hành.
 
@@ -86,7 +88,7 @@ Cấu trúc thư mục + versioning: [README > Cấu trúc](README.md#cấu-trú
 ## Thêm một endpoint
 
 1. Thêm / sửa schema trong `packages/contracts` (+ `ENDPOINTS`), `pnpm build:contracts`. Game / admin chỉ thấy schema
-   mới sau khi phát hành bản contracts mới (README > Contracts) — hoặc ngay lập tức nếu chạy qua launcher phonics-dev (`pnpm dev`).
+   mới sau khi phát hành bản contracts mới (README > Contracts) — hoặc ngay lập tức nếu chạy qua phonics-launcher (`pnpm dev`).
 2. DTO trong `modules/<module>/dto/requests/<module>.dto.ts`; truy vấn mới trong `repositories/`; method ở service
    đúng use case (`*-reader` / `*-writer`…); hàm view trong `dto/responses/`; method controller trong `controllers/`
    đúng actor (thin: DTO → service → view đúng shape contracts), decorator `@Roles` / `@RequirePermission` / `@Public`
@@ -101,7 +103,7 @@ Cấu trúc thư mục + versioning: [README > Cấu trúc](README.md#cấu-trú
 
 Sửa file domain trong `prisma/schema/` (`main.prisma` chỉ có generator + datasource; model mới đặt vào file domain
 phù hợp hoặc tạo file `.prisma` mới — Prisma gộp cả thư mục, relation khác file tham chiếu thẳng bằng tên) →
-`pnpm prisma:migrate --name <ten>` (dùng `DIRECT_URL`, Postgres local của phonics-dev) → kiểm tra SQL
+`pnpm prisma:migrate --name <ten>` (dùng `DIRECT_URL`, Postgres của `pnpm docker:dev`) → kiểm tra SQL
 sinh ra (index partial / SQL đặc biệt thêm tay vào file migration, không chỉ sửa schema) → commit cả thư mục
 `prisma/migrations`. Production chạy `prisma migrate deploy` (docker-entrypoint.sh).
 

@@ -1,0 +1,61 @@
+# Môi trường DEV bằng Docker: Postgres + API (nest --watch, hot reload). Production dùng docker-compose.yml.
+#   cp .env.example .env                 # lần đầu: sửa secret ≥ 32 ký tự, ADMIN_*, SEED_DEMO=true nếu muốn dữ liệu demo
+#   pnpm docker:dev                      # = docker compose -f docker-compose.dev.yml up -d --build
+#   pnpm docker:dev:logs | docker:dev:down | docker:dev:reset (chỉ xoá DB, giữ cache node_modules)
+# Container tự: pnpm install → build contracts → prisma generate → migrate deploy → db seed → nest start --watch.
+# Mã nguồn bind mount từ máy dev; node_modules + pnpm store nằm trong volume riêng (không dùng chung với máy dev).
+# DATABASE_URL trong .env trỏ localhost:5432 cho lệnh Prisma chạy từ máy dev; container ghi đè sang service `db`.
+name: phonics-api-dev
+
+services:
+  db:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_DB: phonics
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      # Mở ra máy dev: Prisma Studio / DBeaver / `pnpm prisma:migrate` từ host
+      - '${DEV_DB_PORT:-5432}:5432'
+    volumes:
+      - pgdata:/var/lib/postgresql
+      # Lần đầu (volume trống): tạo thêm DB phonics_test cho `pnpm test:e2e`
+      - ./docker/dev/initdb:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres -d phonics']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+
+  api:
+    build: ./docker/dev
+    image: phonics-api-dev
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file: .env
+    environment:
+      NODE_ENV: development
+      PORT: 3000
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/phonics
+      DIRECT_URL: postgresql://postgres:postgres@db:5432/phonics
+      API_PUBLIC_URL: http://localhost:${DEV_API_PORT:-3000}
+      # e2e trong container: docker compose -f docker-compose.dev.yml exec api pnpm test:e2e
+      DATABASE_URL_TEST: postgresql://postgres:postgres@db:5432/phonics_test
+    volumes:
+      - .:/repo
+      - ./docker/dev/entrypoint.sh:/usr/local/bin/dev-entrypoint.sh:ro
+      - node_modules:/repo/node_modules
+      - contracts_node_modules:/repo/packages/contracts/node_modules
+      - pnpm_store:/pnpm-store
+    ports:
+      - '${DEV_API_PORT:-3000}:3000'
+    init: true
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  node_modules:
+  contracts_node_modules:
+  pnpm_store:

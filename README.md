@@ -69,10 +69,39 @@ Không dùng TypeORM nên không có `entities/`: model nằm ở `prisma/schema
 (`version: API_V2`) + DTO trong `dto/requests/v2/`, service giữ nguyên; endpoint không đổi thì cho controller hiện có
 phục vụ cả hai version (`version: [API_V1, API_V2]`). `/api/health` và Swagger `/api/docs` không có version.
 
-## Chạy dev
+## Chạy dev bằng Docker (khuyên dùng)
+
+Chỉ cần Docker + pnpm, không cần cài Postgres. `docker-compose.dev.yml` (project `phonics-api-dev`) bật Postgres 18 và
+API chạy `nest start --watch` (sửa code là tự build lại):
 
 ```bash
-cp .env.example .env      # DB mặc định = Postgres local của phonics-dev (`pnpm db` ở đó); secret ≥ 32 ký tự
+cp .env.example .env      # sửa secret ≥ 32 ký tự, ADMIN_*; SEED_DEMO=true nếu muốn dữ liệu demo
+pnpm docker:dev           # lần đầu build ảnh dev + cài deps trong container (~1 phút)
+pnpm docker:dev:logs      # log API
+pnpm docker:dev:down      # tắt (giữ dữ liệu)
+pnpm docker:dev:reset     # xoá sạch DB rồi bật lại (giữ cache node_modules)
+```
+
+- Container tự chạy: `pnpm install` → build contracts → `prisma generate` → `prisma migrate deploy` → `db seed`
+  (idempotent) → `nest start --watch`. Pull code có migration / dependency mới thì
+  `docker compose -f docker-compose.dev.yml restart api`.
+- Mã nguồn bind mount từ máy dev; `node_modules` + pnpm store nằm trong volume riêng của container (binary Linux không
+  lẫn với máy dev — macOS / Windows / WSL đều dùng được). Muốn IntelliSense / chạy `pnpm test` trên máy thì vẫn
+  `pnpm install` ở máy như bình thường.
+- Postgres mở `localhost:5432` (user / pass `postgres`, DB `phonics`, kèm `phonics_test` cho e2e) — khớp `DATABASE_URL`
+  trong `.env.example`, nên `pnpm prisma:migrate`, `pnpm prisma:studio` chạy từ máy dev dùng thẳng DB này. Container
+  ghi đè `DATABASE_URL` sang service `db`.
+- e2e trong container: `docker compose -f docker-compose.dev.yml exec api pnpm test:e2e` (có sẵn `DATABASE_URL_TEST`).
+- Trùng cổng: `DEV_API_PORT=3001 DEV_DB_PORT=5433 pnpm docker:dev` (nhớ sửa `DATABASE_URL` trong `.env` theo).
+- Dữ liệu test nghiệp vụ: `pnpm qa:seed` (gọi qua API đang chạy; kết quả ở `docs/qa-test-data.md`).
+- Chạy cả hệ thống (API + game + admin) một lệnh: repo **phonics-launcher** (`pnpm dev` ở đó gọi lại `pnpm docker:dev`).
+
+## Chạy dev không dùng Docker
+
+Cần Postgres tự cài (hoặc chỉ bật DB: `docker compose -f docker-compose.dev.yml up -d db`):
+
+```bash
+cp .env.example .env      # DATABASE_URL trỏ Postgres của bạn; secret ≥ 32 ký tự
 pnpm install
 pnpm prisma:generate      # sinh client vào src/generated
 pnpm prisma:migrate       # prisma migrate dev (dùng DIRECT_URL)
@@ -95,7 +124,7 @@ pnpm test:e2e    # e2e (test/e2e/**/*.e2e-spec.ts), cần DATABASE_URL_TEST
 ```
 
 e2e dùng một DB Postgres **riêng** (bị `TRUNCATE` trước mỗi file test): đặt biến môi trường `DATABASE_URL_TEST`
-(không đọc từ `.env`), vd DB `phonics_test` mà launcher phonics-dev tạo sẵn:
+(không đọc từ `.env`), vd DB `phonics_test` mà `docker-compose.dev.yml` tạo sẵn:
 `$env:DATABASE_URL_TEST='postgresql://postgres:postgres@localhost:5432/phonics_test'; pnpm test:e2e`. Helper tự `prisma migrate deploy` lên DB đó và điền các
 biến bắt buộc còn thiếu (secret, admin) bằng giá trị test, nên CI không cần `.env`. Không có
 `DATABASE_URL_TEST` thì các file e2e tự skip.
@@ -215,7 +244,7 @@ Phát hành bản mới:
    `publish-contracts.yml` test, build và publish.
 4. Ở phonics-game / phonics-admin: `pnpm up @phonics/contracts` và commit lockfile.
 
-Khi chạy cả hệ thống bằng launcher phonics-dev (`pnpm dev`), game / admin đọc contracts thẳng từ mã nguồn repo này,
+Khi chạy cả hệ thống bằng phonics-launcher (`pnpm dev`), game / admin đọc contracts thẳng từ mã nguồn repo này,
 không cần phát hành mỗi lần sửa.
 
 ## Seed và tài khoản demo
@@ -228,7 +257,7 @@ không cần phát hành mỗi lần sửa.
   2 giáo viên, 3 lớp, 24 học sinh, 3–8 ván / học sinh trong 14 ngày gần nhất (kèm bút toán GAME,
   sự kiện VIEW / PLAY), vài điểm thưởng của giáo viên và `last_rank` tính bằng cùng SQL với `RankingService`.
 
-Tài khoản demo (**chỉ dùng ở môi trường dev**, mật khẩu chung `Demo1234!`):
+Tài khoản demo (**chỉ dùng ở môi trường dev**, mật khẩu chung `12345678`):
 
 | Tài khoản                                               | Vai trò | Ghi chú                           |
 | ------------------------------------------------------- | ------- | --------------------------------- |
