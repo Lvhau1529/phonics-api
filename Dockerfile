@@ -1,7 +1,8 @@
 # syntax=docker/dockerfile:1.7
 # Ảnh production của API. Build context = gốc repo:
 #   docker build -t phonics-api .
-ARG NODE_IMAGE=node:24-alpine
+# Ghim bản vá bảo mật (Node 24.22.1, 21/10/2026 Security Release). Khi Node ra bản vá mới: cập nhật ở đây, docker/dev/Dockerfile, .nvmrc, CI và engines.
+ARG NODE_IMAGE=node:24.22.1-alpine
 
 # ---------- base: Node + pnpm (corepack) ----------
 FROM ${NODE_IMAGE} AS base

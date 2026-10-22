@@ -1,7 +1,7 @@
 # Ảnh DEV của API (docker-compose.dev.yml) — KHÔNG dùng cho production (xem Dockerfile ở gốc repo).
 # Chỉ chứa Node + pnpm; mã nguồn được bind mount vào /repo, node_modules nằm trong volume riêng của container
 # (binary native argon2 / swc của Linux không lẫn với node_modules trên máy dev — macOS / Windows / WSL đều chạy được).
-ARG NODE_IMAGE=node:24-bookworm-slim
+ARG NODE_IMAGE=node:24.22.1-bookworm-slim
 FROM ${NODE_IMAGE}
 RUN apt-get update \
  && apt-get install -y --no-install-recommends openssl ca-certificates python3 make g++ \

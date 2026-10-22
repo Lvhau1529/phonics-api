@@ -5,7 +5,7 @@
   "description": "Phonics Arcade API — NestJS + Prisma (PostgreSQL): tài khoản, lớp học, điểm, xếp hạng, thông báo, báo cáo",
   "packageManager": "pnpm@12.8.1",
   "engines": {
-    "node": ">=22.12"
+    "node": ">=24.22.1"
   },
   "scripts": {
     "build": "pnpm run build:contracts && pnpm run prisma:generate && nest build",

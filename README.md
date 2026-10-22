@@ -131,7 +131,7 @@ biến bắt buộc còn thiếu (secret, admin) bằng giá trị test, nên CI
 
 ## Deploy bằng Docker
 
-Ảnh multi-stage (`Dockerfile`, `node:24-alpine`, pnpm qua corepack), build context = gốc repo (`.dockerignore`).
+Ảnh multi-stage (`Dockerfile`, `node:24.22.1-alpine`, pnpm qua corepack), build context = gốc repo (`.dockerignore`).
 Contracts được build cùng ảnh từ `packages/contracts` (không cần GitHub Packages).
 
 Toàn bộ backend chạy trên **một VPS** (ADR 0024, `docker-compose.yml`): `db` (Postgres 18) + `api` + `caddy` (HTTPS) +
