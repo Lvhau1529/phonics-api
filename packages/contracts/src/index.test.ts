@@ -50,6 +50,12 @@ describe('GameResultBody', () => {
     ).toBe('english-explorers');
   });
 
+  it('nhận game Halloween Candy Quest (contracts 1.5.0)', () => {
+    expect(
+      GameResultBody.parse({ ...valid, gameId: 'halloween-candy-quest', levelId: 'easy', total: 8 }).gameId,
+    ).toBe('halloween-candy-quest');
+  });
+
   it('từ chối game chưa đăng ký', () => {
     expect(GameResultBody.safeParse({ ...valid, gameId: 'unknown-game' }).success).toBe(false);
   });

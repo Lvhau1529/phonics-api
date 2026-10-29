@@ -11,6 +11,8 @@ export const GAME_REGISTRY: Record<string, { maxTotal: number; maxScore: number 
   // Câu đố / câu nói: ≤ 15 câu mỗi ván, tối đa 15 điểm / câu (chọn đúng 10 + nói 5)
   'odd-one-out': { maxTotal: 30, maxScore: 1_000 },
   'english-explorers': { maxTotal: 30, maxScore: 1_000 },
+  // Phiêu lưu xin kẹo: ≤ 12 lượt solo, điểm = số kẹo (tối đa 2 / lượt)
+  'halloween-candy-quest': { maxTotal: 30, maxScore: 100 },
 };
 
 /** Khi nào tạo thông báo đổi hạng: 'all' mọi thay đổi, 'improve' chỉ khi lên hạng */

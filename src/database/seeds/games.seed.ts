@@ -7,6 +7,7 @@ const GAME_TITLES: Record<GameId, string> = {
   'phonics-ocean': 'Phonics Ocean',
   'odd-one-out': 'Odd One Out',
   'english-explorers': 'Little English Explorers',
+  'halloween-candy-quest': 'Halloween Candy Quest',
 };
 
 /** Catalog game: chỉ tạo khi thiếu — không ghi đè title / enabled / price admin đã chỉnh */
