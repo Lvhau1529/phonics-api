@@ -27,6 +27,7 @@
     "docker:dev:reset": "docker compose -f docker-compose.dev.yml down && docker volume rm -f phonics-api-dev_pgdata && docker compose -f docker-compose.dev.yml up -d --build",
     "qa:seed": "tsx scripts/qa-seed.ts",
     "media:cors": "tsx scripts/media-cors.ts",
+    "mail:test": "tsx scripts/mail-test.ts",
     "build:contracts": "pnpm --filter ./packages/contracts run build",
     "format": "prettier --write . && prisma format",
     "format:check": "prettier --check . && prisma format --check"
@@ -54,8 +55,10 @@
     "exceljs": "^4.4.0",
     "google-auth-library": "^11.1.0",
     "helmet": "^8.3.0",
+    "liquidjs": "10.30.0",
     "nestjs-pino": "^4.6.1",
     "nestjs-zod": "^5.5.0",
+    "nodemailer": "10.1.7",
     "pdfmake": "^0.3.11",
     "pg": "^8.23.1",
     "pino": "^10.3.1",

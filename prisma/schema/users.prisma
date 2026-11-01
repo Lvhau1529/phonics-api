@@ -55,6 +55,7 @@ model User {
   submissionsGraded Submission[]          @relation("SubmissionGradedBy")
   answersGraded     SubmissionAnswer[]    @relation("AnswerGradedBy")
   comments          Comment[]             @relation("CommentAuthor")
+  mailTemplates     MailTemplate[]        @relation("MailTemplateCreatedBy")
 
   @@index([role, status])
   @@map("users")

@@ -59,6 +59,21 @@ export const envSchema = z
     R2_BUCKET: z.string().min(1).optional(),
     /** Hạn của link upload đã ký (giây) */
     MEDIA_PRESIGN_TTL_SEC: z.coerce.number().int().min(60).max(3600).default(900),
+    /** Gửi mail: `log` (dev / test — ghi file `.eml` vào MAIL_LOG_DIR, không gửi thật) hoặc `smtp` */
+    MAIL_DRIVER: z.enum(['log', 'smtp']).default('log'),
+    /** Người gửi, vd `Phonics <no-reply@example.vn>` — bắt buộc khi `MAIL_DRIVER=smtp` */
+    MAIL_FROM: z.string().min(3).optional(),
+    /** Thư mục ghi mail khi `MAIL_DRIVER=log` */
+    MAIL_LOG_DIR: z.string().min(1).default('storage/mail'),
+    SMTP_HOST: z.string().min(1).optional(),
+    SMTP_PORT: z.coerce.number().int().min(1).max(65535).default(587),
+    /** true = TLS ngay khi kết nối (thường cổng 465); false = STARTTLS. Mặc định theo cổng. */
+    SMTP_SECURE: z
+      .enum(['true', 'false'])
+      .optional()
+      .transform((v) => (v === undefined ? undefined : v === 'true')),
+    SMTP_USER: z.string().min(1).optional(),
+    SMTP_PASS: z.string().min(1).optional(),
   })
   .superRefine((env, ctx) => {
     if (env.NODE_ENV === 'production' && !env.API_PUBLIC_URL) {
@@ -80,10 +95,25 @@ export const envSchema = z
           ctx.addIssue({ code: 'custom', path: [key], message: 'Bắt buộc khi MEDIA_STORAGE=r2' });
       }
     }
+    if (env.MAIL_DRIVER === 'smtp') {
+      for (const key of ['SMTP_HOST', 'MAIL_FROM'] as const) {
+        if (!env[key])
+          ctx.addIssue({ code: 'custom', path: [key], message: 'Bắt buộc khi MAIL_DRIVER=smtp' });
+      }
+      if (!env.SMTP_USER !== !env.SMTP_PASS) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['SMTP_PASS'],
+          message: 'SMTP_USER và SMTP_PASS phải khai báo cùng nhau',
+        });
+      }
+    }
   })
   .transform((env) => ({
     ...env,
     API_PUBLIC_URL: (env.API_PUBLIC_URL ?? `http://localhost:${env.PORT}`).replace(/\/+$/, ''),
+    MAIL_FROM: env.MAIL_FROM ?? 'Phonics <no-reply@localhost>',
+    SMTP_SECURE: env.SMTP_SECURE ?? env.SMTP_PORT === 465,
   }));
 
 export type Env = z.infer<typeof envSchema>;

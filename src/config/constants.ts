@@ -36,6 +36,25 @@ export const THROTTLE = {
   media: { ttl: 60_000, limit: 30 },
 } as const;
 
+/** Hàng đợi mail (`mail_outbox`) */
+export const MAIL = {
+  /** Số mail lấy ra gửi mỗi lượt */
+  batchSize: 20,
+  /** Quá số lần thử này → FAILED */
+  maxAttempts: 6,
+  /** Chờ trước lần thử thứ n+1 (ms); hết mảng thì dùng phần tử cuối */
+  backoffMs: [60_000, 5 * 60_000, 30 * 60_000, 2 * 3600_000, 6 * 3600_000],
+  /**
+   * Mail đã lấy ra nhưng chưa ghi kết quả (API chết giữa chừng) được lấy lại sau thời gian này. Có thể gửi trùng
+   * một lần trong trường hợp hiếm đó — chấp nhận, đổi lại không mất mail.
+   */
+  leaseMs: 10 * 60_000,
+  /** Worker lỗi (DB tạm mất) → thử lại sau (ms); bình thường hẹn đúng mốc, không chạy định kỳ */
+  retryMs: 60_000,
+  /** Cắt `last_error` lưu DB */
+  maxErrorLength: 1_000,
+} as const;
+
 /** Phiếu bài tập (ADR 0017 / 0018 / 0019) */
 export const WORKSHEETS = {
   /** Media PENDING (presign nhưng không complete) bị cron xoá sau số giờ này */

@@ -29,7 +29,8 @@ phonics-api
 │   │                       APP_TIMEZONE), access/ (AccessService — GV chỉ thấy lớp mình)
 │   ├── database/           PrismaModule, PrismaService (driver adapter pg), types.ts (kiểu Tx)
 │   │   └── seeds/          seed.ts (entry `prisma db seed`) + *.seed.ts theo miền (admin, games, nhóm quyền, demo)
-│   ├── infrastructure/     hạ tầng ngoài nghiệp vụ: storage/ (MediaStorage — DiskStorage trên đĩa / R2Storage)
+│   ├── infrastructure/     hạ tầng ngoài nghiệp vụ: storage/ (MediaStorage — DiskStorage trên đĩa / R2Storage),
+│   │                       mail/ (MailSender — LogMailSender / SmtpMailSender, MailRenderer Liquid)
 │   ├── common/             KHỐI DÙNG CHUNG cho request pipeline (không chứa nghiệp vụ)
 │   │   ├── middleware/     request-id (X-Request-Id)
 │   │   ├── guards/         JwtAuthGuard, RolesGuard, PermissionsGuard
@@ -54,7 +55,8 @@ phonics-api
 │   │       └── jobs/ · grading/ · writers/   cron, bộ chấm, writer xlsx / pdf (riêng từng module)
 │   │   auth · users · permissions · classes · teachers · students · games · events · game-results ·
 │   │   points (+ RankingService) · notifications · stats · reports · audit · media · questions · worksheets ·
-│   │   assignments · submissions · comments · worksheet-stats · health (không version: /api/health)
+│   │   assignments · submissions · comments · worksheet-stats · mail (outbox + mẫu mail) ·
+│   │   health (không version: /api/health)
 │   └── generated/          Prisma client (gitignored, `pnpm prisma:generate`)
 └── test/
     ├── helpers/            create-test-app.ts (boot AppModule + configureApp cho e2e, truncateAll)
@@ -227,6 +229,13 @@ Nguồn sự thật: `src/config/env.schema.ts` (zod; thiếu / sai thì API kh�
 | `R2_SECRET_ACCESS_KEY`      | r2 ✓     |                    | Secret Access Key của R2 API token                                      |
 | `R2_BUCKET`                 | r2 ✓     |                    | Tên bucket                                                              |
 | `MEDIA_PRESIGN_TTL_SEC`     |          | `900`              | Hạn link upload đã ký (giây)                                            |
+| `MAIL_DRIVER`               |          | `log`              | `log` (ghi file `.eml`, không gửi thật) hoặc `smtp`                     |
+| `MAIL_FROM`                 | smtp ✓   | `Phonics <no-reply@localhost>` | Người gửi, vd `Phonics <no-reply@example.vn>`               |
+| `MAIL_LOG_DIR`              |          | `storage/mail`     | `log`: thư mục ghi mail                                                 |
+| `SMTP_HOST`                 | smtp ✓   |                    | Máy chủ SMTP                                                            |
+| `SMTP_PORT`                 |          | `587`              | Cổng SMTP                                                               |
+| `SMTP_SECURE`               |          | theo cổng          | `true` = TLS ngay (465), `false` = STARTTLS (587); mặc định `true` khi cổng 465 |
+| `SMTP_USER` / `SMTP_PASS`   |          |                    | Tài khoản SMTP (khai báo cùng nhau)                                     |
 
 Media phiếu bài tập (ADR 0017 / 0018 / 0024): `POST /media/presign` trả `uploadUrl` =
 `${API_PUBLIC_URL}/api/v1/media/:id/upload?exp=…&sig=…` (HMAC theo `JWT_ACCESS_SECRET`, không cần bearer) → client PUT
@@ -266,6 +275,24 @@ xoá. File public tại `${MEDIA_PUBLIC_BASE_URL}/media/...`; API không mount `
 Đổi driver không chuyển file cũ: bản ghi `media_assets` đã READY giữ `url` cũ (`/files/...`) — muốn bỏ đĩa hẳn thì
 chép thư mục `media/` lên bucket (vd `rclone copy`) và cập nhật cột `url`. Với R2, volume `media` + phần nén media
 của `backup` không còn dữ liệu mới.
+
+### Gửi mail
+
+Module `mail`: module khác **không gửi mail trực tiếp** mà xếp hàng vào bảng `mail_outbox` bằng
+`MailOutboxService.enqueue` / `enqueueTemplate` **trong cùng transaction** với thay đổi nghiệp vụ, rồi gọi `flush()`
+sau commit. `MailOutboxScheduler` hẹn timer đúng mốc `next_attempt_at` sớm nhất (không cron quét định kỳ), gửi theo
+lô (`MAIL.batchSize`), lỗi tạm thời thì thử lại theo `MAIL.backoffMs`, địa chỉ bị từ chối (SMTP 550–554) hoặc hết
+`MAIL.maxAttempts` thì `FAILED`. `dedupe_key` unique → gửi lại cùng việc không tạo mail thứ hai. Không có người nhận →
+lưu `SKIPPED`.
+
+Mẫu mail ở bảng `mail_templates` (Liquid, có phiên bản; mỗi khoá một bản active). Catalog khoá + mẫu mặc định + dữ
+liệu mẫu: `src/modules/mail/templates/mail-templates.ts`; API khởi động thì tạo phiên bản 1 cho khoá chưa có (không
+ghi đè mẫu đã sửa). Mẫu coi như dữ liệu không tin cậy: không đọc file, biến / filter lạ là lỗi, biến tự escape HTML.
+
+- Dev: `MAIL_DRIVER=log` (mặc định) — mỗi mail thành một file `.eml` trong `storage/mail/`, mở bằng trình đọc mail.
+- Production: `MAIL_DRIVER=smtp` + `SMTP_*` + `MAIL_FROM` trong `.env.production`. Kiểm tra cấu hình SMTP:
+  `pnpm mail:test ban@example.com` — gửi thẳng (không qua outbox / DB), chạy từ máy có mã nguồn với `.env` đặt cùng
+  các biến `SMTP_*` / `MAIL_FROM` như production.
 
 ## Contracts
 
