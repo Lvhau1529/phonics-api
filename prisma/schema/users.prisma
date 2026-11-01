@@ -63,15 +63,23 @@ model User {
 
 /// Thông tin riêng của học sinh (liên hệ phụ huynh)
 model StudentProfile {
-  userId      String   @id @map("user_id") @db.Uuid
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  parentName  String?  @map("parent_name")
-  parentEmail String?  @map("parent_email")
-  parentPhone String?  @map("parent_phone")
+  userId         String   @id @map("user_id") @db.Uuid
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// Họ tên tiếng Việt (bắt buộc). `users.display_name` = english_name ?? vietnamese_name (writer tự đồng bộ)
+  vietnameseName String   @map("vietnamese_name")
+  /// Tên tiếng Anh (tuỳ chọn) — có thì là tên hiển thị trong game
+  englishName    String?  @map("english_name")
+  /// Hai tên chữ thường, bỏ dấu (`đ` → `d`) — tìm không dấu
+  nameSearch     String   @default("") @map("name_search")
+  /// Tên (từ cuối) + họ tên, chữ thường bỏ dấu — sắp xếp kiểu Việt Nam theo tên
+  nameSortKey    String   @default("") @map("name_sort_key")
+  parentName     String?  @map("parent_name")
+  parentEmail    String?  @map("parent_email")
+  parentPhone    String?  @map("parent_phone")
   /// Ghi chú nội bộ của admin
-  notes       String?
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  notes          String?
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
 
   memberships  ClassMembership[]
   gameResults  GameResult[]
@@ -79,6 +87,7 @@ model StudentProfile {
   gameUnlocks  StudentGameUnlock[]
   submissions  Submission[]
 
+  @@index([nameSortKey])
   @@map("student_profiles")
 }
 

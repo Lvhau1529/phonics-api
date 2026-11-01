@@ -1,12 +1,20 @@
 import { Injectable } from '@nestjs/common';
 import { AvatarKey, DEFAULT_AVATAR, type UpdateProfileBody, type User } from '@phonics/contracts';
 import { AppError, notFound } from '@/common/errors/app-error';
+import {
+  applyNameChange,
+  nameColumns,
+  profileNameData,
+  type StudentNameColumns,
+} from '@/common/utils/student-names';
 import { PrismaService } from '@/database/prisma.service';
 import { type Prisma } from '@/generated/prisma/client';
 
 export const userViewInclude = {
   studentProfile: {
     select: {
+      vietnameseName: true,
+      englishName: true,
       memberships: {
         where: { leftAt: null },
         take: 1,
@@ -56,10 +64,13 @@ export class UsersService {
       });
       if (taken) throw new AppError('EMAIL_TAKEN', 409, { fieldErrors: { email: ['EMAIL_TAKEN'] } });
     }
+    const names = body.displayName !== undefined ? await this.studentNameChange(id, body.displayName) : null;
     const row = await this.prisma.user.update({
       where: { id },
       data: {
-        displayName: body.displayName,
+        // Học sinh: tên hiển thị suy ra từ tên tiếng Việt / tiếng Anh; GV / admin: ghi thẳng
+        displayName: names ? names.displayName : body.displayName,
+        studentProfile: names ? { update: profileNameData(names) } : undefined,
         avatarKey: body.avatarKey,
         email: body.email,
         // Đổi email bằng tay → chưa xác thực lại
@@ -68,5 +79,18 @@ export class UsersService {
       include: userViewInclude,
     });
     return toUserView(row);
+  }
+
+  /**
+   * Học sinh đổi tên trong game (một ô tên) = đổi tên đang hiển thị: tên tiếng Anh nếu có, không thì tên tiếng Việt.
+   * null = không phải học sinh (hoặc chưa có profile) → ghi thẳng `display_name`.
+   */
+  private async studentNameChange(id: string, displayName: string): Promise<StudentNameColumns | null> {
+    const profile = await this.prisma.studentProfile.findUnique({
+      where: { userId: id },
+      select: { vietnameseName: true, englishName: true },
+    });
+    if (!profile) return null;
+    return nameColumns(applyNameChange(profile, { displayName }) ?? profile);
   }
 }

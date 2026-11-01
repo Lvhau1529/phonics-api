@@ -7,6 +7,7 @@ import {
 } from '@phonics/contracts';
 import { notFound } from '@/common/errors/app-error';
 import { orderBy, paginate } from '@/common/utils/paginate';
+import { foldName } from '@/common/utils/student-names';
 import { AccessService } from '@/core/access/access.service';
 import { PrismaService } from '@/database/prisma.service';
 import { type Prisma } from '@/generated/prisma/client';
@@ -16,7 +17,7 @@ import { PointReaderService } from '@/modules/points/services/point-reader.servi
 import { RankingService } from '@/modules/points/services/ranking.service';
 import { toParentContact, toStudentSummary } from '@/modules/students/dto/responses/student.view';
 import { StudentRepository } from '@/modules/students/repositories/student.repository';
-import { STUDENT_SORT_FIELDS, type StudentRow } from '@/modules/students/types/student.types';
+import { STUDENT_SORT_FIELDS, studentOrderBy, type StudentRow } from '@/modules/students/types/student.types';
 
 /** Đọc học sinh: danh sách / chi tiết (ADMIN mọi lớp, TEACHER lớp mình) */
 @Injectable()
@@ -36,9 +37,10 @@ export class StudentReaderService {
     const where: Prisma.UserWhereInput = {
       role: 'STUDENT',
       status: query.status,
+      // Tìm không dấu theo tên tiếng Việt + tiếng Anh ("nguyen an" ra "Nguyễn Văn An"), hoặc theo email
       OR: query.q
         ? [
-            { displayName: { contains: query.q, mode: 'insensitive' } },
+            { studentProfile: { nameSearch: { contains: foldName(query.q) } } },
             { email: { contains: query.q, mode: 'insensitive' } },
           ]
         : undefined,
@@ -46,7 +48,10 @@ export class StudentReaderService {
         ? { memberships: { some: { leftAt: null, classId: { in: classIds } } } }
         : undefined,
     };
-    const sort = [orderBy(query.sort, STUDENT_SORT_FIELDS, { createdAt: 'desc' }), { id: 'asc' as const }];
+    const sort = [
+      studentOrderBy(orderBy(query.sort, STUDENT_SORT_FIELDS, { createdAt: 'desc' })),
+      { id: 'asc' as const },
+    ];
     return paginate(
       query,
       async (page) => this.toSummaries(await this.repo.findPage(where, page, sort)),

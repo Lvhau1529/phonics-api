@@ -7,7 +7,9 @@ import {
   DEMO_TEACHER2,
   SCHOOL_YEAR,
   STUDENT_NAMES,
+  STUDENT_VIETNAMESE_NAMES,
 } from '@/database/seeds/demo.constants';
+import { nameColumns, profileNameData } from '@/common/utils/student-names';
 import { dayjs } from '@/core/time/dayjs';
 import { createRandom, hashPassword } from '@/database/seeds/seed-helpers';
 
@@ -81,7 +83,12 @@ export async function seedDemoClasses(prisma: PrismaClient): Promise<void> {
         const studentIds: string[] = [];
 
         for (let i = 1; i <= 8; i += 1) {
-          const displayName = STUDENT_NAMES[nameIndex % STUDENT_NAMES.length];
+          // Mỗi học sinh demo có tên tiếng Việt; 2 / 3 có thêm tên tiếng Anh (tên hiển thị trong game)
+          const names = nameColumns({
+            vietnameseName: STUDENT_VIETNAMESE_NAMES[nameIndex % STUDENT_VIETNAMESE_NAMES.length],
+            englishName: nameIndex % 3 === 2 ? null : STUDENT_NAMES[nameIndex % STUDENT_NAMES.length],
+          });
+          const { displayName } = names;
           nameIndex += 1;
           const joinedAt = dayjs(now).subtract(random.int(15, 40), 'day').toDate();
           const student = await tx.user.create({
@@ -94,6 +101,7 @@ export async function seedDemoClasses(prisma: PrismaClient): Promise<void> {
               avatarKey: AVATARS[(nameIndex - 1) % AVATARS.length].key,
               studentProfile: {
                 create: {
+                  ...profileNameData(names),
                   parentName: `${displayName}'s parent`,
                   parentEmail: `${slug}.parent${String(i).padStart(2, '0')}@demo.local`,
                   parentPhone: `09${String(random.int(10_000_000, 99_999_999))}`,

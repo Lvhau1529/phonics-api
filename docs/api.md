@@ -76,9 +76,9 @@ Header `X-Refresh-Transport: body` trên các route auth → refresh token trả
 
 | Method | Path | Ai | Request → Response |
 | --- | --- | --- | --- |
-| GET | `/students` | A, T | `StudentListQuery` → `Paginated<StudentSummary>` |
+| GET | `/students` | A, T | `StudentListQuery` → `Paginated<StudentSummary>` (`q` tìm không dấu theo tên tiếng Việt / tiếng Anh hoặc email; `sort=vietnameseName:asc` = theo tên rồi họ tên) |
 | GET | `/students/:id` | A, T | → `StudentDetail` (`parent` chỉ A / perm:`students.viewParentContact`) |
-| PATCH | `/students/:id` | A; T perm:`students.edit` (chỉ tên, avatar) | `UpdateStudentBody` → `StudentDetail` |
+| PATCH | `/students/:id` | A; T perm:`students.edit` (chỉ tên, avatar) | `UpdateStudentBody` → `StudentDetail` (`vietnameseName`, `englishName` — `null` xoá; `displayName` hiển thị = tên tiếng Anh ?? tên tiếng Việt) |
 | POST | `/students/:id/move-class` | A, T perm:`class.changeStudentClass` | `MoveClassBody` → `StudentDetail` |
 | POST | `/students/:id/reset-password` | A | `ResetPasswordBody` → 204 |
 | GET | `/students/:id/points` | A, T | `PointsListQuery` → `Paginated<PointEntryView>` |

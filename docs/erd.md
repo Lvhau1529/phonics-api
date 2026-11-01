@@ -55,6 +55,10 @@ erDiagram
   }
   student_profiles {
     uuid user_id PK
+    string vietnamese_name "bắt buộc"
+    string english_name "tuỳ chọn; có thì = users.display_name"
+    string name_search "2 tên bỏ dấu — tìm"
+    string name_sort_key "tên (từ cuối) + họ tên — sắp xếp"
     string parent_name
     string parent_email
     string parent_phone

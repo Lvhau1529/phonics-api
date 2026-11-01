@@ -46,6 +46,9 @@ export function toStudentSummary(row: StudentRow, points: number, rank: number |
     id: row.id,
     email: row.email,
     displayName: row.displayName,
+    // Thiếu profile (dữ liệu hỏng) → coi tên hiển thị là tên tiếng Việt
+    vietnameseName: row.studentProfile?.vietnameseName ?? row.displayName,
+    englishName: row.studentProfile?.englishName ?? null,
     avatarKey: AvatarKey.safeParse(row.avatarKey).data ?? DEFAULT_AVATAR,
     status: row.status,
     class: membership ? { ...membership.class, joinedAt: membership.joinedAt.toISOString() } : null,

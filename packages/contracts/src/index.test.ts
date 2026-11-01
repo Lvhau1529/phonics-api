@@ -15,7 +15,9 @@ import {
   RegisterBody,
   ROLE_DEFAULT_PERMISSIONS,
   UpdateProfileBody,
+  UpdateStudentBody,
   parseSort,
+  studentFullName,
 } from './index.js';
 
 describe('GameResultBody', () => {
@@ -89,6 +91,30 @@ describe('RegisterBody', () => {
 describe('UpdateProfileBody', () => {
   it('từ chối body rỗng', () => {
     expect(UpdateProfileBody.safeParse({}).success).toBe(false);
+  });
+});
+
+describe('UpdateStudentBody (tên tiếng Việt / tiếng Anh)', () => {
+  it('nhận tên tiếng Việt, xoá tên tiếng Anh bằng null, trim', () => {
+    expect(UpdateStudentBody.parse({ vietnameseName: '  Nguyễn Văn An ', englishName: null })).toEqual({
+      vietnameseName: 'Nguyễn Văn An',
+      englishName: null,
+    });
+  });
+
+  it('từ chối tên rỗng / quá 30 ký tự; vẫn nhận displayName của client cũ', () => {
+    expect(UpdateStudentBody.safeParse({ vietnameseName: '  ' }).success).toBe(false);
+    expect(UpdateStudentBody.safeParse({ englishName: 'x'.repeat(31) }).success).toBe(false);
+    expect(UpdateStudentBody.parse({ displayName: 'Bin' })).toEqual({ displayName: 'Bin' });
+  });
+});
+
+describe('studentFullName', () => {
+  it('ghép tên tiếng Anh trong ngoặc khi có', () => {
+    expect(studentFullName({ vietnameseName: 'Nguyễn Văn An', englishName: 'Andy' })).toBe(
+      'Nguyễn Văn An (Andy)',
+    );
+    expect(studentFullName({ vietnameseName: 'Nguyễn Văn An', englishName: null })).toBe('Nguyễn Văn An');
   });
 });
 

@@ -15,10 +15,12 @@ import { type AuthUser } from '@/modules/auth/types/auth.types';
 import { NotificationsService } from '@/modules/notifications/services/notifications.service';
 import { RankingService } from '@/modules/points/services/ranking.service';
 import { StudentRepository } from '@/modules/students/repositories/student.repository';
+import { applyNameChange, nameColumns, profileNameData } from '@/common/utils/student-names';
 import {
   assertCanEditFields,
   profileUpdateOf,
   studentAuditDiff,
+  studentNamesOf,
 } from '@/modules/students/utils/student-rules';
 import { StudentReaderService } from '@/modules/students/services/student-reader.service';
 
@@ -36,7 +38,7 @@ export class StudentWriterService {
     private readonly tokens: TokenService,
   ) {}
 
-  /** ADMIN: mọi trường; TEACHER (students.edit): chỉ displayName / avatarKey */
+  /** ADMIN: mọi trường; TEACHER (students.edit): chỉ tên / avatarKey */
   async update(actor: AuthUser, id: string, body: UpdateStudentBody): Promise<StudentDetail> {
     const current = await this.reader.findStudent(id);
     await this.access.assertStudentAccess(actor, id);
@@ -45,9 +47,16 @@ export class StudentWriterService {
     if (emailChanged && (await this.repo.isEmailTaken(body.email!, id)))
       throw new AppError('EMAIL_TAKEN', 409, { fieldErrors: { email: ['EMAIL_TAKEN'] } });
 
-    const profileData = profileUpdateOf(body);
+    const currentNames = studentNamesOf(current);
+    const nextNames = applyNameChange(currentNames, body);
+    const names = nextNames ? nameColumns(nextNames) : null;
+    const profileData: Prisma.StudentProfileUpdateInput = {
+      ...profileUpdateOf(body),
+      ...(names ? profileNameData(names) : {}),
+    };
     const updated = await this.repo.update(id, {
-      displayName: body.displayName,
+      // Tên hiển thị luôn suy ra từ hai tên (không ghi thẳng body.displayName)
+      displayName: names?.displayName,
       avatarKey: body.avatarKey,
       email: body.email,
       // Admin đổi email tay → chưa xác thực lại
@@ -56,7 +65,10 @@ export class StudentWriterService {
       studentProfile: Object.keys(profileData).length
         ? {
             upsert: {
-              create: profileData as Prisma.StudentProfileCreateWithoutUserInput,
+              create: {
+                ...profileNameData(nameColumns(nextNames ?? currentNames)),
+                ...profileUpdateOf(body),
+              } as Prisma.StudentProfileCreateWithoutUserInput,
               update: profileData,
             },
           }

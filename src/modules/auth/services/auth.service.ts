@@ -10,6 +10,7 @@ import {
   type RegisterBody,
 } from '@phonics/contracts';
 import { AppError } from '@/common/errors/app-error';
+import { nameColumns, profileNameData } from '@/common/utils/student-names';
 import { PrismaService } from '@/database/prisma.service';
 import { type Tx } from '@/database/types';
 import { PermissionsService } from '@/modules/permissions/services/permissions.service';
@@ -174,6 +175,8 @@ export class AuthService {
         fieldErrors: { classId: ['CLASS_NOT_JOINABLE'] },
       });
 
+    // Form đăng ký chỉ có một ô tên → coi là tên tiếng Việt; tên tiếng Anh GV / admin bổ sung sau
+    const names = nameColumns({ vietnameseName: input.displayName, englishName: null });
     return tx.user.create({
       data: {
         email: input.email,
@@ -182,10 +185,11 @@ export class AuthService {
         googleSub: input.googleSub,
         emailVerified: input.emailVerified ?? false,
         role: 'STUDENT',
-        displayName: input.displayName,
+        displayName: names.displayName,
         avatarKey: input.avatarKey,
         studentProfile: {
           create: {
+            ...profileNameData(names),
             parentName: input.parent?.name,
             parentEmail: input.parent?.email,
             parentPhone: input.parent?.phone,

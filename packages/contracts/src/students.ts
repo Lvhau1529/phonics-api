@@ -6,10 +6,18 @@ import { PageQuery } from './common/pagination.js';
 import { ValidationMessage } from './common/validation-messages.js';
 import { AvatarKey, DisplayName, Email, Password, StudentClassRef, UserStatus } from './users.js';
 
+/** Họ tên tiếng Việt của học sinh (bắt buộc) — dùng ở phiếu học phí, mail phụ huynh */
+export const VietnameseName = DisplayName;
+/** Tên tiếng Anh (tuỳ chọn) — có thì là tên hiển thị trong game / xếp hạng */
+export const EnglishName = DisplayName;
+
 export const StudentSummary = z.object({
   id: Id,
   email: Email,
+  /** Tên hiển thị = tên tiếng Anh nếu có, không thì tên tiếng Việt (server tự đồng bộ) */
   displayName: DisplayName,
+  vietnameseName: VietnameseName,
+  englishName: EnglishName.nullable(),
   avatarKey: AvatarKey,
   status: UserStatus,
   class: StudentClassRef.nullable(),
@@ -38,9 +46,16 @@ export const StudentListQuery = PageQuery.extend({
 });
 export type StudentListQuery = z.infer<typeof StudentListQuery>;
 
-/** Admin: mọi trường; GV có students.edit: chỉ displayName / avatarKey */
+/**
+ * Admin: mọi trường; GV có students.edit: chỉ tên / avatarKey.
+ * `englishName: null` = xoá tên tiếng Anh. `displayName` (client cũ, < 1.6.0) sửa tên **đang hiển thị** (tên tiếng
+ * Anh nếu có, không thì tên tiếng Việt); bị bỏ qua khi có `vietnameseName` / `englishName`.
+ */
 export const UpdateStudentBody = z
   .strictObject({
+    vietnameseName: VietnameseName,
+    englishName: EnglishName.nullable(),
+    /** @deprecated dùng `vietnameseName` / `englishName` */
     displayName: DisplayName,
     avatarKey: AvatarKey,
     email: Email,
@@ -60,3 +75,8 @@ export type MoveClassBody = z.infer<typeof MoveClassBody>;
 
 export const ResetPasswordBody = z.strictObject({ newPassword: Password });
 export type ResetPasswordBody = z.infer<typeof ResetPasswordBody>;
+
+/** Họ tên đầy đủ: `Nguyễn Văn An (Andy)`, hoặc `Nguyễn Văn An` khi không có tên tiếng Anh */
+export function studentFullName(s: { vietnameseName: string; englishName: string | null }): string {
+  return s.englishName ? `${s.vietnameseName} (${s.englishName})` : s.vietnameseName;
+}
