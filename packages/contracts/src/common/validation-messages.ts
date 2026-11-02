@@ -72,6 +72,8 @@ const vi = {
   endAfterStart: 'Giờ kết thúc phải sau giờ bắt đầu',
   startEndTogether: 'Sửa giờ thì gửi cả giờ bắt đầu và giờ kết thúc',
   effectiveToAfterFrom: 'Ngày kết thúc phải sau ngày bắt đầu',
+  sessionsOrDate: 'Chọn danh sách buổi hoặc một ngày (không cả hai)',
+  monthFormat: 'Tháng dạng YYYY-MM',
 };
 
 export type ValidationCatalog = typeof vi;
@@ -137,6 +139,8 @@ const en: ValidationCatalog = {
   endAfterStart: 'The end time must be after the start time',
   startEndTogether: 'Send both the start and the end time',
   effectiveToAfterFrom: 'The end date must be after the start date',
+  sessionsOrDate: 'Choose either sessions or a date (not both)',
+  monthFormat: 'Month must look like YYYY-MM',
 };
 
 export const VALIDATION_LOCALES = ['vi', 'en'] as const;

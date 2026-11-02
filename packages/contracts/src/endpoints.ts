@@ -133,6 +133,21 @@ export const ENDPOINTS = {
     moveSlotAssignment: (id: string, assignmentId: string) =>
       `/students/${id}/slot-assignments/${assignmentId}/move`,
     rates: (id: string) => `/students/${id}/rates`,
+    applySlotAssignments: (id: string) => `/students/${id}/slot-assignments/apply`,
+    attendance: (id: string) => `/students/${id}/attendance`,
+  },
+  extraRates: {
+    apply: (id: string) => `/extra-rates/${id}/apply`,
+  },
+  attendance: {
+    sessions: '/attendance/sessions',
+    session: (id: string) => `/attendance/sessions/${id}`,
+    records: (id: string) => `/attendance/sessions/${id}/records`,
+    confirm: (id: string) => `/attendance/sessions/${id}/confirm`,
+    cancel: '/attendance/sessions/cancel',
+    pendingCount: '/attendance/sessions/pending/count',
+    digest: (token: string) => `/attendance/public/digests/${token}`,
+    confirmDigest: (token: string) => `/attendance/public/digests/${token}/confirm`,
   },
   extraSlots: {
     list: '/extra-slots',

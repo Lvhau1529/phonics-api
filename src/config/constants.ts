@@ -68,3 +68,19 @@ export const WORKSHEETS = {
   /** File media có tên bất biến (uuid) → cache 1 năm (đĩa: express static; R2: header lưu kèm đối tượng) */
   mediaCacheControl: 'public, max-age=31536000, immutable',
 } as const;
+
+/** Học thêm / điểm danh (docs/attendance-design.md §5) — giờ theo APP_TIMEZONE */
+export const EXTRA_LESSONS = {
+  /** Tạo buổi của ngày */
+  sessionTime: '00:05',
+  /** Mail tổng hợp cho GV */
+  digestTime: '21:00',
+  /** Một buổi được nhắc tối đa số lần này */
+  maxDigests: 3,
+  /** Hạn link duyệt nhanh trong mail */
+  digestTokenDays: 7,
+  /** API tắt lỡ mốc 00:05: khởi động lại tạo bù buổi của ngần này ngày trước */
+  catchUpDays: 3,
+  /** Lỗi khi chạy mốc → thử lại sau */
+  retryMs: 60_000,
+} as const;

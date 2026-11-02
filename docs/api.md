@@ -83,6 +83,28 @@ Tài khoản `PENDING` (phụ huynh chờ duyệt) chỉ gọi được `auth/me
 Đơn giá mới từ ngày D: dòng cùng phạm vi đang phủ D đóng tại D; dòng bắt đầu từ D trở đi bị thay thế
 (`effectiveTo = effectiveFrom`). Giải đơn giá: (HS, ca) → (HS) → (ca) → 0đ `NONE` (`resolveRate`, §4.1 thiết kế).
 
+## attendance — buổi học thêm & điểm danh (A; T: buổi mình phụ trách / ca mình dạy)
+
+| Method | Path | Ai | Request → Response |
+| --- | --- | --- | --- |
+| GET | `/attendance/sessions` | A, T | `AttendanceSessionListQuery { from?, to?, slotId?, teacherId?, status? }` → `Paginated<AttendanceSessionSummary>` |
+| GET | `/attendance/sessions/pending/count` | A, T | → `{ count }` (buổi PENDING đã bắt đầu — badge menu) |
+| GET | `/attendance/sessions/:id` | A, T | → `AttendanceSessionDetail` (`unitPrice` cần perm:`extra.viewPricing`) |
+| PUT | `/attendance/sessions/:id/records` | A, T (perm:`attendance.confirm`) | `UpdateAttendanceRecordsBody` → detail. Học sinh chưa có → thêm MANUAL; `charged` / `unitPrice` chỉ A. 409 `ATTENDANCE_SESSION_CANCELLED` |
+| POST | `/attendance/sessions/:id/confirm` | A, T (perm:`attendance.confirm`) | `{}` → detail (đã xác nhận → ghi lại người / lúc) |
+| POST | `/attendance/sessions` | A (perm:`extra.manageSlots`) | `CreateAttendanceSessionBody` → detail (201) — buổi bù |
+| POST | `/attendance/sessions/cancel` | A (perm:`extra.manageSlots`) | `CancelAttendanceSessionsBody { sessionIds \| date, reason }` → `{ cancelled }` |
+| GET | `/attendance/public/digests/:token` | pub | → `AttendanceDigestView` (link mail 21:00; 404 `ATTENDANCE_TOKEN_INVALID`, 410 `ATTENDANCE_TOKEN_EXPIRED`) |
+| POST | `/attendance/public/digests/:token/confirm` | pub | `{ sessionIds }` → `ConfirmDigestResponse` (chỉ buổi trong mail, còn PENDING, danh sách chưa đổi) |
+| POST | `/students/:id/slot-assignments/apply` | A, T (perm:`extra.manageSchedule`) | `{ sessionIds }` → `{ updated }` — áp lịch vào buổi đã xác nhận (`affectedSessions`) |
+| POST | `/extra-rates/:id/apply` | A, T (perm:`extra.managePricing`) | `{ sessionIds }` → `{ updated }` — áp giá vào buổi đã xác nhận (`affectedRecords`) |
+| GET | `/students/:id/attendance` | A, T | `?month=YYYY-MM` → `StudentAttendanceResponse` |
+
+Hẹn giờ (`ExtraLessonsScheduler`, theo APP_TIMEZONE): **00:05** tạo buổi của ngày cho mọi ca (học sinh theo lịch, mặc
+định có mặt, chốt đơn giá; idempotent theo (ca, ngày), tạo bù `catchUpDays` ngày khi API tắt qua mốc); **21:00** mỗi
+GV một mail `teacher.digest` các buổi PENDING (tối đa 3 lần nhắc / buổi). Sửa lịch / đặt giá: buổi PENDING tự đồng
+bộ, buổi CONFIRMED trả trong `affectedSessions` / `affectedRecords` để hỏi người dùng.
+
 ## guardians (A, perm:`guardians.manage`)
 
 | Method | Path | Ai | Request → Response |

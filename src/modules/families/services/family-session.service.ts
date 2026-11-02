@@ -6,7 +6,7 @@ import { AuthService } from '@/modules/auth/services/auth.service';
 import { PasswordService } from '@/modules/auth/services/password.service';
 import { type AuthResult, type AuthUser, type ClientMeta } from '@/modules/auth/types/auth.types';
 import { FamilyRepository } from '@/modules/families/repositories/family.repository';
-import { hashAuthToken } from '@/modules/families/services/family-invite.service';
+import { hashToken } from '@/common/utils/hash-token';
 
 /** Phiên của tài khoản gia đình: vào hồ sơ bé (token học sinh có claim `act`), đặt mật khẩu từ link mời */
 @Injectable()
@@ -32,7 +32,7 @@ export class FamilySessionService {
 
   /** Đặt mật khẩu lần đầu bằng token trong mail mời → đăng nhập luôn */
   async setPassword(body: SetPasswordBody, meta: ClientMeta): Promise<AuthResult> {
-    const token = await this.repo.findAuthToken(hashAuthToken(body.token));
+    const token = await this.repo.findAuthToken(hashToken(body.token));
     if (!token || token.purpose !== 'INVITE' || token.usedAt || dayjs(token.expiresAt).isBefore(dayjs())) {
       throw new AppError('INVITE_TOKEN_INVALID', 400);
     }

@@ -29,6 +29,7 @@ export const PermissionCode = z.enum([
   'extra.manageSchedule',
   'extra.viewPricing',
   'extra.managePricing',
+  'attendance.confirm',
 ]);
 export type Permission = z.infer<typeof PermissionCode>;
 
@@ -97,6 +98,11 @@ export const PERMISSIONS: readonly PermissionDef[] = [
     code: 'extra.managePricing',
     defaultRoles: ['ADMIN', 'TEACHER'],
     description: 'Đặt đơn giá học thêm: giá mặc định của ca, giá riêng học sinh (GV: ca mình dạy)',
+  },
+  {
+    code: 'attendance.confirm',
+    defaultRoles: ['ADMIN', 'TEACHER'],
+    description: 'Điểm danh và xác nhận buổi học thêm (GV: buổi mình dạy)',
   },
 ];
 

@@ -995,6 +995,11 @@ riêng học sinh với `resolveRate`, quyền `extra.*`, màn Ca học thêm / 
 nên các API sửa lịch / giá **chưa trả** `affectedSessions` / `affectedRecords` và chưa có `.../apply` — thêm ở PR 5
 (trường mới tuỳ chọn, không phá client). GV thêm học sinh: học sinh lớp chính mình dạy hoặc từng học ca mình.
 
+**Đã làm ở PR 5 (API + admin)**: buổi + điểm danh, `ExtraLessonsScheduler` (00:05 / 21:00), mail `teacher.digest` +
+trang duyệt nhanh `/a/attendance/:token`, đồng bộ buổi khi sửa lịch / giá (`affectedSessions` / `affectedRecords` +
+`apply`), buổi bù, huỷ hàng loạt, điểm danh theo tháng. Chưa làm: khoá theo kỳ học phí (PR 6), notification cho admin
+khi buổi quá 3 lần nhắc vẫn PENDING (xem bằng bộ lọc trạng thái). Env mới `ADMIN_APP_URL`.
+
 ## 15. Câu hỏi còn lại
 
 Không còn câu hỏi nghiệp vụ mở. Mặc định đang áp (đổi được ở trang Phân quyền / template, không cần sửa code):

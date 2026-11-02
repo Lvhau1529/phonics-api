@@ -53,6 +53,10 @@ export const ErrorCode = z.enum([
   // Học thêm
   'SLOT_ASSIGNMENT_OVERLAP',
   'RATE_SCOPE_FORBIDDEN',
+  // Điểm danh
+  'ATTENDANCE_TOKEN_INVALID',
+  'ATTENDANCE_TOKEN_EXPIRED',
+  'ATTENDANCE_SESSION_CANCELLED',
 ]);
 export type ErrorCode = z.infer<typeof ErrorCode>;
 

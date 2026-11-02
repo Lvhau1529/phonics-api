@@ -1,6 +1,8 @@
 /** Dựng view ca / lịch / đơn giá (shape contracts) từ dòng Prisma — hàm thuần */
 import {
   type AppliedRate,
+  type AttendanceRecord as AttendanceRecordView,
+  type AttendanceSessionSummary,
   AvatarKey,
   DEFAULT_AVATAR,
   type ExtraRate,
@@ -8,12 +10,16 @@ import {
   type ExtraSlotRef,
   type SlotAssignment,
   type SlotStudent,
+  type TeacherRef,
 } from '@phonics/contracts';
 import {
   type AssignmentRow,
   type RateRowWithAuthor,
+  type RecordRow,
+  type SessionSummaryRow,
   type SlotRow,
   type SlotStudentRow,
+  type TeacherRow,
 } from '@/modules/extra-lessons/types/extra.types';
 
 const avatarOf = (key: string) => AvatarKey.safeParse(key).data ?? DEFAULT_AVATAR;
@@ -35,13 +41,7 @@ export function toExtraSlot(row: SlotRow, studentCount: number, defaultPrice: nu
     room: row.room,
     capacity: row.capacity,
     class: row.class,
-    teachers: row.teachers.map(({ teacher }) => ({
-      id: teacher.id,
-      displayName: teacher.displayName,
-      // Giáo viên luôn có email (chỉ học sinh MANAGED mới null)
-      email: teacher.email ?? '',
-      avatarKey: avatarOf(teacher.avatarKey),
-    })),
+    teachers: row.teachers.map(({ teacher }) => toTeacherRef(teacher)),
     studentCount,
     defaultPrice,
     createdAt: row.createdAt.toISOString(),
@@ -89,5 +89,64 @@ export function toSlotStudent(row: SlotStudentRow, rate: AppliedRate | null): Sl
     effectiveFrom: row.effectiveFrom,
     effectiveTo: row.effectiveTo,
     rate,
+  };
+}
+
+// ---------- Buổi & điểm danh ----------
+
+export function toTeacherRef(row: TeacherRow): TeacherRef {
+  // Giáo viên luôn có email (chỉ học sinh MANAGED mới null)
+  return {
+    id: row.id,
+    displayName: row.displayName,
+    email: row.email ?? '',
+    avatarKey: avatarOf(row.avatarKey),
+  };
+}
+
+export function toSessionSummary(
+  row: SessionSummaryRow,
+  teachers: ReadonlyMap<string, TeacherRow>,
+  missingRateCount: number,
+): AttendanceSessionSummary {
+  return {
+    id: row.id,
+    slot: row.slot ? toSlotRef(row.slot) : null,
+    date: row.date,
+    startTime: row.startTime,
+    endTime: row.endTime,
+    startsAt: row.startsAt.toISOString(),
+    endsAt: row.endsAt.toISOString(),
+    teachers: row.teacherIds.flatMap((id) => {
+      const t = teachers.get(id);
+      return t ? [toTeacherRef(t)] : [];
+    }),
+    status: row.status,
+    studentCount: row._count.records,
+    presentCount: row.presentCount,
+    recordsVersion: row.recordsVersion,
+    missingRateCount,
+    confirmedBy: row.confirmedBy,
+    confirmedAt: row.confirmedAt?.toISOString() ?? null,
+    confirmedVia: row.confirmedVia === 'EMAIL' || row.confirmedVia === 'APP' ? row.confirmedVia : null,
+    cancelReason: row.cancelReason,
+    note: row.note,
+  };
+}
+
+export function toAttendanceRecord(row: RecordRow, showPrice: boolean): AttendanceRecordView {
+  return {
+    studentId: row.studentId,
+    displayName: row.student.user.displayName,
+    vietnameseName: row.student.vietnameseName,
+    englishName: row.student.englishName,
+    avatarKey: avatarOf(row.student.user.avatarKey),
+    mark: row.mark,
+    charged: row.charged,
+    unitPrice: showPrice ? row.unitPrice : null,
+    missingRate: row.rateId === null,
+    source: row.source === 'MANUAL' ? 'MANUAL' : 'SNAPSHOT',
+    note: row.note,
+    updatedAt: row.updatedAt.toISOString(),
   };
 }

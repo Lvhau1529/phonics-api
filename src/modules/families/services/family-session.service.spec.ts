@@ -4,7 +4,7 @@ import { type AuthService } from '@/modules/auth/services/auth.service';
 import { type PasswordService } from '@/modules/auth/services/password.service';
 import { type AuthUser } from '@/modules/auth/types/auth.types';
 import { type FamilyRepository } from '@/modules/families/repositories/family.repository';
-import { hashAuthToken } from '@/modules/families/services/family-invite.service';
+import { hashToken } from '@/common/utils/hash-token';
 import { FamilySessionService } from '@/modules/families/services/family-session.service';
 
 const parent: AuthUser = { id: 'p1', role: 'PARENT', status: 'ACTIVE', tokenVersion: 0 };
@@ -57,7 +57,7 @@ describe('FamilySessionService', () => {
         service.setPassword({ token: 'x'.repeat(40), password: 'secret1' }, {}),
       ).rejects.toMatchObject({ code: 'INVITE_TOKEN_INVALID' });
     }
-    expect(repo.findAuthToken).toHaveBeenCalledWith(hashAuthToken('x'.repeat(40)));
+    expect(repo.findAuthToken).toHaveBeenCalledWith(hashToken('x'.repeat(40)));
     expect(repo.transaction).not.toHaveBeenCalled();
   });
 });

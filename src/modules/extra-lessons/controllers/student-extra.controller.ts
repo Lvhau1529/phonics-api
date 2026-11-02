@@ -1,15 +1,18 @@
-import { Body, Controller, Get, Param, ParseUUIDPipe, Patch, Post } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Param, ParseUUIDPipe, Patch, Post, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '@/common/decorators/current-user.decorator';
 import { RequirePermission, Roles } from '@/common/decorators/roles.decorator';
 import { API_V1 } from '@/config/api-version';
 import { type AuthUser } from '@/modules/auth/types/auth.types';
 import {
+  ApplyToSessionsDto,
   CreateSlotAssignmentDto,
   CreateStudentRateDto,
   MoveSlotAssignmentDto,
+  StudentAttendanceQueryDto,
   UpdateSlotAssignmentDto,
 } from '@/modules/extra-lessons/dto/requests/extra.dto';
+import { AttendanceReaderService } from '@/modules/extra-lessons/services/attendance-reader.service';
 import { ExtraRateService } from '@/modules/extra-lessons/services/extra-rate.service';
 import { SlotAssignmentService } from '@/modules/extra-lessons/services/slot-assignment.service';
 import { StudentExtraReaderService } from '@/modules/extra-lessons/services/student-extra-reader.service';
@@ -24,6 +27,7 @@ export class StudentExtraController {
     private readonly reader: StudentExtraReaderService,
     private readonly assignments: SlotAssignmentService,
     private readonly rates: ExtraRateService,
+    private readonly attendance: AttendanceReaderService,
   ) {}
 
   @Get(':id/extra')
@@ -39,6 +43,18 @@ export class StudentExtraController {
     @Body() body: CreateSlotAssignmentDto,
   ) {
     return this.assignments.create(user, id, body);
+  }
+
+  /** Áp lịch hiện tại vào các buổi đã xác nhận được liệt kê (`affectedSessions` của lần sửa trước) */
+  @RequirePermission('extra.manageSchedule')
+  @HttpCode(200)
+  @Post(':id/slot-assignments/apply')
+  applyAssignments(
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: ApplyToSessionsDto,
+  ) {
+    return this.assignments.apply(user, id, body);
   }
 
   @RequirePermission('extra.manageSchedule')
@@ -62,6 +78,15 @@ export class StudentExtraController {
     @Body() body: MoveSlotAssignmentDto,
   ) {
     return this.assignments.move(user, id, assignmentId, body);
+  }
+
+  @Get(':id/attendance')
+  attendanceMonth(
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Query() query: StudentAttendanceQueryDto,
+  ) {
+    return this.attendance.studentMonth(user, id, query);
   }
 
   @RequirePermission('extra.viewPricing')

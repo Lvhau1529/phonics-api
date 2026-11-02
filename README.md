@@ -237,6 +237,7 @@ Nguồn sự thật: `src/config/env.schema.ts` (zod; thiếu / sai thì API kh�
 | `SMTP_SECURE`               |          | theo cổng          | `true` = TLS ngay (465), `false` = STARTTLS (587); mặc định `true` khi cổng 465 |
 | `SMTP_USER` / `SMTP_PASS`   |          |                    | Tài khoản SMTP (khai báo cùng nhau)                                     |
 | `GAME_APP_URL`              | prod ✓   | `http://localhost:5173` | URL game — link trong mail phụ huynh (đặt mật khẩu tài khoản gia đình) |
+| `ADMIN_APP_URL`             | prod ✓   | `http://localhost:5174` | URL admin — link trong mail GV 21:00 (duyệt điểm danh, sửa buổi)        |
 
 Media phiếu bài tập (ADR 0017 / 0018 / 0024): `POST /media/presign` trả `uploadUrl` =
 `${API_PUBLIC_URL}/api/v1/media/:id/upload?exp=…&sig=…` (HMAC theo `JWT_ACCESS_SECRET`, không cần bearer) → client PUT

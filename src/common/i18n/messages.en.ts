@@ -50,6 +50,9 @@ export const en: Messages = {
   SLOT_ASSIGNMENT_OVERLAP: 'The student is already in this slot for overlapping dates',
   RATE_SCOPE_FORBIDDEN:
     "The student also attends another teacher's slot — ask an admin to set a student-wide price",
+  ATTENDANCE_TOKEN_INVALID: 'The attendance link is invalid',
+  ATTENDANCE_TOKEN_EXPIRED: 'The attendance link has expired — sign in to confirm',
+  ATTENDANCE_SESSION_CANCELLED: 'The session was cancelled',
 
   assignmentNotFound: 'Assignment not found',
   homeworkNotFound: 'Homework not found',
@@ -127,4 +130,10 @@ export const en: Messages = {
   studentNotActive: 'The student is not approved yet or is disabled',
   endAfterStart: 'The end time must be after the start time',
   effectiveToAfterFrom: 'The end date must be after the start date',
+  sessionNotFound: 'Session not found',
+  extraRateNotFound: 'Rate not found',
+  billingFieldsAdminOnly: 'Only admins can change per-session price or billing',
+  removeManualOnly:
+    'Only manually added students can be removed — mark scheduled students absent or fix their schedule',
+  sessionAlreadyConfirmed: 'The session was already confirmed by someone else',
 };

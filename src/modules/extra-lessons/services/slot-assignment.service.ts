@@ -1,5 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import {
+  type ApplyToSessionsBody,
+  type ApplyToSessionsResponse,
   type CreateSlotAssignmentBody,
   type MoveSlotAssignmentBody,
   type SlotAssignment,
@@ -13,6 +15,7 @@ import { toSlotAssignment } from '@/modules/extra-lessons/dto/responses/extra.vi
 import { ExtraScheduleRepository } from '@/modules/extra-lessons/repositories/extra-schedule.repository';
 import { ExtraAccessService } from '@/modules/extra-lessons/services/extra-access.service';
 import { ExtraSlotReaderService } from '@/modules/extra-lessons/services/extra-slot-reader.service';
+import { SessionSyncService } from '@/modules/extra-lessons/services/session-sync.service';
 import { type AssignmentRow } from '@/modules/extra-lessons/types/extra.types';
 import { type DateRange, rangesOverlap } from '@/modules/extra-lessons/utils/schedule';
 
@@ -27,6 +30,7 @@ export class SlotAssignmentService {
     private readonly slots: ExtraSlotReaderService,
     private readonly access: ExtraAccessService,
     private readonly audit: AuditService,
+    private readonly sync: SessionSyncService,
   ) {}
 
   async create(actor: AuthUser, studentId: string, body: CreateSlotAssignmentBody): Promise<SlotAssignment> {
@@ -48,7 +52,7 @@ export class SlotAssignmentService {
       assignmentId: row.id,
       ...body,
     });
-    return toSlotAssignment(row);
+    return this.withAffected(row, [body.slotId], range);
   }
 
   /** Sửa ngày bắt đầu / kết thúc (rời ca từ ngày Y = đặt `effectiveTo`), ghi chú */
@@ -87,7 +91,16 @@ export class SlotAssignmentService {
       },
       { assignmentId, ...body },
     );
-    return toSlotAssignment(row);
+    // Buổi bị ảnh hưởng nằm trong hợp của khoảng cũ và mới
+    return this.withAffected(row, [current.slotId], {
+      from: range.from < current.effectiveFrom ? range.from : current.effectiveFrom,
+      to:
+        range.to === null || current.effectiveTo === null
+          ? null
+          : range.to > current.effectiveTo
+            ? range.to
+            : current.effectiveTo,
+    });
   }
 
   /** Chuyển sang ca khác từ ngày Z: dòng cũ kết thúc tại Z, dòng mới [Z, hạn cũ) — trả dòng mới */
@@ -127,10 +140,42 @@ export class SlotAssignmentService {
       { assignmentId, slotId: current.slotId },
       { assignmentId: row.id, slotId: body.slotId, from: body.from },
     );
-    return toSlotAssignment(row);
+    return this.withAffected(row, [current.slotId, body.slotId], range);
+  }
+
+  /**
+   * Áp lịch hiện tại vào các buổi đã xác nhận được liệt kê (sau modal "Cập nhật luôn N buổi?"). GV chỉ áp được buổi
+   * của ca mình dạy.
+   */
+  async apply(
+    actor: AuthUser,
+    studentId: string,
+    body: ApplyToSessionsBody,
+  ): Promise<ApplyToSessionsResponse> {
+    if (!(await this.repo.findStudent(studentId))) throw notFound('studentNotFound');
+    await this.access.assertStudentAccess(actor, studentId);
+    const scope = await this.access.slotScope(actor);
+    const sessionIds = scope ? await this.repo.sessionsInSlots(body.sessionIds, scope) : body.sessionIds;
+    const updated = await this.sync.applyStudent(studentId, sessionIds);
+    if (updated.length) {
+      await this.audit.record(actor, 'slotAssignment.apply', 'User', studentId, null, {
+        sessionIds: updated,
+      });
+    }
+    return { updated };
   }
 
   // ---- helpers ----
+
+  /** Đồng bộ buổi đã có theo lịch mới; buổi đã xác nhận lệch trả về để hỏi người dùng */
+  private async withAffected(
+    row: AssignmentRow,
+    slotIds: readonly string[],
+    range: DateRange,
+  ): Promise<SlotAssignment> {
+    const affectedSessions = await this.sync.syncStudent(row.studentId, slotIds, range.from, range.to);
+    return { ...toSlotAssignment(row), affectedSessions };
+  }
 
   private async assertStudent(actor: AuthUser, studentId: string): Promise<void> {
     const student = await this.repo.findStudent(studentId);

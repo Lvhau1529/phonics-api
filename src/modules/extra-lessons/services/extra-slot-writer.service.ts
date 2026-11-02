@@ -9,6 +9,7 @@ import { AppError, notFound } from '@/common/errors/app-error';
 import { AuditService } from '@/modules/audit/services/audit.service';
 import { type AuthUser } from '@/modules/auth/types/auth.types';
 import { ExtraSlotRepository } from '@/modules/extra-lessons/repositories/extra-slot.repository';
+import { ExtraLessonsScheduler } from '@/modules/extra-lessons/jobs/extra-lessons.scheduler';
 import { ExtraSlotReaderService } from '@/modules/extra-lessons/services/extra-slot-reader.service';
 
 /** Tạo / sửa / lưu trữ ca, gán GV (quyền extra.manageSlots — kiểm tra ở controller) */
@@ -18,6 +19,7 @@ export class ExtraSlotWriterService {
     private readonly repo: ExtraSlotRepository,
     private readonly reader: ExtraSlotReaderService,
     private readonly audit: AuditService,
+    private readonly scheduler: ExtraLessonsScheduler,
   ) {}
 
   async create(actor: AuthUser, body: CreateExtraSlotBody): Promise<ExtraSlot> {
@@ -29,6 +31,8 @@ export class ExtraSlotWriterService {
       return slot;
     });
     await this.audit.record(actor, 'extraSlot.create', 'ExtraSlot', row.id, null, body);
+    // Ca của hôm nay (đã qua 00:05) có buổi luôn
+    await this.scheduler.reschedule();
     return this.reader.detail(actor, row.id);
   }
 
@@ -51,6 +55,7 @@ export class ExtraSlotWriterService {
       Object.fromEntries(Object.keys(body).map((k) => [k, current[k as keyof typeof current]])),
       body,
     );
+    if (body.weekday !== undefined) await this.scheduler.reschedule();
     return this.reader.detail(actor, id);
   }
 

@@ -56,6 +56,12 @@ export const AuditAction = z.enum([
   'slotAssignment.update',
   'slotAssignment.move',
   'extraRate.create',
+  'extraRate.reprice',
+  'slotAssignment.apply',
+  'attendance.updateRecords',
+  'attendance.confirm',
+  'attendance.cancelSession',
+  'attendance.createSession',
 ]);
 export type AuditAction = z.infer<typeof AuditAction>;
 

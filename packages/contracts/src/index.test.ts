@@ -7,6 +7,8 @@ import {
   STUDENT_MEDIA_LIMITS,
   AvatarKey,
   AwardBonusBody,
+  BILLING_POLICY,
+  CancelAttendanceSessionsBody,
   CreateExtraSlotBody,
   CreateSlotAssignmentBody,
   DEFAULT_AVATAR,
@@ -16,6 +18,8 @@ import {
   PageQuery,
   RegisterBody,
   RegisterFamilyBody,
+  StudentAttendanceQuery,
+  UpdateAttendanceRecordsBody,
   SetStudentGuardiansBody,
   ROLE_DEFAULT_PERMISSIONS,
   UpdateExtraSlotBody,
@@ -533,5 +537,43 @@ describe('học thêm', () => {
       expect.arrayContaining(['extra.manageSchedule', 'extra.viewPricing', 'extra.managePricing']),
     );
     expect(ROLE_DEFAULT_PERMISSIONS.TEACHER).not.toContain('extra.manageSlots');
+  });
+});
+
+describe('điểm danh', () => {
+  const id = '00000000-0000-4000-8000-000000000001';
+
+  it('vắng không tính phí', () => {
+    expect(BILLING_POLICY).toEqual({ PRESENT: true, ABSENT: false, EXCUSED: false });
+  });
+
+  it('huỷ buổi: danh sách buổi hoặc một ngày, không cả hai', () => {
+    expect(CancelAttendanceSessionsBody.safeParse({ sessionIds: [id], reason: 'Lễ' }).success).toBe(true);
+    expect(CancelAttendanceSessionsBody.safeParse({ date: '2026-09-02', reason: 'Lễ' }).success).toBe(true);
+    expect(
+      CancelAttendanceSessionsBody.safeParse({ sessionIds: [id], date: '2026-09-02', reason: 'Lễ' }).error
+        ?.issues[0]?.message,
+    ).toBe('sessionsOrDate');
+    expect(CancelAttendanceSessionsBody.safeParse({ reason: 'Lễ' }).success).toBe(false);
+  });
+
+  it('sửa điểm danh: cần ít nhất một thay đổi, không trùng học sinh', () => {
+    expect(UpdateAttendanceRecordsBody.safeParse({}).success).toBe(false);
+    expect(UpdateAttendanceRecordsBody.safeParse({ note: null }).success).toBe(true);
+    expect(
+      UpdateAttendanceRecordsBody.safeParse({
+        records: [
+          { studentId: id, mark: 'ABSENT' },
+          { studentId: id, mark: 'PRESENT' },
+        ],
+      }).error?.issues[0]?.message,
+    ).toBe('duplicateStudent');
+  });
+
+  it('tháng YYYY-MM', () => {
+    expect(StudentAttendanceQuery.safeParse({ month: '2026-11' }).success).toBe(true);
+    expect(StudentAttendanceQuery.safeParse({ month: '2026-13' }).error?.issues[0]?.message).toBe(
+      'monthFormat',
+    );
   });
 });

@@ -54,6 +54,9 @@ const codeMessages = {
   SLOT_ASSIGNMENT_OVERLAP: 'Học sinh đã học ca này trong khoảng ngày trùng',
   RATE_SCOPE_FORBIDDEN:
     'Học sinh đang học ca của giáo viên khác — giá riêng áp cho mọi ca nên hãy nhờ admin đặt',
+  ATTENDANCE_TOKEN_INVALID: 'Link duyệt điểm danh không hợp lệ',
+  ATTENDANCE_TOKEN_EXPIRED: 'Link duyệt điểm danh đã hết hạn — hãy đăng nhập để xác nhận',
+  ATTENDANCE_SESSION_CANCELLED: 'Buổi học đã bị huỷ',
 } satisfies Record<ErrorCode, string>;
 
 export const vi = {
@@ -143,6 +146,11 @@ export const vi = {
   studentNotActive: 'Học sinh chưa được duyệt hoặc đã bị khoá',
   endAfterStart: 'Giờ kết thúc phải sau giờ bắt đầu',
   effectiveToAfterFrom: 'Ngày kết thúc phải sau ngày bắt đầu',
+  sessionNotFound: 'Không tìm thấy buổi học',
+  extraRateNotFound: 'Không tìm thấy đơn giá',
+  billingFieldsAdminOnly: 'Chỉ admin sửa được đơn giá / tính phí từng buổi',
+  removeManualOnly: 'Chỉ bỏ được học sinh thêm tay — học sinh theo lịch thì đánh vắng hoặc sửa lịch',
+  sessionAlreadyConfirmed: 'Buổi đã được người khác xác nhận',
 };
 
 export type Messages = typeof vi;

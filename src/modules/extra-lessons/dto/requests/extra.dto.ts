@@ -1,4 +1,9 @@
 import {
+  ApplyToSessionsBody,
+  AttendanceSessionListQuery,
+  CancelAttendanceSessionsBody,
+  ConfirmDigestBody,
+  CreateAttendanceSessionBody,
   CreateExtraSlotBody,
   CreateSlotAssignmentBody,
   CreateSlotRateBody,
@@ -7,6 +12,8 @@ import {
   MoveSlotAssignmentBody,
   SetSlotTeachersBody,
   SlotStudentsQuery,
+  StudentAttendanceQuery,
+  UpdateAttendanceRecordsBody,
   UpdateExtraSlotBody,
   UpdateSlotAssignmentBody,
 } from '@phonics/contracts';
@@ -22,3 +29,10 @@ export class CreateStudentRateDto extends createZodDto(CreateStudentRateBody) {}
 export class CreateSlotAssignmentDto extends createZodDto(CreateSlotAssignmentBody) {}
 export class UpdateSlotAssignmentDto extends createZodDto(UpdateSlotAssignmentBody) {}
 export class MoveSlotAssignmentDto extends createZodDto(MoveSlotAssignmentBody) {}
+export class AttendanceSessionListQueryDto extends createZodDto(AttendanceSessionListQuery) {}
+export class UpdateAttendanceRecordsDto extends createZodDto(UpdateAttendanceRecordsBody) {}
+export class CreateAttendanceSessionDto extends createZodDto(CreateAttendanceSessionBody) {}
+export class CancelAttendanceSessionsDto extends createZodDto(CancelAttendanceSessionsBody) {}
+export class ConfirmDigestDto extends createZodDto(ConfirmDigestBody) {}
+export class ApplyToSessionsDto extends createZodDto(ApplyToSessionsBody) {}
+export class StudentAttendanceQueryDto extends createZodDto(StudentAttendanceQuery) {}

@@ -37,6 +37,10 @@ erDiagram
   student_profiles ||--o{ student_slot_assignments : "lịch học thêm"
   student_profiles o|--o{ extra_rates : "giá riêng"
   extra_slots o|--o{ extra_rates : "giá mặc định ca"
+  extra_slots o|--o{ attendance_sessions : "buổi (null = buổi bù)"
+  attendance_sessions ||--o{ attendance_records : ""
+  student_profiles ||--o{ attendance_records : "điểm danh"
+  users ||--o{ attendance_digests : "mail 21:00"
   users o|--o{ audit_logs : "actor"
   users ||--o{ media_assets : "tải lên"
   users ||--o{ questions : "tạo"
@@ -127,6 +131,36 @@ erDiagram
     int price_per_session "VND"
     string effective_from
     string effective_to "= effective_from: bị thay thế"
+  }
+  attendance_sessions {
+    uuid id PK
+    uuid slot_id FK "unique (slot_id, date)"
+    string date
+    string start_time
+    string end_time
+    uuid_array teacher_ids
+    enum status "PENDING | CONFIRMED | CANCELLED"
+    int present_count
+    int records_version "tăng mỗi lần sửa"
+    int digest_count
+    uuid confirmed_by_id FK
+    string confirmed_via "APP | EMAIL"
+  }
+  attendance_records {
+    uuid session_id PK
+    uuid student_id PK
+    enum mark "PRESENT | ABSENT | EXCUSED"
+    int unit_price "chốt lúc thêm"
+    uuid rate_id "null = thiếu giá"
+    bool charged "BILLING_POLICY, admin ghi đè"
+    string source "SNAPSHOT | MANUAL"
+  }
+  attendance_digests {
+    uuid id PK
+    uuid teacher_id FK "unique (teacher_id, date)"
+    string date
+    string token_hash UK
+    json items "[{ sessionId, recordsVersion }]"
   }
   auth_tokens {
     uuid id PK
@@ -386,6 +420,9 @@ erDiagram
   = các dòng `student_slot_assignments` theo khoảng ngày nửa mở `[effective_from, effective_to)` (chồng ngày cùng ca
   kiểm tra trong service). `extra_rates` có lịch sử theo phạm vi (HS, ca) / (HS) / (ca); CHECK ít nhất một khác null +
   partial unique `extra_rates_open` (mỗi phạm vi một dòng mở) thêm tay trong migration.
+- **Điểm danh**: `attendance_records.unit_price` chốt giá lúc thêm (đổi giá sau chỉ áp khi người dùng đồng ý với buổi
+  đã xác nhận); `rate_id` để truy vết / tính lại. Buổi giữ giờ riêng (`start_time`, `starts_at`) nên sửa giờ ca không
+  đổi buổi đã tạo. Token mail 21:00 chỉ lưu sha256; duyệt chỉ hợp lệ khi `records_version` bằng lúc gửi.
 - **Phiếu bài tập** ([ADR 0017](../../phonics-dev/docs/adr/0017-worksheet-domain.md)): `questions.config` / `answer_key`
   là JSON theo discriminated union của contracts; giao bài = **đóng băng snapshot** vào `assignments.snapshot`, nên
   `submission_answers.worksheet_item_id` không có FK (phiếu / câu sửa sau không ảnh hưởng bài đã chấm). Partial unique

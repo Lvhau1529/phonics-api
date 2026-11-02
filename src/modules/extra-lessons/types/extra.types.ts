@@ -49,3 +49,38 @@ export const slotStudentInclude = {
   },
 } satisfies Prisma.StudentSlotAssignmentInclude;
 export type SlotStudentRow = Prisma.StudentSlotAssignmentGetPayload<{ include: typeof slotStudentInclude }>;
+
+// ---------- Buổi & điểm danh ----------
+
+export const sessionSummaryInclude = {
+  slot: { select: slotRefSelect },
+  confirmedBy: { select: { id: true, displayName: true } },
+  _count: { select: { records: true } },
+} satisfies Prisma.AttendanceSessionInclude;
+export type SessionSummaryRow = Prisma.AttendanceSessionGetPayload<{ include: typeof sessionSummaryInclude }>;
+
+export const recordInclude = {
+  student: {
+    select: {
+      vietnameseName: true,
+      englishName: true,
+      nameSortKey: true,
+      user: { select: { displayName: true, avatarKey: true } },
+    },
+  },
+} satisfies Prisma.AttendanceRecordInclude;
+export type RecordRow = Prisma.AttendanceRecordGetPayload<{ include: typeof recordInclude }>;
+
+export const sessionDetailInclude = {
+  ...sessionSummaryInclude,
+  records: { include: recordInclude, orderBy: { student: { nameSortKey: 'asc' } } },
+} satisfies Prisma.AttendanceSessionInclude;
+export type SessionDetailRow = Prisma.AttendanceSessionGetPayload<{ include: typeof sessionDetailInclude }>;
+
+export type TeacherRow = { id: string; displayName: string; email: string | null; avatarKey: string };
+
+/** Một buổi trong mail 21:00 lúc gửi */
+export interface DigestItem {
+  sessionId: string;
+  recordsVersion: number;
+}

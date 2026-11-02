@@ -1,5 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import {
+  type ApplyToSessionsBody,
+  type ApplyToSessionsResponse,
   type CreateSlotRateBody,
   type CreateStudentRateBody,
   type ExtraRate,
@@ -12,6 +14,7 @@ import { toExtraRate } from '@/modules/extra-lessons/dto/responses/extra.view';
 import { ExtraScheduleRepository } from '@/modules/extra-lessons/repositories/extra-schedule.repository';
 import { ExtraAccessService } from '@/modules/extra-lessons/services/extra-access.service';
 import { ExtraSlotReaderService } from '@/modules/extra-lessons/services/extra-slot-reader.service';
+import { type RateScope, SessionSyncService } from '@/modules/extra-lessons/services/session-sync.service';
 import { planRateInsert } from '@/modules/extra-lessons/utils/rate';
 
 /**
@@ -25,6 +28,7 @@ export class ExtraRateService {
     private readonly slots: ExtraSlotReaderService,
     private readonly access: ExtraAccessService,
     private readonly audit: AuditService,
+    private readonly sync: SessionSyncService,
   ) {}
 
   async slotRates(user: AuthUser, slotId: string): Promise<ExtraRatesResponse> {
@@ -94,7 +98,36 @@ export class ExtraRateService {
         closed: changes,
       },
     );
-    return toExtraRate(row);
+    // Buổi chưa xác nhận tự tính lại; buổi đã xác nhận có giá khác → trả về để hỏi người dùng
+    const affectedRecords = await this.sync.repriceForRate(row);
+    return { ...toExtraRate(row), affectedRecords };
+  }
+
+  /** Áp giá vào bản ghi của các buổi đã xác nhận được liệt kê (sau modal "Áp giá mới cho N buổi?") */
+  async apply(actor: AuthUser, rateId: string, body: ApplyToSessionsBody): Promise<ApplyToSessionsResponse> {
+    const rate = await this.repo.findRate(rateId);
+    if (!rate) throw notFound('extraRateNotFound');
+    await this.assertRateScope(actor, rate);
+    const updated = await this.sync.applyRate(rate, body.sessionIds);
+    if (updated.length) {
+      await this.audit.record(actor, 'extraRate.reprice', 'ExtraRate', rateId, null, { sessionIds: updated });
+    }
+    return { updated };
+  }
+
+  /** Cùng luật như lúc đặt giá */
+  private async assertRateScope(actor: AuthUser, rate: RateScope): Promise<void> {
+    if (rate.slotId) {
+      await this.access.assertSlotAccess(actor, rate.slotId);
+      if (rate.studentId) await this.access.assertStudentAccess(actor, rate.studentId);
+      return;
+    }
+    if (rate.studentId) {
+      await this.access.assertStudentAccess(actor, rate.studentId);
+      if (!(await this.access.canSetStudentRate(actor, rate.studentId, this.slots.today()))) {
+        throw new AppError('RATE_SCOPE_FORBIDDEN', 403);
+      }
+    }
   }
 
   private async assertStudent(user: AuthUser, studentId: string): Promise<void> {

@@ -1,6 +1,7 @@
-import { createHash, randomBytes } from 'node:crypto';
+import { randomBytes } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
 import { studentFullName } from '@phonics/contracts';
+import { hashToken } from '@/common/utils/hash-token';
 import { ENV } from '@/config/env.module';
 import { type Env } from '@/config/env.schema';
 import { dayjs } from '@/core/time/dayjs';
@@ -8,11 +9,6 @@ import { type Tx } from '@/database/types';
 import { GuardianRepository } from '@/modules/families/repositories/guardian.repository';
 import { INVITE_TTL_HOURS } from '@/modules/families/types/family.types';
 import { MailOutboxService } from '@/modules/mail/services/mail-outbox.service';
-
-/** Băm token một lần (DB chỉ lưu hash) */
-export function hashAuthToken(token: string): string {
-  return createHash('sha256').update(token).digest('hex');
-}
 
 /** Link mời đặt mật khẩu tài khoản gia đình (token một lần, INVITE_TTL_HOURS giờ) + mail `parent.invite` */
 @Injectable()
@@ -36,7 +32,7 @@ export class FamilyInviteService {
     const token = randomBytes(32).toString('base64url');
     const { id } = await this.repo.createAuthToken(tx, {
       userId: input.userId,
-      tokenHash: hashAuthToken(token),
+      tokenHash: hashToken(token),
       expiresAt: dayjs().add(INVITE_TTL_HOURS, 'hour').toDate(),
     });
     await this.mail.enqueueTemplate(

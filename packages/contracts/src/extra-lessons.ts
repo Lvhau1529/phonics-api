@@ -117,6 +117,24 @@ export type UpdateExtraSlotBody = z.infer<typeof UpdateExtraSlotBody>;
 export const SetSlotTeachersBody = z.strictObject({ teacherIds: z.array(Id).max(5) });
 export type SetSlotTeachersBody = z.infer<typeof SetSlotTeachersBody>;
 
+/** Buổi đã xác nhận lệch với lịch mới (định nghĩa lại `AffectedSession` của attendance.ts để tránh import vòng) */
+export const AffectedSessionRef = z.object({
+  sessionId: Id,
+  date: IsoDate,
+  slotName: z.string().nullable(),
+  change: z.enum(['ADD', 'REMOVE']),
+});
+
+/** Bản ghi đã xác nhận có đơn giá khác giá mới */
+export const AffectedRecordRef = z.object({
+  sessionId: Id,
+  studentId: Id,
+  date: IsoDate,
+  oldPrice: PricePerSession,
+  newPrice: PricePerSession,
+  charged: z.boolean(),
+});
+
 // ---------- Lịch học của học sinh ----------
 
 /** Một dòng lịch: học sinh học ca `slot` trong `[effectiveFrom, effectiveTo)` */
@@ -130,6 +148,11 @@ export const SlotAssignment = z.object({
   note: z.string().nullable(),
   createdAt: IsoDateTime,
   updatedAt: IsoDateTime,
+  /**
+   * Chỉ có ở response tạo / sửa / chuyển (từ 1.9.0): buổi đã xác nhận lệch với lịch mới — hỏi người dùng rồi gọi
+   * `slot-assignments/apply`. Buổi chưa xác nhận đã tự đồng bộ.
+   */
+  affectedSessions: z.array(AffectedSessionRef).optional(),
 });
 export type SlotAssignment = z.infer<typeof SlotAssignment>;
 
@@ -209,6 +232,11 @@ export const ExtraRate = z.object({
   note: z.string().nullable(),
   createdBy: z.object({ id: Id, displayName: DisplayName }).nullable(),
   createdAt: IsoDateTime,
+  /**
+   * Chỉ có ở response tạo giá (từ 1.9.0): bản ghi điểm danh đã xác nhận có đơn giá khác giá mới — hỏi rồi gọi
+   * `extra-rates/:id/apply`. Buổi chưa xác nhận đã tự tính lại.
+   */
+  affectedRecords: z.array(AffectedRecordRef).optional(),
 });
 export type ExtraRate = z.infer<typeof ExtraRate>;
 

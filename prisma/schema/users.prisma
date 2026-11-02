@@ -74,6 +74,8 @@ model User {
   extraSlots        ExtraSlotTeacher[]
   slotAssignments   StudentSlotAssignment[] @relation("SlotAssignmentCreatedBy")
   extraRates        ExtraRate[]             @relation("ExtraRateCreatedBy")
+  sessionsConfirmed AttendanceSession[]     @relation("SessionConfirmedBy")
+  attendanceDigests AttendanceDigest[]
 
   @@index([role, status])
   @@map("users")
@@ -114,6 +116,7 @@ model StudentProfile {
   submissions            Submission[]
   studentSlotAssignments StudentSlotAssignment[]
   extraRates             ExtraRate[]
+  attendance             AttendanceRecord[]
 
   @@index([nameSortKey])
   @@map("student_profiles")

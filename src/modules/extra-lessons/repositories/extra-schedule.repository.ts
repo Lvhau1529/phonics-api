@@ -78,7 +78,23 @@ export class ExtraScheduleRepository {
     return rows.map((r) => r.slotId);
   }
 
+  /** Lọc các buổi thuộc những ca này */
+  async sessionsInSlots(sessionIds: readonly string[], slotIds: readonly string[]): Promise<string[]> {
+    const rows = await this.prisma.attendanceSession.findMany({
+      where: { id: { in: [...sessionIds] }, slotId: { in: [...slotIds] } },
+      select: { id: true },
+    });
+    return rows.map((r) => r.id);
+  }
+
   // ---------- Đơn giá ----------
+
+  findRate(id: string) {
+    return this.prisma.extraRate.findUnique({
+      where: { id },
+      select: { id: true, studentId: true, slotId: true, effectiveFrom: true },
+    });
+  }
 
   /** Lịch sử một phạm vi giá, mới nhất trước */
   ratesOfScope(studentId: string | null, slotId: string | null): Promise<RateRowWithAuthor[]> {
