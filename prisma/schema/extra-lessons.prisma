@@ -164,7 +164,9 @@ model AttendanceRecord {
   @@map("attendance_records")
 }
 
-/// Một mail 21:00 gửi một GV — token duyệt nhanh (lưu sha256) chỉ duyệt được các buổi trong mail
+/// Một mail 21:00 gửi một GV — token duyệt nhanh (lưu sha256) chỉ duyệt được các buổi trong mail.
+/// Mail tự động: một / GV / ngày (partial unique `attendance_digests_auto` thêm tay trong migration); admin gửi lại
+/// thủ công (`manual`) thêm dòng mới, link cũ vẫn dùng được.
 model AttendanceDigest {
   id        String   @id @default(uuid()) @db.Uuid
   teacherId String   @map("teacher_id") @db.Uuid
@@ -173,9 +175,10 @@ model AttendanceDigest {
   expiresAt DateTime @map("expires_at")
   /// [{ sessionId, recordsVersion }] lúc gửi
   items     Json
+  manual    Boolean  @default(false)
   createdAt DateTime @default(now()) @map("created_at")
   teacher   User     @relation(fields: [teacherId], references: [id], onDelete: Cascade)
 
-  @@unique([teacherId, date])
+  @@index([teacherId, date])
   @@map("attendance_digests")
 }

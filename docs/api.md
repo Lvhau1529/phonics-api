@@ -93,6 +93,8 @@ Tài khoản `PENDING` (phụ huynh chờ duyệt) chỉ gọi được `auth/me
 | GET | `/attendance/sessions/:id` | A, T | → `AttendanceSessionDetail` (`unitPrice` cần perm:`extra.viewPricing`) |
 | PUT | `/attendance/sessions/:id/records` | A, T (perm:`attendance.confirm`) | `UpdateAttendanceRecordsBody` → detail. Học sinh chưa có → thêm MANUAL; `charged` / `unitPrice` chỉ A. 409 `ATTENDANCE_SESSION_CANCELLED` |
 | POST | `/attendance/sessions/:id/confirm` | A, T (perm:`attendance.confirm`) | `{}` → detail (đã xác nhận → ghi lại người / lúc) |
+| POST | `/attendance/sessions/resend-digest` | A | `ResendDigestBody { sessionIds }` → `ResendDigestResponse` (mỗi GV của các buổi còn PENDING một mail `teacher.digest` mới, token mới — link cũ vẫn dùng được; không tính vào số lần nhắc tự động; GV thiếu email → `noEmail`) |
+| GET | `/attendance/tuition` | A | `?from=YYYY-MM&to=YYYY-MM` (≤ 24 tháng) → `TuitionOverview` (tạm tính từ điểm danh: theo tháng, theo ca, top 10 học sinh, buổi còn chờ xác nhận, bản ghi tính phí giá 0; không gồm buổi huỷ) |
 | POST | `/attendance/sessions` | A, T (perm:`extra.manageSlots`) | `CreateAttendanceSessionBody` → detail (201) — buổi bù (GV phải có trong `teacherIds`) |
 | POST | `/attendance/sessions/cancel` | A, T (perm:`extra.manageSlots`) | `CancelAttendanceSessionsBody { sessionIds \| date, reason }` → `{ cancelled }` (GV: chỉ buổi / ca mình phụ trách) |
 | GET | `/attendance/public/digests/:token` | pub | → `AttendanceDigestView` (link mail 21:00; 404 `ATTENDANCE_TOKEN_INVALID`, 410 `ATTENDANCE_TOKEN_EXPIRED`) |
@@ -101,6 +103,7 @@ Tài khoản `PENDING` (phụ huynh chờ duyệt) chỉ gọi được `auth/me
 | PATCH | `/extra-rates/:id` | A, T (perm:`extra.managePricing`, cùng phạm vi như đặt giá) | `UpdateExtraRateBody { pricePerSession?, note? }` → `ExtraRate` kèm `affectedRecords`. 409 nếu dòng đã bị thay thế từ đầu |
 | POST | `/extra-rates/:id/apply` | A, T (perm:`extra.managePricing`) | `{ sessionIds }` → `{ updated }` — áp giá vào buổi đã xác nhận (`affectedRecords`) |
 | GET | `/students/:id/attendance` | A, T | `?month=YYYY-MM` → `StudentAttendanceResponse` |
+| GET | `/students/:id/tuition` | A, T (perm:`extra.viewPricing`, phạm vi học sinh) | `?from=YYYY-MM&to=YYYY-MM` → `StudentTuitionResponse` (học phí tạm tính theo tháng) |
 
 Hẹn giờ (`ExtraLessonsScheduler`, theo APP_TIMEZONE): **00:05** tạo buổi của ngày cho mọi ca (học sinh theo lịch, mặc
 định có mặt, chốt đơn giá; idempotent theo (ca, ngày), tạo bù `catchUpDays` ngày khi API tắt qua mốc); **21:00** mỗi

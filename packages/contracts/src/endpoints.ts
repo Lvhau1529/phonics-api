@@ -137,6 +137,8 @@ export const ENDPOINTS = {
     rates: (id: string) => `/students/${id}/rates`,
     applySlotAssignments: (id: string) => `/students/${id}/slot-assignments/apply`,
     attendance: (id: string) => `/students/${id}/attendance`,
+    /** GET: học phí theo tháng (từ 1.13.0) */
+    tuition: (id: string) => `/students/${id}/tuition`,
   },
   extraRates: {
     detail: (id: string) => `/extra-rates/${id}`,
@@ -149,6 +151,10 @@ export const ENDPOINTS = {
     confirm: (id: string) => `/attendance/sessions/${id}/confirm`,
     cancel: '/attendance/sessions/cancel',
     pendingCount: '/attendance/sessions/pending/count',
+    /** POST ADMIN: gửi lại mail xác nhận cho GV các buổi đã chọn (từ 1.13.0) */
+    resendDigest: '/attendance/sessions/resend-digest',
+    /** GET ADMIN: thống kê học phí tổng quát theo tháng (từ 1.13.0) */
+    tuitionOverview: '/attendance/tuition',
     digest: (token: string) => `/attendance/public/digests/${token}`,
     confirmDigest: (token: string) => `/attendance/public/digests/${token}/confirm`,
   },

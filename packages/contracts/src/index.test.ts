@@ -24,6 +24,8 @@ import {
   SetStudentGuardiansBody,
   ROLE_DEFAULT_PERMISSIONS,
   UpdateExtraRateBody,
+  TuitionQuery,
+  monthSpan,
   UpdateExtraSlotBody,
   UpdateProfileBody,
   UpdateSlotAssignmentBody,
@@ -527,6 +529,16 @@ describe('học thêm', () => {
       UpdateExtraSlotBody.safeParse({ startTime: '17:00', endTime: '18:00', timeFrom: '2026-10-01' }).success,
     ).toBe(true);
     expect(UpdateExtraSlotBody.safeParse({ timeFrom: '2026-10-01' }).success).toBe(false);
+  });
+
+  it('học phí: khoảng tháng from ≤ to, tối đa 24 tháng', () => {
+    expect(TuitionQuery.safeParse({ from: '2025-12', to: '2026-02' }).success).toBe(true);
+    expect(TuitionQuery.safeParse({ from: '2026-03', to: '2026-02' }).error?.issues[0]?.message).toBe(
+      'monthRange',
+    );
+    expect(TuitionQuery.safeParse({ from: '2024-01', to: '2026-01' }).success).toBe(false);
+    expect(TuitionQuery.safeParse({ from: '2026-13', to: '2026-12' }).success).toBe(false);
+    expect(monthSpan('2025-11', '2026-02')).toBe(4);
   });
 
   it('lịch: ngày kết thúc phải sau ngày bắt đầu; null = học tiếp', () => {

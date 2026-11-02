@@ -74,6 +74,7 @@ const vi = {
   effectiveToAfterFrom: 'Ngày kết thúc phải sau ngày bắt đầu',
   sessionsOrDate: 'Chọn danh sách buổi hoặc một ngày (không cả hai)',
   monthFormat: 'Tháng dạng YYYY-MM',
+  monthRange: 'Khoảng tháng không hợp lệ (từ ≤ đến, tối đa 24 tháng)',
   priceNeedsSlot: 'Đơn giá riêng cần chọn ca học thêm',
 };
 
@@ -142,6 +143,7 @@ const en: ValidationCatalog = {
   effectiveToAfterFrom: 'The end date must be after the start date',
   sessionsOrDate: 'Choose either sessions or a date (not both)',
   monthFormat: 'Month must look like YYYY-MM',
+  monthRange: 'Invalid month range (from ≤ to, at most 24 months)',
   priceNeedsSlot: 'Choose an extra class slot to set a price',
 };
 

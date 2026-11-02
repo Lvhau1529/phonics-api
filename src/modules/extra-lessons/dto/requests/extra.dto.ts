@@ -3,6 +3,8 @@ import {
   AttendanceSessionListQuery,
   CancelAttendanceSessionsBody,
   ConfirmDigestBody,
+  ResendDigestBody,
+  TuitionQuery,
   CreateAttendanceSessionBody,
   CreateExtraSlotBody,
   CreateSlotAssignmentBody,
@@ -38,3 +40,5 @@ export class CancelAttendanceSessionsDto extends createZodDto(CancelAttendanceSe
 export class ConfirmDigestDto extends createZodDto(ConfirmDigestBody) {}
 export class ApplyToSessionsDto extends createZodDto(ApplyToSessionsBody) {}
 export class StudentAttendanceQueryDto extends createZodDto(StudentAttendanceQuery) {}
+export class TuitionQueryDto extends createZodDto(TuitionQuery) {}
+export class ResendDigestDto extends createZodDto(ResendDigestBody) {}

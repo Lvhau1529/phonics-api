@@ -290,13 +290,22 @@ export class AttendanceRepository {
 
   /** Buổi chờ xác nhận tới ngày `date`, đã bắt đầu, chưa nhắc quá `maxDigests` lần */
   pendingForDigest(date: string, now: Date, maxDigests: number) {
+    return this.pendingSessions({
+      status: 'PENDING',
+      date: { lte: date },
+      startsAt: { lte: now },
+      digestCount: { lt: maxDigests },
+    });
+  }
+
+  /** Buổi được chọn để gửi lại mail (chỉ buổi còn PENDING) */
+  pendingByIds(ids: readonly string[]) {
+    return this.pendingSessions({ status: 'PENDING', id: { in: [...ids] } });
+  }
+
+  private pendingSessions(where: Prisma.AttendanceSessionWhereInput) {
     return this.prisma.attendanceSession.findMany({
-      where: {
-        status: 'PENDING',
-        date: { lte: date },
-        startsAt: { lte: now },
-        digestCount: { lt: maxDigests },
-      },
+      where,
       orderBy: [{ date: 'asc' }, { startsAt: 'asc' }],
       select: {
         id: true,
@@ -313,8 +322,8 @@ export class AttendanceRepository {
   }
 
   async digestExists(teacherId: string, date: string): Promise<boolean> {
-    return !!(await this.prisma.attendanceDigest.findUnique({
-      where: { teacherId_date: { teacherId, date } },
+    return !!(await this.prisma.attendanceDigest.findFirst({
+      where: { teacherId, date, manual: false },
       select: { id: true },
     }));
   }

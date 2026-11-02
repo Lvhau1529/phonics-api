@@ -4,6 +4,7 @@ import {
   type AttendanceDigestView,
   type ConfirmDigestBody,
   type ConfirmDigestResponse,
+  type ResendDigestResponse,
 } from '@phonics/contracts';
 import { AppError } from '@/common/errors/app-error';
 import { EXTRA_LESSONS } from '@/config/constants';
@@ -12,12 +13,26 @@ import { type Env } from '@/config/env.schema';
 import { dayjs } from '@/core/time/dayjs';
 import { TimeService } from '@/core/time/time.service';
 import { AuditService } from '@/modules/audit/services/audit.service';
+import { type AuthUser } from '@/modules/auth/types/auth.types';
 import { hashToken } from '@/common/utils/hash-token';
 import { AttendanceRepository } from '@/modules/extra-lessons/repositories/attendance.repository';
+import { type Tx } from '@/database/types';
 import { type DigestItem } from '@/modules/extra-lessons/types/extra.types';
 import { MailOutboxService } from '@/modules/mail/services/mail-outbox.service';
 
 const WEEKDAY_VI = ['', 'Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', 'Thứ Bảy', 'Chủ nhật'];
+
+type DigestSession = Awaited<ReturnType<AttendanceRepository['pendingForDigest']>>[number];
+type Teacher = Awaited<ReturnType<AttendanceRepository['teachers']>>[number];
+
+/** Gom buổi theo GV phụ trách (một buổi nhiều GV → vào mail của từng GV) */
+function groupByTeacher(sessions: readonly DigestSession[]): Map<string, DigestSession[]> {
+  const byTeacher = new Map<string, DigestSession[]>();
+  for (const s of sessions) {
+    for (const teacherId of s.teacherIds) byTeacher.set(teacherId, [...(byTeacher.get(teacherId) ?? []), s]);
+  }
+  return byTeacher;
+}
 
 /**
  * Mail 21:00 (§5.2): mỗi GV một mail các buổi PENDING (hôm nay + cũ còn treo, tối đa `maxDigests` lần nhắc / buổi).
@@ -40,11 +55,7 @@ export class AttendanceDigestService {
   async sendDigests(now: Date): Promise<number> {
     const today = this.time.toIsoDate(now);
     const sessions = await this.repo.pendingForDigest(today, now, EXTRA_LESSONS.maxDigests);
-    const byTeacher = new Map<string, typeof sessions>();
-    for (const s of sessions) {
-      for (const teacherId of s.teacherIds)
-        byTeacher.set(teacherId, [...(byTeacher.get(teacherId) ?? []), s]);
-    }
+    const byTeacher = groupByTeacher(sessions);
     if (!byTeacher.size) return 0;
     const teachers = new Map((await this.repo.teachers([...byTeacher.keys()])).map((t) => [t.id, t]));
 
@@ -52,47 +63,13 @@ export class AttendanceDigestService {
     const bumped = new Set<string>();
     for (const [teacherId, list] of byTeacher) {
       const teacher = teachers.get(teacherId);
-      if (!teacher?.email || (await this.repo.digestExists(teacherId, today))) continue;
-      const token = randomBytes(32).toString('base64url');
-      const items: DigestItem[] = list.map((s) => ({ sessionId: s.id, recordsVersion: s.recordsVersion }));
-      const confirmBase = `${this.env.ADMIN_APP_URL}/a/attendance/${token}`;
+      const email = teacher?.email;
+      if (!teacher || !email || (await this.repo.digestExists(teacherId, today))) continue;
       await this.repo.transaction(async (tx) => {
-        await this.repo.createDigest(tx, {
-          teacherId,
-          date: today,
-          tokenHash: hashToken(token),
-          expiresAt: dayjs(now).add(EXTRA_LESSONS.digestTokenDays, 'day').toDate(),
-          items: items as unknown as object,
+        await this.enqueueDigest(tx, teacher, email, list, now, {
+          manual: false,
+          dedupeKey: `digest:${teacherId}:${today}`,
         });
-        await this.mail.enqueueTemplate(
-          [
-            {
-              key: 'teacher.digest',
-              to: teacher.email,
-              dedupeKey: `digest:${teacherId}:${today}`,
-              refType: 'User',
-              refId: teacherId,
-              context: {
-                teacherName: teacher.displayName,
-                dateText: `${WEEKDAY_VI[dayjs(today).isoWeekday()]} ${dayjs(today).format('DD/MM')}`,
-                count: list.length,
-                sessions: list.map((s) => ({
-                  name: s.slot?.name ?? 'Buổi bù',
-                  dateText: dayjs(s.date).format('DD/MM'),
-                  timeText: `${s.startTime}–${s.endTime}`,
-                  isOld: s.date < today,
-                  studentCount: s._count.records,
-                  presentCount: s.presentCount,
-                  absentCount: s._count.records - s.presentCount,
-                  confirmLink: `${confirmBase}?session=${s.id}`,
-                  editLink: `${this.env.ADMIN_APP_URL}/attendance/sessions/${s.id}`,
-                })),
-                confirmAllLink: confirmBase,
-              },
-            },
-          ],
-          tx,
-        );
         // Một buổi nhiều GV: chỉ tính một lần nhắc / ngày
         const fresh = list.map((s) => s.id).filter((id) => !bumped.has(id));
         await this.repo.bumpDigestCount(tx, fresh);
@@ -105,6 +82,50 @@ export class AttendanceDigestService {
       this.logger.log(`Đã xếp hàng ${sent} mail điểm danh ${today}`);
     }
     return sent;
+  }
+
+  /**
+   * ADMIN gửi lại mail xác nhận cho GV của các buổi đã chọn (còn PENDING): mỗi GV một mail mới chỉ gồm các buổi đó,
+   * token mới (link cũ vẫn dùng được), không tính vào số lần nhắc tự động.
+   */
+  async resend(
+    actor: AuthUser,
+    sessionIds: readonly string[],
+    now = new Date(),
+  ): Promise<ResendDigestResponse> {
+    const ids = [...new Set(sessionIds)];
+    const sessions = await this.repo.pendingByIds(ids);
+    const byTeacher = groupByTeacher(sessions);
+    const covered = new Set(sessions.filter((s) => s.teacherIds.length).map((s) => s.id));
+    const teachers = new Map((await this.repo.teachers([...byTeacher.keys()])).map((t) => [t.id, t]));
+    const result: ResendDigestResponse = {
+      sent: [],
+      noEmail: [],
+      skipped: ids.filter((id) => !covered.has(id)),
+    };
+    for (const [teacherId, list] of byTeacher) {
+      const teacher = teachers.get(teacherId);
+      if (!teacher) continue;
+      const ref = { teacherId, teacherName: teacher.displayName };
+      const email = teacher.email;
+      if (!email) {
+        result.noEmail.push(ref);
+        continue;
+      }
+      const digestId = await this.repo.transaction((tx) =>
+        this.enqueueDigest(tx, teacher, email, list, now, {
+          manual: true,
+          dedupeKey: (id) => `digest:resend:${id}`,
+        }),
+      );
+      result.sent.push({ ...ref, sessionCount: list.length });
+      await this.audit.record(actor, 'attendance.resendDigest', 'AttendanceDigest', digestId, null, {
+        teacherId,
+        sessionIds: list.map((s) => s.id),
+      });
+    }
+    if (result.sent.length) this.mail.flush();
+    return result;
   }
 
   async view(token: string): Promise<AttendanceDigestView> {
@@ -138,6 +159,59 @@ export class AttendanceDigestService {
   }
 
   // ---- helpers ----
+
+  /** Tạo digest (token mới) + xếp hàng mail `teacher.digest` trong transaction — trả id digest */
+  private async enqueueDigest(
+    tx: Tx,
+    teacher: Teacher,
+    email: string,
+    list: readonly DigestSession[],
+    now: Date,
+    opts: { manual: boolean; dedupeKey: string | ((digestId: string) => string) },
+  ): Promise<string> {
+    const today = this.time.toIsoDate(now);
+    const token = randomBytes(32).toString('base64url');
+    const items: DigestItem[] = list.map((s) => ({ sessionId: s.id, recordsVersion: s.recordsVersion }));
+    const confirmBase = `${this.env.ADMIN_APP_URL}/a/attendance/${token}`;
+    const digest = await this.repo.createDigest(tx, {
+      teacherId: teacher.id,
+      date: today,
+      tokenHash: hashToken(token),
+      expiresAt: dayjs(now).add(EXTRA_LESSONS.digestTokenDays, 'day').toDate(),
+      items: items as unknown as object,
+      manual: opts.manual,
+    });
+    await this.mail.enqueueTemplate(
+      [
+        {
+          key: 'teacher.digest',
+          to: email,
+          dedupeKey: typeof opts.dedupeKey === 'string' ? opts.dedupeKey : opts.dedupeKey(digest.id),
+          refType: 'User',
+          refId: teacher.id,
+          context: {
+            teacherName: teacher.displayName,
+            dateText: `${WEEKDAY_VI[dayjs(today).isoWeekday()]} ${dayjs(today).format('DD/MM')}`,
+            count: list.length,
+            sessions: list.map((s) => ({
+              name: s.slot?.name ?? 'Buổi bù',
+              dateText: dayjs(s.date).format('DD/MM'),
+              timeText: `${s.startTime}–${s.endTime}`,
+              isOld: s.date < today,
+              studentCount: s._count.records,
+              presentCount: s.presentCount,
+              absentCount: s._count.records - s.presentCount,
+              confirmLink: `${confirmBase}?session=${s.id}`,
+              editLink: `${this.env.ADMIN_APP_URL}/attendance/sessions/${s.id}`,
+            })),
+            confirmAllLink: confirmBase,
+          },
+        },
+      ],
+      tx,
+    );
+    return digest.id;
+  }
 
   private async findDigest(token: string) {
     const digest = await this.repo.findDigest(hashToken(token));

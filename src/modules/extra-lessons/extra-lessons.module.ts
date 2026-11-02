@@ -5,10 +5,12 @@ import { AttendanceController } from '@/modules/extra-lessons/controllers/attend
 import { ExtraRatesController } from '@/modules/extra-lessons/controllers/extra-rates.controller';
 import { ExtraSlotsController } from '@/modules/extra-lessons/controllers/extra-slots.controller';
 import { StudentExtraController } from '@/modules/extra-lessons/controllers/student-extra.controller';
+import { TuitionController } from '@/modules/extra-lessons/controllers/tuition.controller';
 import { ExtraLessonsScheduler } from '@/modules/extra-lessons/jobs/extra-lessons.scheduler';
 import { AttendanceRepository } from '@/modules/extra-lessons/repositories/attendance.repository';
 import { ExtraScheduleRepository } from '@/modules/extra-lessons/repositories/extra-schedule.repository';
 import { ExtraSlotRepository } from '@/modules/extra-lessons/repositories/extra-slot.repository';
+import { TuitionRepository } from '@/modules/extra-lessons/repositories/tuition.repository';
 import { AttendanceDigestService } from '@/modules/extra-lessons/services/attendance-digest.service';
 import { AttendanceReaderService } from '@/modules/extra-lessons/services/attendance-reader.service';
 import { AttendanceWriterService } from '@/modules/extra-lessons/services/attendance-writer.service';
@@ -20,6 +22,7 @@ import { ExtraSlotWriterService } from '@/modules/extra-lessons/services/extra-s
 import { SessionSyncService } from '@/modules/extra-lessons/services/session-sync.service';
 import { SlotAssignmentService } from '@/modules/extra-lessons/services/slot-assignment.service';
 import { StudentExtraReaderService } from '@/modules/extra-lessons/services/student-extra-reader.service';
+import { TuitionService } from '@/modules/extra-lessons/services/tuition.service';
 import { MailModule } from '@/modules/mail/mail.module';
 
 /**
@@ -34,6 +37,7 @@ import { MailModule } from '@/modules/mail/mail.module';
     ExtraRatesController,
     AttendanceController,
     AttendancePublicController,
+    TuitionController,
   ],
   providers: [
     ExtraSlotRepository,
@@ -51,6 +55,8 @@ import { MailModule } from '@/modules/mail/mail.module';
     AttendanceDigestService,
     ExtraLessonsScheduler,
     ExtraEnrollmentService,
+    TuitionRepository,
+    TuitionService,
   ],
   exports: [ExtraEnrollmentService],
 })
