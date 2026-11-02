@@ -1,5 +1,6 @@
 /**
- * Luồng xác thực chính: đăng ký → đăng nhập → refresh (body transport) → dùng lại token cũ bị từ chối → /auth/me.
+ * Luồng xác thực chính: đăng ký (chờ duyệt) → duyệt → đăng nhập → refresh (body transport) → dùng lại token cũ bị từ
+ * chối → /auth/me.
  * Cần DATABASE_URL_TEST (DB Postgres riêng, bị TRUNCATE); không có thì cả file skip.
  */
 import { API_PREFIX, REFRESH_COOKIE_NAME, REFRESH_TRANSPORT_HEADER } from '@phonics/contracts';
@@ -37,22 +38,29 @@ describe.skipIf(!enabled)('auth (e2e)', () => {
     await t?.close();
   });
 
-  it('register → login → refresh → reuse (401 REFRESH_REUSED) → me', async () => {
+  it('register (chờ duyệt) → login → refresh → reuse (401 REFRESH_REUSED) → me', async () => {
+    // Đăng ký kiểu cũ: tạo học sinh PENDING, chưa vào lớp, không cấp token
     const reg = await request(t.server)
       .post(`${API_PREFIX}/auth/register`)
       .set(REFRESH_TRANSPORT_HEADER, 'body')
       .send({ email, password, displayName: 'E2E Kid', classId, avatarKey: 'panda' })
-      .expect(201);
-    expect(reg.body.accessToken).toBeTypeOf('string');
-    expect(reg.body.refreshToken).toBeTypeOf('string');
-    expect(reg.body.expiresIn).toBeGreaterThan(0);
-    expect(reg.body.user).toMatchObject({
-      email,
-      role: 'STUDENT',
-      displayName: 'E2E Kid',
-      avatarKey: 'panda',
+      .expect(403);
+    expect(reg.body).toMatchObject({ code: 'ACCOUNT_PENDING' });
+    const created = await t.prisma.user.findUniqueOrThrow({
+      where: { email },
+      include: { studentProfile: { include: { memberships: true } } },
     });
-    expect(reg.headers['set-cookie']).toBeUndefined();
+    expect(created).toMatchObject({ role: 'STUDENT', status: 'PENDING', loginMode: 'OWN' });
+    expect(created.studentProfile).toMatchObject({ requestedClassId: classId, memberships: [] });
+
+    const pending = await request(t.server)
+      .post(`${API_PREFIX}/auth/login`)
+      .send({ email, password })
+      .expect(403);
+    expect(pending.body.code).toBe('ACCOUNT_PENDING');
+
+    // Duyệt (màn Duyệt tài khoản có e2e riêng ở families) — ở đây mở thẳng bằng prisma
+    await t.prisma.user.update({ where: { id: created.id }, data: { status: 'ACTIVE' } });
 
     const login = await request(t.server)
       .post(`${API_PREFIX}/auth/login`)
@@ -69,7 +77,7 @@ describe.skipIf(!enabled)('auth (e2e)', () => {
       .expect(200);
     expect(rotated.body.refreshToken).toBeTypeOf('string');
     expect(rotated.body.refreshToken).not.toBe(firstRefresh);
-    expect(rotated.body.user.id).toBe(reg.body.user.id);
+    expect(rotated.body.user.id).toBe(created.id);
 
     // Dùng lại token đã xoay vòng → nghi bị đánh cắp: 401 REFRESH_REUSED và cả family bị thu hồi
     const reused = await request(t.server)
@@ -90,7 +98,7 @@ describe.skipIf(!enabled)('auth (e2e)', () => {
       .get(`${API_PREFIX}/auth/me`)
       .set('Authorization', `Bearer ${rotated.body.accessToken}`)
       .expect(200);
-    expect(me.body.user).toMatchObject({ id: reg.body.user.id, email, role: 'STUDENT' });
+    expect(me.body.user).toMatchObject({ id: created.id, email, role: 'STUDENT' });
     expect(Array.isArray(me.body.permissions)).toBe(true);
   });
 

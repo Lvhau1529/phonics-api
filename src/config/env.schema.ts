@@ -74,6 +74,8 @@ export const envSchema = z
       .transform((v) => (v === undefined ? undefined : v === 'true')),
     SMTP_USER: z.string().min(1).optional(),
     SMTP_PASS: z.string().min(1).optional(),
+    /** URL game (link trong mail phụ huynh: đặt mật khẩu, đăng nhập). Bắt buộc ở production; dev mặc định cổng Vite 5173 */
+    GAME_APP_URL: z.url().optional(),
   })
   .superRefine((env, ctx) => {
     if (env.NODE_ENV === 'production' && !env.API_PUBLIC_URL) {
@@ -81,6 +83,13 @@ export const envSchema = z
         code: 'custom',
         path: ['API_PUBLIC_URL'],
         message: 'Production cần API_PUBLIC_URL (vd https://api.example.vn) để dựng link upload / file media',
+      });
+    }
+    if (env.NODE_ENV === 'production' && !env.GAME_APP_URL) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['GAME_APP_URL'],
+        message: 'Production cần GAME_APP_URL (vd https://game.example.vn) để dựng link trong mail phụ huynh',
       });
     }
     if (env.MEDIA_STORAGE === 'r2') {
@@ -114,6 +123,7 @@ export const envSchema = z
     API_PUBLIC_URL: (env.API_PUBLIC_URL ?? `http://localhost:${env.PORT}`).replace(/\/+$/, ''),
     MAIL_FROM: env.MAIL_FROM ?? 'Phonics <no-reply@localhost>',
     SMTP_SECURE: env.SMTP_SECURE ?? env.SMTP_PORT === 465,
+    GAME_APP_URL: (env.GAME_APP_URL ?? 'http://localhost:5173').replace(/\/+$/, ''),
   }));
 
 export type Env = z.infer<typeof envSchema>;

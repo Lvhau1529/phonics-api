@@ -22,10 +22,19 @@ interface ClientMeta {
   ip?: string;
 }
 
+/** User được cấp token; `actorId` = phụ huynh mở phiên cho bé (claim `act`) */
+export interface TokenSubject {
+  id: string;
+  role: AccessTokenPayload['role'];
+  tokenVersion: number;
+  actorId?: string | null;
+}
+
 /**
- * Access token: JWT ngắn hạn (JWT_ACCESS_TTL) chứa { sub, role, tv }.
+ * Access token: JWT ngắn hạn (JWT_ACCESS_TTL) chứa { sub, role, tv, act? }.
  * Refresh token: chuỗi ngẫu nhiên, DB chỉ lưu sha256; mỗi lần refresh tạo token mới cùng `familyId`
  * và thu hồi token cũ. Dùng lại token đã thu hồi = nghi bị đánh cắp → thu hồi cả family.
+ * Phiên phụ huynh mở cho bé: refresh token lưu `actorId`; mỗi lần xoay vòng kiểm tra lại liên kết phụ huynh ↔ bé.
  */
 @Injectable()
 export class TokenService {
@@ -43,18 +52,16 @@ export class TokenService {
     return dayjs.duration(Number(m[1]), m[2] as 's' | 'm' | 'h' | 'd').asSeconds();
   }
 
-  signAccess(user: { id: string; role: AccessTokenPayload['role']; tokenVersion: number }): Promise<string> {
+  signAccess(user: TokenSubject): Promise<string> {
     const payload: AccessTokenPayload = { sub: user.id, role: user.role, tv: user.tokenVersion };
+    if (user.actorId) payload.act = { sub: user.actorId };
     return this.jwt.signAsync(payload);
   }
 
   /** Đăng nhập mới: tạo family mới */
-  async issue(
-    user: { id: string; role: AccessTokenPayload['role']; tokenVersion: number },
-    meta: ClientMeta = {},
-  ): Promise<IssuedTokens> {
+  async issue(user: TokenSubject, meta: ClientMeta = {}): Promise<IssuedTokens> {
     const familyId = randomUUID();
-    const refreshToken = await this.createRefresh(user.id, familyId, meta);
+    const refreshToken = await this.createRefresh(user.id, familyId, meta, this.prisma, user.actorId);
     return { accessToken: await this.signAccess(user), refreshToken, expiresIn: this.accessTtlSeconds };
   }
 
@@ -72,9 +79,15 @@ export class TokenService {
     }
     if (dayjs(row.expiresAt).isBefore(dayjs())) throw new AppError('INVALID_REFRESH', 401);
     if (row.user.status === 'DISABLED') throw new AppError('ACCOUNT_DISABLED', 403);
+    if (row.user.status === 'REJECTED') throw new AppError('ACCOUNT_REJECTED', 403);
+    if (row.actorId && !(await this.actorStillAllowed(row.actorId, row.userId))) {
+      // Gỡ liên kết / khoá phụ huynh / bé hết ACTIVE → phiên của bé hết hiệu lực
+      await this.revokeFamily(row.familyId);
+      throw new AppError('INVALID_REFRESH', 401);
+    }
 
     const refreshToken = await this.prisma.$transaction(async (tx) => {
-      const next = await this.createRefresh(row.userId, row.familyId, meta, tx);
+      const next = await this.createRefresh(row.userId, row.familyId, meta, tx, row.actorId);
       await tx.refreshToken.update({
         where: { id: row.id },
         data: {
@@ -89,7 +102,7 @@ export class TokenService {
 
     return {
       userId: row.userId,
-      accessToken: await this.signAccess(row.user),
+      accessToken: await this.signAccess({ ...row.user, actorId: row.actorId }),
       refreshToken,
       expiresIn: this.accessTtlSeconds,
     };
@@ -119,6 +132,20 @@ export class TokenService {
     ]);
   }
 
+  /** Phụ huynh còn được vào hồ sơ bé: liên kết `can_access`, phụ huynh ACTIVE, bé ACTIVE */
+  private async actorStillAllowed(actorId: string, studentId: string): Promise<boolean> {
+    const link = await this.prisma.studentGuardian.findFirst({
+      where: {
+        studentId,
+        canAccess: true,
+        guardian: { userId: actorId, user: { status: 'ACTIVE' } },
+        student: { user: { status: 'ACTIVE' } },
+      },
+      select: { studentId: true },
+    });
+    return !!link;
+  }
+
   /** Dọn token hết hạn lâu (4h sáng mỗi ngày) */
   @Cron('0 4 * * *')
   async cleanup(): Promise<void> {
@@ -132,12 +159,14 @@ export class TokenService {
     familyId: string,
     meta: ClientMeta,
     tx: Pick<PrismaService, 'refreshToken'> = this.prisma,
+    actorId?: string | null,
   ): Promise<string> {
     const token = randomBytes(AUTH.refreshTokenBytes).toString('base64url');
     await tx.refreshToken.create({
       data: {
         userId,
         familyId,
+        actorId: actorId ?? null,
         tokenHash: this.hash(token),
         expiresAt: dayjs().add(this.env.REFRESH_TTL_DAYS, 'day').toDate(),
         userAgent: meta.userAgent?.slice(0, 200),

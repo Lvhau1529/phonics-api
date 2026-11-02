@@ -25,6 +25,11 @@ erDiagram
   users o|--o{ game_events : "nếu đăng nhập"
   users ||--o{ notifications : ""
   users ||--o{ refresh_tokens : ""
+  users ||--o{ auth_tokens : "link mời"
+  users |o--o| guardians : "tài khoản gia đình (PARENT)"
+  guardians ||--o{ student_guardians : ""
+  student_profiles ||--o{ student_guardians : "phụ huynh"
+  classes o|--o{ student_profiles : "lớp đăng ký (chờ duyệt)"
   users o|--o{ audit_logs : "actor"
   users ||--o{ media_assets : "tải lên"
   users ||--o{ questions : "tạo"
@@ -42,12 +47,13 @@ erDiagram
 
   users {
     uuid id PK
-    string email UK
+    string email UK "null với học sinh MANAGED"
     string password_hash "null với Google"
     string google_sub UK
     enum provider "LOCAL | GOOGLE"
-    enum role "ADMIN | TEACHER | STUDENT"
-    enum status "ACTIVE | DISABLED"
+    enum role "ADMIN | TEACHER | STUDENT | PARENT"
+    enum status "ACTIVE | DISABLED | PENDING | REJECTED"
+    enum login_mode "OWN | MANAGED"
     string display_name
     string avatar_key "preset"
     int token_version
@@ -59,10 +65,38 @@ erDiagram
     string english_name "tuỳ chọn; có thì = users.display_name"
     string name_search "2 tên bỏ dấu — tìm"
     string name_sort_key "tên (từ cuối) + họ tên — sắp xếp"
-    string parent_name
-    string parent_email
-    string parent_phone
+    string parent_name "cũ, chỉ đọc — đã chuyển sang guardians"
+    string parent_email "cũ"
+    string parent_phone "cũ"
     string notes "admin"
+    uuid requested_class_id FK "lớp đăng ký, chờ duyệt"
+    uuid reviewed_by_id FK
+    datetime reviewed_at
+    string reject_reason
+  }
+  guardians {
+    uuid id PK
+    string full_name
+    string email "chữ thường; unique khi khác null"
+    string phone "E.164"
+    uuid user_id FK,UK "tài khoản gia đình"
+    string note
+  }
+  student_guardians {
+    uuid student_id PK
+    uuid guardian_id PK
+    enum relation "MOTHER | FATHER | GRANDPARENT | OTHER"
+    bool is_billing_contact "đúng 1 / học sinh"
+    bool receives_reports "cc mail tháng"
+    bool can_access "được vào hồ sơ bé"
+  }
+  auth_tokens {
+    uuid id PK
+    uuid user_id FK
+    enum purpose "INVITE"
+    string token_hash UK
+    datetime expires_at
+    datetime used_at
   }
   classes {
     uuid id PK
@@ -304,6 +338,12 @@ erDiagram
 - **Sự kiện** ẩn danh theo `client_id`; unique `(client_id, game_id, type, occurred_at)` để gửi lại không trùng.
 - **Refresh token**: chỉ lưu hash; `family_id` để phát hiện dùng lại ([ADR 0002](../adr/0002-api-separate-origin-jwt-refresh-transport.md)).
 - Xoá lớp = `archived_at` (mềm); xoá user là cascade (chỉ admin, hiếm).
+- **Phụ huynh / tài khoản gia đình** ([attendance-design.md §3, §10](attendance-design.md)): `guardians` N–N học sinh
+  qua `student_guardians` (partial unique `guardians_email`, `student_guardians_billing` thêm tay trong migration).
+  Phụ huynh có tài khoản = `guardians.user_id` → user `PARENT`; học sinh `login_mode = MANAGED` không email / mật khẩu,
+  chỉ vào qua `auth/switch-profile` (refresh token lưu `actor_id`). Tự đăng ký → `PENDING` (lớp muốn vào ở
+  `requested_class_id`), GV / admin duyệt từng bé. Ba cột `parent_*` cũ đã được migration chuyển sang `guardians`,
+  giữ chỉ đọc một phiên bản rồi xoá.
 - **Phiếu bài tập** ([ADR 0017](../../phonics-dev/docs/adr/0017-worksheet-domain.md)): `questions.config` / `answer_key`
   là JSON theo discriminated union của contracts; giao bài = **đóng băng snapshot** vào `assignments.snapshot`, nên
   `submission_answers.worksheet_item_id` không có FK (phiếu / câu sửa sau không ảnh hưởng bài đã chấm). Partial unique

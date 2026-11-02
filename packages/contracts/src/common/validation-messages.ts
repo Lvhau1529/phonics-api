@@ -60,6 +60,12 @@ const vi = {
   answerKeyTypeMismatch: 'answerKey.type phải trùng type',
   configAnswerKeyTogether: 'config và answerKey phải gửi cùng nhau',
   answerKeyConfigTypeMismatch: 'answerKey.type phải trùng config.type',
+
+  // ---------- Phụ huynh / tài khoản gia đình ----------
+  oneBillingContact: 'Cần đúng một phụ huynh nhận học phí',
+  duplicateGuardian: 'Phụ huynh bị trùng',
+  duplicateStudent: 'Học sinh bị trùng',
+  duplicateChild: 'Bé bị trùng tên',
 };
 
 export type ValidationCatalog = typeof vi;
@@ -115,6 +121,11 @@ const en: ValidationCatalog = {
   answerKeyTypeMismatch: 'answerKey.type must match type',
   configAnswerKeyTogether: 'config and answerKey must be sent together',
   answerKeyConfigTypeMismatch: 'answerKey.type must match config.type',
+
+  oneBillingContact: 'Exactly one guardian must receive the tuition',
+  duplicateGuardian: 'Duplicate guardian',
+  duplicateStudent: 'Duplicate student',
+  duplicateChild: 'Two children have the same name',
 };
 
 export const VALIDATION_LOCALES = ['vi', 'en'] as const;

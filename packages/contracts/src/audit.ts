@@ -40,6 +40,14 @@ export const AuditAction = z.enum([
   'submission.grade',
   'submission.reopen',
   'comment.delete',
+  'guardian.create',
+  'guardian.update',
+  'guardian.link',
+  'family.create',
+  'family.convert',
+  'family.approve',
+  'family.reject',
+  'family.merge',
 ]);
 export type AuditAction = z.infer<typeof AuditAction>;
 

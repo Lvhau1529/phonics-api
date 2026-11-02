@@ -12,7 +12,7 @@ import { AccessService } from '@/core/access/access.service';
 import { PrismaService } from '@/database/prisma.service';
 import { type Prisma } from '@/generated/prisma/client';
 import { type AuthUser } from '@/modules/auth/types/auth.types';
-import { PermissionsService } from '@/modules/permissions/services/permissions.service';
+import { GuardianReaderService } from '@/modules/families/services/guardian-reader.service';
 import { PointReaderService } from '@/modules/points/services/point-reader.service';
 import { RankingService } from '@/modules/points/services/ranking.service';
 import { toParentContact, toStudentSummary } from '@/modules/students/dto/responses/student.view';
@@ -28,7 +28,7 @@ export class StudentReaderService {
     private readonly access: AccessService,
     private readonly points: PointReaderService,
     private readonly ranking: RankingService,
-    private readonly permissions: PermissionsService,
+    private readonly guardians: GuardianReaderService,
   ) {}
 
   /** ADMIN không có classId → mọi học sinh (kể cả chưa vào lớp); TEACHER → học sinh các lớp mình dạy */
@@ -37,6 +37,7 @@ export class StudentReaderService {
     const where: Prisma.UserWhereInput = {
       role: 'STUDENT',
       status: query.status,
+      loginMode: query.loginMode,
       // Tìm không dấu theo tên tiếng Việt + tiếng Anh ("nguyen an" ra "Nguyễn Văn An"), hoặc theo email
       OR: query.q
         ? [
@@ -94,26 +95,22 @@ export class StudentReaderService {
     );
   }
 
-  /** Chi tiết: liên hệ phụ huynh chỉ khi được phép, ghi chú chỉ ADMIN */
+  /** Chi tiết: phụ huynh chỉ khi được phép xem liên hệ, ghi chú chỉ ADMIN */
   async toDetail(viewer: AuthUser, row: StudentRow): Promise<StudentDetail> {
     const [[summary], totals, gamesPlayed, canSeeParent] = await Promise.all([
       this.toSummaries([row]),
       this.points.totals(row.id, null),
       this.repo.countGameResults({ studentId: row.id }),
-      this.canViewParent(viewer),
+      this.guardians.canViewContacts(viewer),
     ]);
+    const guardians = canSeeParent ? await this.guardians.forStudent(row.id) : null;
     return {
       ...summary,
-      parent: canSeeParent ? toParentContact(row.studentProfile) : null,
+      parent: guardians ? toParentContact(guardians) : null,
+      guardians,
       notes: viewer.role === 'ADMIN' ? (row.studentProfile?.notes ?? null) : null,
       pointsByKind: totals.byKind,
       gamesPlayed,
     };
-  }
-
-  private async canViewParent(viewer: AuthUser): Promise<boolean> {
-    if (viewer.role === 'ADMIN') return true;
-    if (viewer.role !== 'TEACHER') return false;
-    return (await this.permissions.effectiveFor(viewer)).has('students.viewParentContact');
   }
 }

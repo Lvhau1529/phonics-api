@@ -1,8 +1,7 @@
 import { z } from 'zod';
 import { Id } from './common/ids.js';
-import { ValidationMessage } from './common/validation-messages.js';
 import { PermissionCode } from './permissions.js';
-import { AvatarKey, DisplayName, Email, Password, User } from './users.js';
+import { AvatarKey, DisplayName, Email, Password, Phone, User } from './users.js';
 
 /**
  * Cách nhận refresh token:
@@ -18,15 +17,15 @@ export const REFRESH_COOKIE_NAME = 'pa_rt';
 export const ParentContact = z.strictObject({
   name: z.string().trim().max(60).optional(),
   email: Email.optional(),
-  phone: z
-    .string()
-    .trim()
-    .regex(/^[0-9+\-\s().]{6,20}$/, ValidationMessage.phoneInvalid)
-    .optional(),
+  phone: Phone.optional(),
 });
 export type ParentContact = z.infer<typeof ParentContact>;
 
-/** Học sinh đăng ký: phải chọn lớp (danh sách GET /public/classes) */
+/**
+ * Học sinh đăng ký: phải chọn lớp (danh sách GET /public/classes).
+ * @deprecated từ 1.7.0 dùng `RegisterFamilyBody` (`auth/register-family`). Tài khoản tạo ra phải chờ duyệt: API trả
+ * 403 `ACCOUNT_PENDING` thay vì token.
+ */
 export const RegisterBody = z.strictObject({
   email: Email,
   password: Password,
@@ -91,5 +90,7 @@ export type RefreshResponse = z.infer<typeof RefreshResponse>;
 export const MeResponse = z.object({
   user: User,
   permissions: z.array(PermissionCode),
+  /** Phiên của học sinh do phụ huynh mở (`auth/switch-profile`) — từ 1.7.0 */
+  actor: z.object({ id: Id, displayName: DisplayName }).nullable().optional(),
 });
 export type MeResponse = z.infer<typeof MeResponse>;

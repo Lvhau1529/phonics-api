@@ -13,6 +13,8 @@ import {
   MarkReadBody,
   PageQuery,
   RegisterBody,
+  RegisterFamilyBody,
+  SetStudentGuardiansBody,
   ROLE_DEFAULT_PERMISSIONS,
   UpdateProfileBody,
   UpdateStudentBody,
@@ -424,5 +426,74 @@ describe('media limits', () => {
     expect(PresignMediaBody.safeParse({ ...body, sizeBytes: MEDIA_LIMITS.AUDIO.maxBytes + 1 }).success).toBe(
       false,
     );
+  });
+});
+
+describe('tài khoản gia đình', () => {
+  const classId = '00000000-0000-4000-8000-000000000001';
+  const parent = { fullName: 'Nguyễn Thị Lan', phone: '0912 345 678' };
+
+  it('RegisterFamilyBody: đăng nhập bằng mật khẩu hoặc Google, chặn hai bé trùng tên', () => {
+    const child = { vietnameseName: 'Nguyễn Văn An', classId };
+    const password = { type: 'password', email: 'Lan@Example.vn', password: 'secret1' };
+    const ok = RegisterFamilyBody.safeParse({ credentials: password, parent, children: [child] });
+    expect(ok.success && ok.data.credentials).toEqual({ ...password, email: 'lan@example.vn' });
+    expect(
+      RegisterFamilyBody.safeParse({
+        credentials: { type: 'google', idToken: 'x' },
+        parent,
+        children: [child],
+      }).success,
+    ).toBe(true);
+    // Google không kèm mật khẩu
+    expect(
+      RegisterFamilyBody.safeParse({
+        credentials: { type: 'google', idToken: 'x', password: 'secret1' },
+        parent,
+        children: [child],
+      }).success,
+    ).toBe(false);
+    const dup = RegisterFamilyBody.safeParse({
+      credentials: password,
+      parent,
+      children: [child, { ...child, vietnameseName: 'nguyễn văn an' }],
+    });
+    expect(dup.error?.issues[0]?.message).toBe('duplicateChild');
+    expect(RegisterFamilyBody.safeParse({ credentials: password, parent, children: [] }).success).toBe(false);
+  });
+
+  it('SetStudentGuardiansBody: đúng một người nhận học phí, không trùng phụ huynh; rỗng = gỡ hết', () => {
+    const link = (guardianId: string, isBillingContact: boolean) => ({
+      guardianId,
+      relation: 'MOTHER',
+      isBillingContact,
+      receivesReports: true,
+      canAccess: true,
+    });
+    const g1 = '00000000-0000-4000-8000-0000000000a1';
+    const g2 = '00000000-0000-4000-8000-0000000000a2';
+    expect(SetStudentGuardiansBody.safeParse({ guardians: [] }).success).toBe(true);
+    expect(SetStudentGuardiansBody.safeParse({ guardians: [link(g1, true), link(g2, false)] }).success).toBe(
+      true,
+    );
+    expect(
+      SetStudentGuardiansBody.safeParse({ guardians: [link(g1, true), link(g2, true)] }).error?.issues[0]
+        ?.message,
+    ).toBe('oneBillingContact');
+    expect(
+      SetStudentGuardiansBody.safeParse({ guardians: [link(g1, false)] }).error?.issues[0]?.message,
+    ).toBe('oneBillingContact');
+    expect(
+      SetStudentGuardiansBody.safeParse({ guardians: [link(g1, true), link(g1, false)] }).error?.issues[0]
+        ?.message,
+    ).toBe('duplicateGuardian');
+  });
+
+  it('quyền mặc định: GV duyệt tài khoản + xem liên hệ phụ huynh, PARENT không có quyền quản trị', () => {
+    expect(ROLE_DEFAULT_PERMISSIONS.TEACHER).toEqual(
+      expect.arrayContaining(['families.approve', 'students.viewParentContact']),
+    );
+    expect(ROLE_DEFAULT_PERMISSIONS.TEACHER).not.toContain('guardians.manage');
+    expect(ROLE_DEFAULT_PERMISSIONS.PARENT).toEqual([]);
   });
 });

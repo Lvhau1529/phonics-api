@@ -4,7 +4,12 @@ import { type MailTemplateSource } from '@/infrastructure/mail/mail-renderer';
  * Catalog mẫu mail: khoá + mẫu mặc định + dữ liệu mẫu (để kiểm tra mẫu admin sửa có render được không và để xem
  * trước). Thêm loại mail = thêm một dòng ở đây; mẫu mặc định được ghi vào DB (phiên bản 1) khi API khởi động.
  */
-export const MAIL_TEMPLATE_KEYS = ['system.test'] as const;
+export const MAIL_TEMPLATE_KEYS = [
+  'system.test',
+  'parent.invite',
+  'family.approved',
+  'family.rejected',
+] as const;
 export type MailTemplateKey = (typeof MAIL_TEMPLATE_KEYS)[number];
 
 export interface MailTemplateDef extends MailTemplateSource {
@@ -26,6 +31,67 @@ export const MAIL_TEMPLATES: Record<MailTemplateKey, MailTemplateDef> = {
       '<p>Xin chào,</p>',
       '<p>Đây là mail thử từ hệ thống Phonics, gửi lúc <b>{{ sentAtText }}</b>.</p>',
       '<p>Nếu bạn nhận được mail này, cấu hình gửi mail đã hoạt động.</p>',
+    ].join('\n'),
+  },
+  'parent.invite': {
+    description: 'Mời phụ huynh đặt mật khẩu tài khoản gia đình (admin tạo / chuyển đổi)',
+    variables: {
+      parentName: 'Tên phụ huynh',
+      childrenText: 'Tên các bé, cách nhau bởi dấu phẩy',
+      link: 'Link đặt mật khẩu (dùng một lần)',
+      expiresHours: 'Số giờ link còn hiệu lực',
+      email: 'Email đăng nhập',
+    },
+    sample: {
+      parentName: 'Nguyễn Thị Lan',
+      childrenText: 'Nguyễn Văn An (Andy), Nguyễn Thị Bình',
+      link: 'https://game.example.vn/set-password?token=abc',
+      expiresHours: 72,
+      email: 'lan@example.vn',
+    },
+    subject: '[Phonics] Tài khoản gia đình của {{ parentName }}',
+    bodyHtml: [
+      '<p>Chào {{ parentName }},</p>',
+      '<p>Trung tâm đã tạo <b>tài khoản gia đình</b> để phụ huynh và các bé ({{ childrenText }}) vào học trên Phonics.</p>',
+      '<p>Email đăng nhập: <b>{{ email }}</b></p>',
+      '<p><a href="{{ link }}" style="display:inline-block;padding:10px 18px;background:#ffdc58;color:#18181b;border-radius:6px;text-decoration:none;font-weight:bold">Đặt mật khẩu</a></p>',
+      '<p>Link dùng một lần, hết hạn sau {{ expiresHours }} giờ. Hết hạn thì nhờ trung tâm gửi lại.</p>',
+      '<p>Sau khi đăng nhập, chọn bé để vào học.</p>',
+    ].join('\n'),
+  },
+  'family.approved': {
+    description: 'Báo phụ huynh: các bé đã được duyệt vào lớp',
+    variables: {
+      parentName: 'Tên phụ huynh',
+      approved: 'Danh sách bé đã duyệt: name, className',
+      pendingCount: 'Số bé còn chờ duyệt',
+      link: 'Link vào game',
+    },
+    sample: {
+      parentName: 'Nguyễn Thị Lan',
+      approved: [{ name: 'Nguyễn Văn An (Andy)', className: 'K2A' }],
+      pendingCount: 1,
+      link: 'https://game.example.vn',
+    },
+    subject: '[Phonics] Tài khoản của bé đã được duyệt',
+    bodyHtml: [
+      '<p>Chào {{ parentName }},</p>',
+      '<p>Trung tâm đã duyệt:</p>',
+      '<ul>{% for c in approved %}<li><b>{{ c.name }}</b> — lớp {{ c.className }}</li>{% endfor %}</ul>',
+      '{% if pendingCount > 0 %}<p>Còn {{ pendingCount }} bé đang chờ duyệt.</p>{% endif %}',
+      '<p><a href="{{ link }}">Vào Phonics</a>, đăng nhập rồi chọn bé để bắt đầu học.</p>',
+    ].join('\n'),
+  },
+  'family.rejected': {
+    description: 'Báo phụ huynh: đăng ký bị từ chối',
+    variables: { parentName: 'Tên phụ huynh', childrenText: 'Tên các bé bị từ chối', reason: 'Lý do' },
+    sample: { parentName: 'Nguyễn Thị Lan', childrenText: 'Nguyễn Văn An', reason: 'Lớp đã đủ sĩ số' },
+    subject: '[Phonics] Đăng ký chưa được duyệt',
+    bodyHtml: [
+      '<p>Chào {{ parentName }},</p>',
+      '<p>Trung tâm chưa duyệt đăng ký của: <b>{{ childrenText }}</b>.</p>',
+      '<p>Lý do: {{ reason }}</p>',
+      '<p>Phụ huynh vui lòng liên hệ trung tâm nếu cần hỗ trợ.</p>',
     ].join('\n'),
   },
 };

@@ -15,6 +15,7 @@ model Class {
 
   teachers     ClassTeacher[]
   memberships  ClassMembership[]
+  requestedBy  StudentProfile[]  @relation("StudentRequestedClass")
   pointEntries PointEntry[]
   gameResults  GameResult[]
   assignments  Assignment[]

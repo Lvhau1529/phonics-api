@@ -6,9 +6,6 @@ export const studentInclude = {
     select: {
       vietnameseName: true,
       englishName: true,
-      parentName: true,
-      parentEmail: true,
-      parentPhone: true,
       notes: true,
       memberships: {
         where: { leftAt: null },

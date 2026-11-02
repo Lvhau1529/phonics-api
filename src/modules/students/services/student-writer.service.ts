@@ -12,10 +12,18 @@ import { AuditService } from '@/modules/audit/services/audit.service';
 import { PasswordService } from '@/modules/auth/services/password.service';
 import { TokenService } from '@/modules/auth/services/token.service';
 import { type AuthUser } from '@/modules/auth/types/auth.types';
+import { GuardianWriterService } from '@/modules/families/services/guardian-writer.service';
 import { NotificationsService } from '@/modules/notifications/services/notifications.service';
 import { RankingService } from '@/modules/points/services/ranking.service';
 import { StudentRepository } from '@/modules/students/repositories/student.repository';
-import { applyNameChange, nameColumns, profileNameData } from '@/common/utils/student-names';
+import { type StudentRow } from '@/modules/students/types/student.types';
+import {
+  applyNameChange,
+  nameColumns,
+  profileNameData,
+  type StudentNameColumns,
+  type StudentNames,
+} from '@/common/utils/student-names';
 import {
   assertCanEditFields,
   profileUpdateOf,
@@ -36,6 +44,7 @@ export class StudentWriterService {
     private readonly notifications: NotificationsService,
     private readonly passwords: PasswordService,
     private readonly tokens: TokenService,
+    private readonly guardians: GuardianWriterService,
   ) {}
 
   /** ADMIN: mọi trường; TEACHER (students.edit): chỉ tên / avatarKey */
@@ -54,13 +63,50 @@ export class StudentWriterService {
       ...profileUpdateOf(body),
       ...(names ? profileNameData(names) : {}),
     };
-    const updated = await this.repo.update(id, {
+    // Duyệt / từ chối đi qua màn Duyệt tài khoản, không đổi tay sang PENDING / REJECTED
+    const reviewing = (s: string | undefined) => s === 'PENDING' || s === 'REJECTED';
+    if (
+      body.status &&
+      (reviewing(body.status) || reviewing(current.status)) &&
+      body.status !== current.status
+    ) {
+      throw new AppError('CONFLICT', 409, { fieldErrors: { status: ['statusViaApproval'] } });
+    }
+    const updated = await this.repo.transaction(async (tx) => {
+      if (body.parent !== undefined) {
+        await this.guardians.setBillingContact(tx, id, body.parent, currentNames.vietnameseName);
+      }
+      return this.repo.update(id, this.userUpdateOf(body, current, names, nextNames, profileData), tx);
+    });
+
+    // Vô hiệu phiên đang đăng nhập khi khoá tài khoản
+    if (body.status === 'DISABLED' && current.status !== 'DISABLED') await this.tokens.revokeAll(id);
+
+    const { before, after } = studentAuditDiff(body, current, updated);
+    if (body.parent !== undefined) after.parent = body.parent;
+    if (Object.keys(after).length)
+      await this.audit.record(actor, 'student.update', 'User', id, before, after);
+    return this.reader.toDetail(actor, updated);
+  }
+
+  private userUpdateOf(
+    body: UpdateStudentBody,
+    current: StudentRow,
+    names: StudentNameColumns | null,
+    nextNames: StudentNames | null,
+    profileData: Prisma.StudentProfileUpdateInput,
+  ): Prisma.UserUpdateInput {
+    const emailChanged = !!body.email && body.email !== current.email;
+    const currentNames = studentNamesOf(current);
+    return {
       // Tên hiển thị luôn suy ra từ hai tên (không ghi thẳng body.displayName)
       displayName: names?.displayName,
       avatarKey: body.avatarKey,
       email: body.email,
       // Admin đổi email tay → chưa xác thực lại
       emailVerified: emailChanged ? false : undefined,
+      // Cấp email riêng cho bé đang vào qua tài khoản gia đình → bé tự đăng nhập được (phụ huynh vẫn vào được)
+      loginMode: emailChanged && current.loginMode === 'MANAGED' ? 'OWN' : undefined,
       status: body.status,
       studentProfile: Object.keys(profileData).length
         ? {
@@ -73,15 +119,7 @@ export class StudentWriterService {
             },
           }
         : undefined,
-    });
-
-    // Vô hiệu phiên đang đăng nhập khi khoá tài khoản
-    if (body.status === 'DISABLED' && current.status !== 'DISABLED') await this.tokens.revokeAll(id);
-
-    const { before, after } = studentAuditDiff(body, current, updated);
-    if (Object.keys(after).length)
-      await this.audit.record(actor, 'student.update', 'User', id, before, after);
-    return this.reader.toDetail(actor, updated);
+    };
   }
 
   /** Chuyển lớp: đóng membership cũ, mở membership mới, tính lại hạng hai lớp, báo cho học sinh */
@@ -126,7 +164,10 @@ export class StudentWriterService {
 
   /** Admin đặt lại mật khẩu: băm mới + đăng xuất mọi thiết bị */
   async resetPassword(actor: AuthUser, id: string, body: ResetPasswordBody): Promise<void> {
-    await this.reader.findStudent(id);
+    const student = await this.reader.findStudent(id);
+    if (student.loginMode === 'MANAGED') {
+      throw new AppError('STUDENT_IS_MANAGED', 409, { message: 'managedNoPassword' });
+    }
     await this.repo.setPasswordHash(id, await this.passwords.hash(body.newPassword));
     await this.tokens.revokeAll(id);
     await this.audit.record(actor, 'student.resetPassword', 'User', id, null, null);

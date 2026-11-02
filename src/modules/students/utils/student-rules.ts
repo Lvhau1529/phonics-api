@@ -3,7 +3,6 @@ import { type UpdateStudentBody } from '@phonics/contracts';
 import { AppError } from '@/common/errors/app-error';
 import { type Prisma } from '@/generated/prisma/client';
 import { type AuthUser } from '@/modules/auth/types/auth.types';
-import { toParentContact } from '@/modules/students/dto/responses/student.view';
 import { type StudentRow } from '@/modules/students/types/student.types';
 import { type StudentNames } from '@/common/utils/student-names';
 
@@ -36,14 +35,9 @@ export function studentNamesOf(row: StudentRow): StudentNames {
   };
 }
 
-/** Dữ liệu profile cần ghi (phụ huynh / ghi chú); rỗng = không đụng profile */
+/** Dữ liệu profile cần ghi (ghi chú); rỗng = không đụng profile. Phụ huynh (`parent`) ghi vào guardians. */
 export function profileUpdateOf(body: UpdateStudentBody): Prisma.StudentProfileUpdateInput {
   const data: Prisma.StudentProfileUpdateInput = {};
-  if (body.parent !== undefined) {
-    data.parentName = body.parent?.name ?? null;
-    data.parentEmail = body.parent?.email ?? null;
-    data.parentPhone = body.parent?.phone ?? null;
-  }
   if (body.notes !== undefined) data.notes = body.notes;
   return data;
 }
@@ -69,10 +63,6 @@ export function studentAuditDiff(
       before[key] = was;
       after[key] = now;
     }
-  }
-  if (body.parent !== undefined) {
-    before.parent = toParentContact(current.studentProfile);
-    after.parent = toParentContact(updated.studentProfile);
   }
   if (body.notes !== undefined && body.notes !== (current.studentProfile?.notes ?? null)) {
     before.notes = current.studentProfile?.notes ?? null;

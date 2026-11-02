@@ -15,15 +15,56 @@ lỗi `{ statusCode, code, message, details?, requestId }`.
 
 | Method | Path | Ai | Request → Response |
 | --- | --- | --- | --- |
-| POST | `/auth/register` | pub | `RegisterBody` → `AuthResponse` (201). Học sinh + lớp. 409 `EMAIL_TAKEN`, 400 `CLASS_NOT_JOINABLE` |
-| POST | `/auth/login` | pub | `LoginBody` → `AuthResponse`. 401 `INVALID_CREDENTIALS`, 403 `ACCOUNT_DISABLED` |
-| POST | `/auth/google` | pub | `GoogleBody { idToken, profile? }` → `AuthResponse`. 422 `PROFILE_REQUIRED` khi tài khoản mới thiếu profile |
+| POST | `/auth/register` | pub | **Cũ** — `RegisterBody` → tạo học sinh `PENDING` (chưa vào lớp) rồi 403 `ACCOUNT_PENDING` (không cấp token). 409 `EMAIL_TAKEN`, 400 `CLASS_NOT_JOINABLE` |
+| POST | `/auth/register-family` | pub | `RegisterFamilyBody { credentials (password \| google), parent, children[] }` → `AuthResponse` (201) của phụ huynh `PENDING` |
+| POST | `/auth/login` | pub | `LoginBody` → `AuthResponse`. 401 `INVALID_CREDENTIALS`, 403 `ACCOUNT_DISABLED` / `ACCOUNT_REJECTED` / `ACCOUNT_PENDING` (học sinh chờ duyệt; phụ huynh chờ duyệt vẫn đăng nhập được) |
+| POST | `/auth/google` | pub | `GoogleBody { idToken, profile? }` → `AuthResponse`. 422 `PROFILE_REQUIRED` khi tài khoản mới (game mới → `register-family`); client cũ gửi `profile` → học sinh `PENDING`, 403 `ACCOUNT_PENDING` |
+| GET | `/auth/profiles` | PARENT | → `FamilyProfilesResponse` (các bé được vào, kể cả chờ duyệt) |
+| POST | `/auth/switch-profile` | PARENT | `{ studentId }` → `AuthResponse` của bé (claim `act`; refresh token **luôn trong body**). 403 `PROFILE_NOT_APPROVED` / `PROFILE_NOT_ACCESSIBLE` |
+| POST | `/auth/set-password` | pub | `SetPasswordBody { token, password }` (link mời 72 h, dùng một lần) → `AuthResponse`. 400 `INVITE_TOKEN_INVALID` |
 | POST | `/auth/refresh` | pub | cookie `pa_rt` hoặc `{ refreshToken }` → `AuthResponse` (token xoay vòng). 401 `INVALID_REFRESH` / `REFRESH_REUSED` |
 | POST | `/auth/logout` | pub/\* | `{ refreshToken?, all? }` → 204 |
-| GET | `/auth/me` | \* | → `MeResponse { user, permissions }` |
+| GET | `/auth/me` | \* | → `MeResponse { user, permissions, actor }` (`actor` = phụ huynh đã mở phiên của bé) |
 | POST | `/auth/change-password` | \* | `ChangePasswordBody` → 204 (thu hồi mọi phiên) |
 
 Header `X-Refresh-Transport: body` trên các route auth → refresh token trả trong body thay vì cookie.
+
+Tài khoản `PENDING` (phụ huynh chờ duyệt) chỉ gọi được `auth/me`, `auth/profiles`, `auth/logout`,
+`auth/change-password`, `me/children*`, `me/guardian`; route khác 403 `ACCOUNT_PENDING`. Tài khoản `PARENT` bị chặn
+(403 `FORBIDDEN`) ở mọi route không khai báo PARENT — kể cả `/me/*` của học sinh.
+
+## Tài khoản gia đình (PARENT)
+
+| Method | Path | Ai | Request → Response |
+| --- | --- | --- | --- |
+| GET | `/me/children` | PARENT | → `FamilyProfilesResponse` |
+| POST | `/me/children` | PARENT | `ChildInput` → `FamilyProfile` (bé mới `PENDING`) |
+| PATCH | `/me/children/:id` | PARENT | `UpdateChildBody` → `FamilyProfile` (chỉ bé chờ duyệt) |
+| DELETE | `/me/children/:id` | PARENT | → 204 (huỷ bé chờ duyệt / bị từ chối) |
+| GET / PATCH | `/me/guardian` | PARENT | `UpdateMyGuardianBody { fullName?, phone? }` → `MyGuardian` |
+
+## families — duyệt tài khoản (perm:`families.approve`; T: bé đăng ký vào lớp mình)
+
+| Method | Path | Ai | Request → Response |
+| --- | --- | --- | --- |
+| GET | `/families/pending` | A, T | → `PendingFamiliesResponse` (đơn + bé chờ + cảnh báo trùng; ngoài phạm vi GV ẩn tên) |
+| GET | `/families/pending/count` | A, T | → `{ count }` (badge menu) |
+| POST | `/families/:id/approve` | A, T | `ApproveFamilyBody { children: [{ studentId, classId }] }` → `FamilyReviewResult`. GV chỉ xếp vào lớp mình; 409 `alreadyReviewed` |
+| POST | `/families/:id/reject` | A, T | `RejectFamilyBody { studentIds?, reason }` → `FamilyReviewResult` (không `studentIds` = mọi bé chờ trong phạm vi) |
+| POST | `/families/:id/merge` | A, T | `{ guardianId }` → `FamilyReviewResult` (gộp vào phụ huynh có sẵn; GV: phụ huynh đó có con lớp mình) |
+
+`:id` = tài khoản đăng ký: user PARENT, hoặc chính học sinh với đăng ký kiểu cũ.
+
+## guardians (A, perm:`guardians.manage`)
+
+| Method | Path | Ai | Request → Response |
+| --- | --- | --- | --- |
+| GET | `/guardians` | A | `GuardianListQuery (+ hasAccount)` → `Paginated<GuardianSummary>` (tìm theo tên, email, SĐT, tên con) |
+| GET / PATCH | `/guardians/:id` | A | `UpdateGuardianBody` → `GuardianSummary`. 409 `GUARDIAN_EMAIL_TAKEN` |
+| POST | `/guardians` | A | `CreateGuardianBody` → `GuardianSummary` (201) |
+| POST | `/guardians/:id/family-account` | A | → `FamilyAccountResponse` (user PARENT + mail `parent.invite`; chưa đặt mật khẩu → gửi lại) |
+| POST | `/guardians/:id/convert-preview` | A | `ConvertFamilyBody { studentIds }` → `ConvertPreview` |
+| POST | `/guardians/:id/convert` | A | `ConvertFamilyBody` → `ConvertResult` (học sinh → MANAGED; email phụ huynh trùng email học sinh → chuyển đăng nhập) |
 
 ## public
 
@@ -80,7 +121,9 @@ Header `X-Refresh-Transport: body` trên các route auth → refresh token trả
 | GET | `/students/:id` | A, T | → `StudentDetail` (`parent` chỉ A / perm:`students.viewParentContact`) |
 | PATCH | `/students/:id` | A; T perm:`students.edit` (chỉ tên, avatar) | `UpdateStudentBody` → `StudentDetail` (`vietnameseName`, `englishName` — `null` xoá; `displayName` hiển thị = tên tiếng Anh ?? tên tiếng Việt) |
 | POST | `/students/:id/move-class` | A, T perm:`class.changeStudentClass` | `MoveClassBody` → `StudentDetail` |
-| POST | `/students/:id/reset-password` | A | `ResetPasswordBody` → 204 |
+| POST | `/students/:id/reset-password` | A | `ResetPasswordBody` → 204. 409 `STUDENT_IS_MANAGED` (bé vào qua phụ huynh) |
+| GET | `/students/:id/guardians` | A, T (perm:`students.viewParentContact`) | → `StudentGuardiansResponse` |
+| PUT | `/students/:id/guardians` | A (perm:`guardians.manage`) | `SetStudentGuardiansBody` → `StudentGuardiansResponse` (thôi `canAccess` → phiên phụ huynh mở cho bé hết hiệu lực) |
 | GET | `/students/:id/points` | A, T | `PointsListQuery` → `Paginated<PointEntryView>` |
 | GET | `/students/:id/points/by-game` | A, T | `?range` → `{ items: PointsByGame[] }` |
 | GET | `/students/:id/game-results` | A, T | → `Paginated<GameResultView>` |

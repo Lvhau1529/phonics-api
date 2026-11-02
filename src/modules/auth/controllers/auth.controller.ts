@@ -1,8 +1,8 @@
 import { Body, Controller, Get, HttpCode, Inject, Post, Req, Res } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
-import { type AuthResponse } from '@phonics/contracts';
 import { type Request, type Response } from 'express';
+import { AllowParent, AllowPending } from '@/common/decorators/account.decorator';
 import { CurrentUser, MaybeUser } from '@/common/decorators/current-user.decorator';
 import { OptionalAuth, Public } from '@/common/decorators/public.decorator';
 import { API_V1 } from '@/config/api-version';
@@ -22,8 +22,7 @@ import { type AuthResult, type AuthUser } from '@/modules/auth/types/auth.types'
 import {
   clearRefreshCookie,
   presentedRefreshToken,
-  setRefreshCookie,
-  transportOf,
+  respondWithTokens,
 } from '@/modules/auth/utils/refresh-transport';
 
 const authThrottle = { default: { limit: THROTTLE.auth.limit, ttl: THROTTLE.auth.ttl } };
@@ -36,11 +35,12 @@ export class AuthController {
     @Inject(ENV) private readonly env: Env,
   ) {}
 
+  /** @deprecated dùng `auth/register-family`. Tạo học sinh chờ duyệt rồi trả 403 ACCOUNT_PENDING (không cấp token) */
   @Public()
   @Throttle(authThrottle)
   @Post('register')
-  async register(@Body() body: RegisterDto, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
-    return this.respond(req, res, await this.auth.register(body, meta(req)));
+  async register(@Body() body: RegisterDto): Promise<void> {
+    await this.auth.register(body);
   }
 
   @Public()
@@ -70,6 +70,8 @@ export class AuthController {
 
   /** Đăng xuất thiết bị này (hoặc `all: true` mọi thiết bị, cần access token) */
   @OptionalAuth()
+  @AllowPending()
+  @AllowParent()
   @HttpCode(204)
   @Post('logout')
   async logout(
@@ -83,12 +85,16 @@ export class AuthController {
   }
 
   @ApiBearerAuth()
+  @AllowPending()
+  @AllowParent()
   @Get('me')
   me(@CurrentUser() user: AuthUser) {
     return this.auth.me(user);
   }
 
   @ApiBearerAuth()
+  @AllowPending()
+  @AllowParent()
   @HttpCode(204)
   @Post('change-password')
   async changePassword(@CurrentUser() user: AuthUser, @Body() body: ChangePasswordDto): Promise<void> {
@@ -96,11 +102,8 @@ export class AuthController {
   }
 
   /** Trả refresh token theo transport client chọn (cookie hoặc body) */
-  private respond(req: Request, res: Response, result: AuthResult): AuthResponse {
-    const { refreshToken, ...rest } = result;
-    if (transportOf(req) === 'body') return { ...rest, refreshToken };
-    setRefreshCookie(res, this.env, refreshToken);
-    return rest;
+  private respond(req: Request, res: Response, result: AuthResult) {
+    return respondWithTokens(req, res, this.env, result);
   }
 }
 

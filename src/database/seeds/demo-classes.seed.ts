@@ -102,9 +102,19 @@ export async function seedDemoClasses(prisma: PrismaClient): Promise<void> {
               studentProfile: {
                 create: {
                   ...profileNameData(names),
-                  parentName: `${displayName}'s parent`,
-                  parentEmail: `${slug}.parent${String(i).padStart(2, '0')}@demo.local`,
-                  parentPhone: `09${String(random.int(10_000_000, 99_999_999))}`,
+                  // Phụ huynh nhận học phí (chưa có tài khoản gia đình)
+                  guardians: {
+                    create: {
+                      isBillingContact: true,
+                      guardian: {
+                        create: {
+                          fullName: `${displayName}'s parent`,
+                          email: `${slug}.parent${String(i).padStart(2, '0')}@demo.local`,
+                          phone: `+849${String(random.int(10_000_000, 99_999_999))}`,
+                        },
+                      },
+                    },
+                  },
                   memberships: { create: { classId: cls.id, joinedAt } },
                 },
               },

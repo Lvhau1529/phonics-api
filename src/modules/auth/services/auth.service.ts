@@ -8,13 +8,15 @@ import {
   type MeResponse,
   type ParentContact,
   type RegisterBody,
+  type Role,
+  type UserStatus,
 } from '@phonics/contracts';
 import { AppError } from '@/common/errors/app-error';
+import { normalizePhone } from '@/common/utils/phone';
 import { nameColumns, profileNameData } from '@/common/utils/student-names';
 import { PrismaService } from '@/database/prisma.service';
 import { type Tx } from '@/database/types';
 import { PermissionsService } from '@/modules/permissions/services/permissions.service';
-import { RankingService } from '@/modules/points/services/ranking.service';
 import { UsersService } from '@/modules/users/services/users.service';
 import { type AuthResult, type AuthUser, type ClientMeta } from '@/modules/auth/types/auth.types';
 import { GoogleService } from '@/modules/auth/services/google.service';
@@ -30,15 +32,17 @@ export class AuthService {
     private readonly tokens: TokenService,
     private readonly google: GoogleService,
     private readonly permissions: PermissionsService,
-    private readonly ranking: RankingService,
   ) {}
 
-  /** Học sinh tự đăng ký (phải chọn lớp đang nhận) */
-  async register(body: RegisterBody, meta: ClientMeta): Promise<AuthResult> {
+  /**
+   * Học sinh tự đăng ký kiểu cũ (game < 1.7.0; game mới dùng `auth/register-family`). Tài khoản tạo ở trạng thái
+   * PENDING, chưa vào lớp (lớp chọn lưu ở `requested_class_id`) → báo 403 ACCOUNT_PENDING thay vì cấp token.
+   */
+  async register(body: RegisterBody): Promise<never> {
     await this.assertEmailFree(body.email);
     const passwordHash = await this.passwords.hash(body.password);
-    const user = await this.prisma.$transaction(async (tx) => {
-      const created = await this.createStudent(tx, {
+    await this.prisma.$transaction((tx) =>
+      this.createPendingStudent(tx, {
         email: body.email,
         passwordHash,
         provider: 'LOCAL',
@@ -46,11 +50,9 @@ export class AuthService {
         avatarKey: body.avatarKey ?? DEFAULT_AVATAR,
         classId: body.classId,
         parent: body.parent,
-      });
-      return created;
-    });
-    await this.ranking.recomputeAndNotify(this.prisma, body.classId);
-    return this.finish(user.id, meta, { created: true });
+      }),
+    );
+    throw new AppError('ACCOUNT_PENDING', 403, { message: 'accountCreatedPending' });
   }
 
   async login(body: LoginBody, meta: ClientMeta): Promise<AuthResult> {
@@ -59,13 +61,14 @@ export class AuthService {
     if (!user || !(await this.passwords.verify(user.passwordHash, body.password))) {
       throw new AppError('INVALID_CREDENTIALS', 401);
     }
-    if (user.status === 'DISABLED') throw new AppError('ACCOUNT_DISABLED', 403);
-    return this.finish(user.id, meta);
+    this.assertCanSignIn(user);
+    return this.startSession(user.id, meta);
   }
 
   /**
-   * Google: có user (theo googleSub, rồi email) → đăng nhập + liên kết; chưa có → cần `profile` (lớp, tên)
-   * để tạo học sinh, thiếu thì 422 PROFILE_REQUIRED để client mở màn đăng ký.
+   * Google: có user (theo googleSub, rồi email) → đăng nhập + liên kết; chưa có → 422 PROFILE_REQUIRED để client mở
+   * màn đăng ký (game mới: `auth/register-family` với Google). Client cũ gửi kèm `profile` → tạo học sinh PENDING
+   * như `register`.
    */
   async googleSignIn(body: GoogleBody, meta: ClientMeta): Promise<AuthResult> {
     const identity = await this.google.verify(body.idToken);
@@ -74,20 +77,20 @@ export class AuthService {
       (await this.prisma.user.findUnique({ where: { email: identity.email } }));
 
     if (existing) {
-      if (existing.status === 'DISABLED') throw new AppError('ACCOUNT_DISABLED', 403);
+      this.assertCanSignIn(existing);
       if (existing.googleSub !== identity.sub) {
         await this.prisma.user.update({
           where: { id: existing.id },
           data: { googleSub: identity.sub, emailVerified: true },
         });
       }
-      return this.finish(existing.id, meta);
+      return this.startSession(existing.id, meta);
     }
 
     if (!body.profile) throw new AppError('PROFILE_REQUIRED', 422);
     const profile: GoogleProfile = body.profile;
-    const user = await this.prisma.$transaction((tx) =>
-      this.createStudent(tx, {
+    await this.prisma.$transaction((tx) =>
+      this.createPendingStudent(tx, {
         email: identity.email,
         passwordHash: null,
         provider: 'GOOGLE',
@@ -99,8 +102,7 @@ export class AuthService {
         parent: profile.parent,
       }),
     );
-    await this.ranking.recomputeAndNotify(this.prisma, profile.classId);
-    return this.finish(user.id, meta, { created: true });
+    throw new AppError('ACCOUNT_PENDING', 403, { message: 'accountCreatedPending' });
   }
 
   async refresh(presented: string | undefined, meta: ClientMeta): Promise<AuthResult> {
@@ -123,15 +125,23 @@ export class AuthService {
   }
 
   async me(user: AuthUser): Promise<MeResponse> {
-    const [view, permissions] = await Promise.all([
+    const [view, permissions, actor] = await Promise.all([
       this.users.view(user.id),
       this.permissions.effectiveFor(user),
+      user.actorId
+        ? this.prisma.user.findUnique({
+            where: { id: user.actorId },
+            select: { id: true, displayName: true },
+          })
+        : null,
     ]);
-    return { user: view, permissions: [...permissions] };
+    return { user: view, permissions: [...permissions], actor };
   }
 
   async changePassword(user: AuthUser, body: ChangePasswordBody): Promise<void> {
     const row = await this.prisma.user.findUniqueOrThrow({ where: { id: user.id } });
+    // Bé vào qua tài khoản gia đình không có mật khẩu riêng — đổi mật khẩu của phụ huynh
+    if (row.loginMode === 'MANAGED') throw new AppError('STUDENT_IS_MANAGED', 409);
     if (row.passwordHash) {
       if (!body.currentPassword || !(await this.passwords.verify(row.passwordHash, body.currentPassword))) {
         throw new AppError('INVALID_CREDENTIALS', 401, { message: 'wrongCurrentPassword' });
@@ -152,7 +162,15 @@ export class AuthService {
     if (exists) throw new AppError('EMAIL_TAKEN', 409, { fieldErrors: { email: ['EMAIL_TAKEN'] } });
   }
 
-  private async createStudent(
+  /** Chặn đăng nhập theo trạng thái. PARENT chờ duyệt vẫn vào được (màn "đang chờ duyệt"); học sinh chờ duyệt thì không. */
+  private assertCanSignIn(user: { role: Role; status: UserStatus }): void {
+    if (user.status === 'DISABLED') throw new AppError('ACCOUNT_DISABLED', 403);
+    if (user.status === 'REJECTED') throw new AppError('ACCOUNT_REJECTED', 403);
+    if (user.status === 'PENDING' && user.role !== 'PARENT') throw new AppError('ACCOUNT_PENDING', 403);
+  }
+
+  /** Học sinh tự đăng ký kiểu cũ: PENDING, OWN, chưa vào lớp (chờ duyệt ở màn Duyệt tài khoản) */
+  private async createPendingStudent(
     tx: Tx,
     input: {
       email: string;
@@ -177,7 +195,7 @@ export class AuthService {
 
     // Form đăng ký chỉ có một ô tên → coi là tên tiếng Việt; tên tiếng Anh GV / admin bổ sung sau
     const names = nameColumns({ vietnameseName: input.displayName, englishName: null });
-    return tx.user.create({
+    const student = await tx.user.create({
       data: {
         email: input.email,
         passwordHash: input.passwordHash,
@@ -185,33 +203,65 @@ export class AuthService {
         googleSub: input.googleSub,
         emailVerified: input.emailVerified ?? false,
         role: 'STUDENT',
+        status: 'PENDING',
         displayName: names.displayName,
         avatarKey: input.avatarKey,
         studentProfile: {
           create: {
             ...profileNameData(names),
-            parentName: input.parent?.name,
-            parentEmail: input.parent?.email,
-            parentPhone: input.parent?.phone,
-            memberships: { create: { classId: input.classId } },
+            requestedClassId: input.classId,
           },
         },
       },
     });
+    if (input.parent && (input.parent.name || input.parent.email || input.parent.phone)) {
+      await this.linkBillingGuardian(tx, student.id, input.parent, names.vietnameseName);
+    }
   }
 
-  private async finish(
+  /** Liên hệ phụ huynh khai lúc đăng ký → phụ huynh nhận học phí (gắn vào phụ huynh sẵn có nếu trùng email) */
+  private async linkBillingGuardian(
+    tx: Tx,
+    studentId: string,
+    parent: ParentContact,
+    vietnameseName: string,
+  ): Promise<void> {
+    const existing = parent.email
+      ? await tx.guardian.findFirst({ where: { email: parent.email }, select: { id: true } })
+      : null;
+    const guardianId =
+      existing?.id ??
+      (
+        await tx.guardian.create({
+          data: {
+            fullName: parent.name ?? `Phụ huynh ${vietnameseName}`.slice(0, 60),
+            email: parent.email ?? null,
+            phone: parent.phone ? normalizePhone(parent.phone) : null,
+          },
+          select: { id: true },
+        })
+      ).id;
+    await tx.studentGuardian.create({ data: { studentId, guardianId, isBillingContact: true } });
+  }
+
+  /**
+   * Cấp cặp token + view user (đăng nhập, đăng ký, đặt mật khẩu, chuyển hồ sơ bé). `actorId` = phụ huynh mở phiên
+   * cho bé → access token mang claim `act`.
+   */
+  async startSession(
     userId: string,
     meta: ClientMeta,
-    extra: { created?: boolean } = {},
+    extra: { created?: boolean; actorId?: string } = {},
   ): Promise<AuthResult> {
+    const { actorId, ...flags } = extra;
     const row = await this.prisma.user.update({
       where: { id: userId },
-      data: { lastLoginAt: new Date() },
+      // Phụ huynh mở hồ sơ bé không tính là bé đăng nhập
+      data: actorId ? {} : { lastLoginAt: new Date() },
       select: { id: true, role: true, tokenVersion: true },
     });
-    const tokens: IssuedTokens = await this.tokens.issue(row, meta);
+    const tokens: IssuedTokens = await this.tokens.issue({ ...row, actorId }, meta);
     const user = await this.users.view(userId);
-    return { ...tokens, user, ...extra };
+    return { ...tokens, user, ...flags };
   }
 }

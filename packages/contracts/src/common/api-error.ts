@@ -42,6 +42,14 @@ export const ErrorCode = z.enum([
   'SUBMISSION_NOT_SUBMITTED',
   'GRADING_INCOMPLETE',
   'ANSWER_TYPE_MISMATCH',
+  // Tài khoản gia đình / duyệt tài khoản
+  'ACCOUNT_PENDING',
+  'ACCOUNT_REJECTED',
+  'PROFILE_NOT_ACCESSIBLE',
+  'PROFILE_NOT_APPROVED',
+  'GUARDIAN_EMAIL_TAKEN',
+  'STUDENT_IS_MANAGED',
+  'INVITE_TOKEN_INVALID',
 ]);
 export type ErrorCode = z.infer<typeof ErrorCode>;
 

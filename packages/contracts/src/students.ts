@@ -1,10 +1,11 @@
 import { z } from 'zod';
 import { ParentContact } from './auth.js';
 import { IsoDateTime } from './common/dates.js';
+import { StudentGuardianView } from './guardians.js';
 import { Id } from './common/ids.js';
 import { PageQuery } from './common/pagination.js';
 import { ValidationMessage } from './common/validation-messages.js';
-import { AvatarKey, DisplayName, Email, Password, StudentClassRef, UserStatus } from './users.js';
+import { AvatarKey, DisplayName, Email, LoginMode, Password, StudentClassRef, UserStatus } from './users.js';
 
 /** Họ tên tiếng Việt của học sinh (bắt buộc) — dùng ở phiếu học phí, mail phụ huynh */
 export const VietnameseName = DisplayName;
@@ -13,13 +14,16 @@ export const EnglishName = DisplayName;
 
 export const StudentSummary = z.object({
   id: Id,
-  email: Email,
+  /** null với học sinh MANAGED (vào qua tài khoản gia đình) */
+  email: Email.nullable(),
   /** Tên hiển thị = tên tiếng Anh nếu có, không thì tên tiếng Việt (server tự đồng bộ) */
   displayName: DisplayName,
   vietnameseName: VietnameseName,
   englishName: EnglishName.nullable(),
   avatarKey: AvatarKey,
   status: UserStatus,
+  /** Từ 1.7.0 */
+  loginMode: LoginMode,
   class: StudentClassRef.nullable(),
   /** Tổng điểm mọi thời gian */
   points: z.int(),
@@ -31,8 +35,13 @@ export const StudentSummary = z.object({
 export type StudentSummary = z.infer<typeof StudentSummary>;
 
 export const StudentDetail = StudentSummary.extend({
-  /** Chỉ admin hoặc GV có quyền students.viewParentContact; người khác nhận null */
+  /**
+   * Phụ huynh nhận học phí (dạng cũ, giữ cho client < 1.7.0). Chỉ admin hoặc GV có quyền
+   * students.viewParentContact; người khác nhận null.
+   */
   parent: ParentContact.nullable(),
+  /** Mọi phụ huynh của học sinh — cùng điều kiện với `parent` (từ 1.7.0) */
+  guardians: z.array(StudentGuardianView).nullable(),
   /** Ghi chú nội bộ của admin */
   notes: z.string().nullable(),
   pointsByKind: z.object({ GAME: z.int(), BONUS: z.int() }),
@@ -43,6 +52,7 @@ export type StudentDetail = z.infer<typeof StudentDetail>;
 export const StudentListQuery = PageQuery.extend({
   classId: Id.optional(),
   status: UserStatus.optional(),
+  loginMode: LoginMode.optional(),
 });
 export type StudentListQuery = z.infer<typeof StudentListQuery>;
 
@@ -60,6 +70,7 @@ export const UpdateStudentBody = z
     avatarKey: AvatarKey,
     email: Email,
     status: UserStatus,
+    /** Sửa phụ huynh nhận học phí (tạo mới nếu chưa có); `null` = gỡ. Nhiều phụ huynh: `PUT students/:id/guardians` */
     parent: ParentContact.nullable(),
     notes: z.string().trim().max(1000).nullable(),
   })

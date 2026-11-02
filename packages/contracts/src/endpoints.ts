@@ -22,6 +22,10 @@ export const ENDPOINTS = {
     logout: '/auth/logout',
     me: '/auth/me',
     changePassword: '/auth/change-password',
+    registerFamily: '/auth/register-family',
+    profiles: '/auth/profiles',
+    switchProfile: '/auth/switch-profile',
+    setPassword: '/auth/set-password',
   },
   public: {
     classes: '/public/classes',
@@ -49,6 +53,10 @@ export const ENDPOINTS = {
     submit: (id: string) => `/me/submissions/${id}/submit`,
     submissionComments: (id: string) => `/me/submissions/${id}/comments`,
     worksheetStats: '/me/worksheet-stats',
+    // Tài khoản gia đình (PARENT)
+    children: '/me/children',
+    child: (id: string) => `/me/children/${id}`,
+    guardian: '/me/guardian',
   },
   media: {
     presign: '/media/presign',
@@ -118,6 +126,21 @@ export const ENDPOINTS = {
     gameResults: (id: string) => `/students/${id}/game-results`,
     games: (id: string) => `/students/${id}/games`,
     game: (id: string, gameId: string) => `/students/${id}/games/${gameId}`,
+    guardians: (id: string) => `/students/${id}/guardians`,
+  },
+  guardians: {
+    list: '/guardians',
+    detail: (id: string) => `/guardians/${id}`,
+    familyAccount: (id: string) => `/guardians/${id}/family-account`,
+    convertPreview: (id: string) => `/guardians/${id}/convert-preview`,
+    convert: (id: string) => `/guardians/${id}/convert`,
+  },
+  families: {
+    pending: '/families/pending',
+    pendingCount: '/families/pending/count',
+    approve: (id: string) => `/families/${id}/approve`,
+    reject: (id: string) => `/families/${id}/reject`,
+    merge: (id: string) => `/families/${id}/merge`,
   },
   admin: {
     teachers: '/admin/teachers',

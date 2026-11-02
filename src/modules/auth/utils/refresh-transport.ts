@@ -1,5 +1,6 @@
 import {
   API_ROOT,
+  type AuthResponse,
   REFRESH_COOKIE_NAME,
   REFRESH_TRANSPORT_HEADER,
   type RefreshTransport,
@@ -8,6 +9,7 @@ import { type CookieOptions, type Request, type Response } from 'express';
 import { API_V1 } from '@/config/api-version';
 import { type Env } from '@/config/env.schema';
 import { dayjs } from '@/core/time/dayjs';
+import { type AuthResult } from '@/modules/auth/types/auth.types';
 
 /**
  * Client chọn cách nhận refresh token:
@@ -53,4 +55,12 @@ export function presentedRefreshToken(req: Request, bodyToken?: string): string 
   const signed = (req as Request & { signedCookies?: Record<string, string | false> }).signedCookies;
   const value = signed?.[REFRESH_COOKIE_NAME];
   return typeof value === 'string' && value ? value : undefined;
+}
+
+/** Trả refresh token theo transport client chọn: body → trong JSON; cookie → đặt cookie, bỏ khỏi body */
+export function respondWithTokens(req: Request, res: Response, env: Env, result: AuthResult): AuthResponse {
+  const { refreshToken, ...rest } = result;
+  if (transportOf(req) === 'body') return { ...rest, refreshToken };
+  setRefreshCookie(res, env, refreshToken);
+  return rest;
 }

@@ -44,6 +44,13 @@ const codeMessages = {
   SUBMISSION_NOT_SUBMITTED: 'Bài làm chưa được nộp',
   GRADING_INCOMPLETE: 'Còn câu chấm tay chưa có điểm',
   ANSWER_TYPE_MISMATCH: 'Câu trả lời không đúng dạng câu hỏi',
+  ACCOUNT_PENDING: 'Tài khoản đang chờ trung tâm duyệt',
+  ACCOUNT_REJECTED: 'Đăng ký tài khoản đã bị từ chối',
+  PROFILE_NOT_ACCESSIBLE: 'Bạn không được vào hồ sơ này',
+  PROFILE_NOT_APPROVED: 'Hồ sơ của bé đang chờ trung tâm duyệt',
+  GUARDIAN_EMAIL_TAKEN: 'Email đã thuộc về một phụ huynh khác',
+  STUDENT_IS_MANAGED: 'Học sinh vào qua tài khoản gia đình — hãy thao tác trên tài khoản phụ huynh',
+  INVITE_TOKEN_INVALID: 'Link đặt mật khẩu không hợp lệ hoặc đã hết hạn',
 } satisfies Record<ErrorCode, string>;
 
 export const vi = {
@@ -65,6 +72,9 @@ export const vi = {
   permissionGroupNotFound: 'Không tìm thấy nhóm quyền',
   questionNotFound: 'Không tìm thấy câu hỏi',
   worksheetNotFound: 'Không tìm thấy phiếu bài tập',
+  guardianNotFound: 'Không tìm thấy phụ huynh',
+  childNotFound: 'Không tìm thấy bé',
+  familyNotFound: 'Không tìm thấy đơn đăng ký',
   noClassYet: 'Bạn chưa thuộc lớp nào',
   studentNotInClass: 'Học sinh không thuộc lớp này',
   studentsNotInClass: 'Có học sinh không thuộc lớp này',
@@ -77,6 +87,20 @@ export const vi = {
   adminPermissionsLocked: 'Không sửa quyền của admin',
   permissionGroupNameTaken: 'Tên nhóm quyền đã tồn tại',
   permissionGroupsMissing: 'Có nhóm quyền không tồn tại',
+
+  // Tài khoản gia đình / duyệt tài khoản
+  accountCreatedPending: 'Đã tạo tài khoản, đang chờ trung tâm duyệt',
+  managedNoPassword: 'Học sinh vào qua tài khoản gia đình — hãy đặt lại mật khẩu cho phụ huynh',
+  alreadyReviewed: 'Bé đã được người khác duyệt hoặc từ chối',
+  childNotPending: 'Chỉ sửa / huỷ được bé đang chờ duyệt',
+  noPendingChildren: 'Không có bé nào đang chờ duyệt trong phạm vi của bạn',
+  guardianHasAccount: 'Phụ huynh đã có tài khoản gia đình',
+  guardianEmailRequired: 'Phụ huynh cần có email để tạo tài khoản gia đình',
+  emailUsedByOtherAccount: 'Email phụ huynh đang là tài khoản đăng nhập khác',
+  convertBlocked: 'Chưa chuyển được — xem các cảnh báo ở bước xem trước',
+  mergeOutOfScope: 'Gia đình này ngoài phạm vi của bạn — hãy báo admin gộp',
+  mergeSameGuardian: 'Đơn đã thuộc phụ huynh này',
+  statusViaApproval: 'Tài khoản chờ duyệt / bị từ chối chỉ đổi trạng thái ở màn Duyệt tài khoản',
 
   // Lớp / học sinh / giáo viên
   classNameTaken: 'Lớp cùng tên đã tồn tại trong năm học này',

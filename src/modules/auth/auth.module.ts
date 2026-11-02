@@ -3,7 +3,6 @@ import { JwtModule } from '@nestjs/jwt';
 import { AUTH } from '@/config/constants';
 import { ENV } from '@/config/env.module';
 import { type Env } from '@/config/env.schema';
-import { PointsModule } from '@/modules/points/points.module';
 import { UsersModule } from '@/modules/users/users.module';
 import { AuthService } from '@/modules/auth/services/auth.service';
 import { GoogleService } from '@/modules/auth/services/google.service';
@@ -11,7 +10,10 @@ import { PasswordService } from '@/modules/auth/services/password.service';
 import { TokenService } from '@/modules/auth/services/token.service';
 import { AuthController } from '@/modules/auth/controllers/auth.controller';
 
-/** Global: JwtModule / PasswordService / TokenService được guard và các module khác (students reset password) dùng */
+/**
+ * Global: JwtModule / AuthService / PasswordService / TokenService được guard và các module khác dùng (students reset
+ * password, families cấp phiên cho phụ huynh / bé).
+ */
 @Global()
 @Module({
   imports: [
@@ -28,10 +30,9 @@ import { AuthController } from '@/modules/auth/controllers/auth.controller';
       }),
     }),
     UsersModule,
-    PointsModule,
   ],
   controllers: [AuthController],
   providers: [AuthService, PasswordService, TokenService, GoogleService],
-  exports: [JwtModule, PasswordService, TokenService, GoogleService],
+  exports: [JwtModule, AuthService, PasswordService, TokenService, GoogleService],
 })
 export class AuthModule {}

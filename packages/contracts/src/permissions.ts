@@ -23,6 +23,8 @@ export const PermissionCode = z.enum([
   'worksheets.assign',
   'worksheets.grade',
   'worksheets.viewStats',
+  'guardians.manage',
+  'families.approve',
 ]);
 export type Permission = z.infer<typeof PermissionCode>;
 
@@ -37,7 +39,11 @@ export const PERMISSIONS: readonly PermissionDef[] = [
   { code: 'points.award', defaultRoles: ['ADMIN', 'TEACHER'], description: 'Cộng điểm thưởng cho học sinh' },
   { code: 'points.revoke', defaultRoles: ['ADMIN'], description: 'Tạo bút toán âm / sửa điểm' },
   { code: 'students.edit', defaultRoles: ['ADMIN', 'TEACHER'], description: 'Sửa tên, avatar học sinh' },
-  { code: 'students.viewParentContact', defaultRoles: ['ADMIN'], description: 'Xem liên hệ phụ huynh' },
+  {
+    code: 'students.viewParentContact',
+    defaultRoles: ['ADMIN', 'TEACHER'],
+    description: 'Xem liên hệ phụ huynh (GV: học sinh lớp mình)',
+  },
   { code: 'games.unlock', defaultRoles: ['ADMIN'], description: 'Mở / thu hồi khoá game cho học sinh' },
   { code: 'games.manage', defaultRoles: ['ADMIN'], description: 'Sửa catalog game (bật / tắt, giá, thứ tự)' },
   { code: 'reports.export', defaultRoles: ['ADMIN', 'TEACHER'], description: 'Xuất báo cáo xlsx / pdf' },
@@ -58,6 +64,16 @@ export const PERMISSIONS: readonly PermissionDef[] = [
     defaultRoles: ['ADMIN', 'TEACHER'],
     description: 'Xem thống kê phiếu bài tập',
   },
+  {
+    code: 'guardians.manage',
+    defaultRoles: ['ADMIN'],
+    description: 'Quản lý phụ huynh, tạo / chuyển sang tài khoản gia đình',
+  },
+  {
+    code: 'families.approve',
+    defaultRoles: ['ADMIN', 'TEACHER'],
+    description: 'Duyệt tài khoản tự đăng ký (GV: bé đăng ký vào lớp mình)',
+  },
 ];
 
 export const PERMISSION_CODES: readonly Permission[] = PermissionCode.options;
@@ -69,6 +85,7 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<Role, readonly Permission[]> = {
   ADMIN: PERMISSION_CODES,
   TEACHER: PERMISSIONS.filter((p) => p.defaultRoles.includes('TEACHER')).map((p) => p.code),
   STUDENT: [],
+  PARENT: [],
 };
 
 export const PermissionEffect = z.enum(['GRANT', 'REVOKE']);

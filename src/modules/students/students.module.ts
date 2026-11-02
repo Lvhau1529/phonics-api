@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { AuditModule } from '@/modules/audit/audit.module';
+import { FamiliesModule } from '@/modules/families/families.module';
 import { PointsModule } from '@/modules/points/points.module';
 import { StudentsController } from '@/modules/students/controllers/students.controller';
 import { StudentRepository } from '@/modules/students/repositories/student.repository';
@@ -9,7 +10,7 @@ import { StudentWriterService } from '@/modules/students/services/student-writer
 
 /** Học sinh: danh sách / chi tiết, sửa, đổi lớp, đặt lại mật khẩu, lịch sử điểm / ván chơi */
 @Module({
-  imports: [AuditModule, PointsModule],
+  imports: [AuditModule, FamiliesModule, PointsModule],
   controllers: [StudentsController],
   providers: [StudentRepository, StudentReaderService, StudentWriterService, StudentActivityService],
   exports: [StudentReaderService],

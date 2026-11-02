@@ -57,4 +57,38 @@ describe('TokenService', () => {
     prisma.refreshToken.findUnique.mockResolvedValue(null);
     await expect(svc.rotate('nope')).rejects.toMatchObject({ code: 'INVALID_REFRESH' });
   });
+
+  it('issue với actorId: access token mang claim act, refresh token lưu actorId', async () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    prisma.refreshToken.create.mockResolvedValue({} as any);
+    const tokens = await svc.issue({ ...user, actorId: 'p1' });
+    const payload = new JwtService({ secret: 'x'.repeat(32) }).decode<{ act?: { sub: string } }>(
+      tokens.accessToken,
+    );
+    expect(payload.act).toEqual({ sub: 'p1' });
+    expect(prisma.refreshToken.create.mock.calls[0][0].data).toMatchObject({ actorId: 'p1' });
+  });
+
+  it('rotate phiên do phụ huynh mở: liên kết đã gỡ → thu hồi family, INVALID_REFRESH', async () => {
+    prisma.refreshToken.findUnique.mockResolvedValue({
+      id: 'r1',
+      userId: 'u1',
+      familyId: 'f1',
+      actorId: 'p1',
+      revokedAt: null,
+      expiresAt: new Date(Date.now() + 60_000),
+      user,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } as any);
+    prisma.studentGuardian.findFirst.mockResolvedValue(null);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    prisma.refreshToken.updateMany.mockResolvedValue({ count: 1 } as any);
+    await expect(svc.rotate('t')).rejects.toMatchObject({ code: 'INVALID_REFRESH' });
+    expect(prisma.studentGuardian.findFirst.mock.calls[0][0]?.where).toMatchObject({
+      studentId: 'u1',
+      canAccess: true,
+      guardian: { userId: 'p1' },
+    });
+    expect(prisma.refreshToken.updateMany).toHaveBeenCalled();
+  });
 });

@@ -981,6 +981,15 @@ Chuỗi UI thêm vào cả `vi.ts` + `en.ts`; route ADMIN-only bọc `adminOnly`
    riêng 1 bé → 00:05 tạo buổi → 21:00 mail → duyệt bằng token → 1 bé vắng → ngày 1 lập phiếu (bé vắng không tính
    buổi đó) → preview → duyệt → outbox 1 mail cho phụ huynh, cc người thứ hai, đúng tổng tiền + nội dung CK.
 
+**Đã làm ở PR 3 (API + admin)**, khác / chưa làm so với thiết kế:
+
+- `auth/register` và `auth/google` + `profile` (game cũ) vẫn chạy nhưng tạo học sinh `OWN` ở trạng thái `PENDING` rồi
+  trả 403 `ACCOUNT_PENDING` (không cấp token) → đơn vào màn Duyệt tài khoản như đơn của phụ huynh (`parent = null`).
+- `auth/switch-profile` luôn trả refresh token của bé trong body để không ghi đè cookie refresh của phụ huynh.
+- Chưa làm: phần game (đăng ký gia đình, chờ duyệt, chọn bé, khu phụ huynh, trang đặt mật khẩu `/set-password`) —
+  PR riêng ở phonics-game; notification khi có đơn mới (admin / GV thấy qua badge `families/pending/count`); job giải
+  phóng email của đơn bị từ chối sau 30 ngày; xoá ba cột `parent_*` (bản sau).
+
 ## 15. Câu hỏi còn lại
 
 Không còn câu hỏi nghiệp vụ mở. Mặc định đang áp (đổi được ở trang Phân quyền / template, không cần sửa code):
