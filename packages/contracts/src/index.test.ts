@@ -23,6 +23,7 @@ import {
   UpdateAttendanceRecordsBody,
   SetStudentGuardiansBody,
   ROLE_DEFAULT_PERMISSIONS,
+  UpdateExtraRateBody,
   UpdateExtraSlotBody,
   UpdateProfileBody,
   UpdateSlotAssignmentBody,
@@ -531,6 +532,14 @@ describe('học thêm', () => {
         .error?.issues[0]?.message,
     ).toBe('effectiveToAfterFrom');
     expect(UpdateSlotAssignmentBody.safeParse({ effectiveTo: null }).success).toBe(true);
+  });
+
+  it('sửa đơn giá: ít nhất một trường, giá trong giới hạn, không nhận ngày', () => {
+    expect(UpdateExtraRateBody.safeParse({ pricePerSession: 150_000 }).success).toBe(true);
+    expect(UpdateExtraRateBody.safeParse({ note: null }).success).toBe(true);
+    expect(UpdateExtraRateBody.safeParse({}).error?.issues[0]?.message).toBe('atLeastOneField');
+    expect(UpdateExtraRateBody.safeParse({ pricePerSession: -1 }).success).toBe(false);
+    expect(UpdateExtraRateBody.safeParse({ effectiveFrom: '2026-10-01' }).success).toBe(false);
   });
 
   it('quyền mặc định: GV tạo ca (phạm vi ca mình), xếp lịch + đặt giá', () => {

@@ -3,6 +3,7 @@ import {
   type ApplyToSessionsBody,
   type ApplyToSessionsResponse,
   type CreateSlotAssignmentBody,
+  type DeleteSlotAssignmentResponse,
   type MoveSlotAssignmentBody,
   type SlotAssignment,
   type UpdateSlotAssignmentBody,
@@ -21,7 +22,7 @@ import { type DateRange, rangesOverlap } from '@/modules/extra-lessons/utils/sch
 
 /**
  * Sửa lịch học thêm của học sinh (§6.1, quyền extra.manageSchedule): thêm vào ca từ ngày X, rời ca từ ngày Y (sửa
- * `effectiveTo`), sửa ngày nhập sai, chuyển ca từ ngày Z. GV: chỉ ca mình dạy + học sinh trong phạm vi.
+ * `effectiveTo`), sửa ngày nhập sai, chuyển ca từ ngày Z, xoá hẳn dòng thêm nhầm. GV: chỉ ca mình dạy + học sinh trong phạm vi.
  */
 @Injectable()
 export class SlotAssignmentService {
@@ -141,6 +142,40 @@ export class SlotAssignmentService {
       { assignmentId: row.id, slotId: body.slotId, from: body.from },
     );
     return this.withAffected(row, [current.slotId, body.slotId], range);
+  }
+
+  /**
+   * Xoá hẳn một dòng lịch (thêm nhầm): buổi chưa xác nhận trong khoảng của dòng tự bỏ học sinh, buổi đã xác nhận còn
+   * học sinh trả về để hỏi người dùng (như khi sửa ngày).
+   */
+  async remove(
+    actor: AuthUser,
+    studentId: string,
+    assignmentId: string,
+  ): Promise<DeleteSlotAssignmentResponse> {
+    const current = await this.findAssignment(actor, studentId, assignmentId);
+    await this.repo.deleteAssignment(current.id);
+    await this.audit.record(
+      actor,
+      'slotAssignment.delete',
+      'User',
+      studentId,
+      {
+        assignmentId,
+        slotId: current.slotId,
+        effectiveFrom: current.effectiveFrom,
+        effectiveTo: current.effectiveTo,
+        note: current.note,
+      },
+      null,
+    );
+    const affectedSessions = await this.sync.syncStudent(
+      studentId,
+      [current.slotId],
+      current.effectiveFrom,
+      current.effectiveTo,
+    );
+    return { affectedSessions };
   }
 
   /**

@@ -14,6 +14,7 @@ import {
   SlotStudentsQuery,
   StudentAttendanceQuery,
   UpdateAttendanceRecordsBody,
+  UpdateExtraRateBody,
   UpdateExtraSlotBody,
   UpdateSlotAssignmentBody,
 } from '@phonics/contracts';
@@ -28,6 +29,7 @@ export class CreateSlotRateDto extends createZodDto(CreateSlotRateBody) {}
 export class CreateStudentRateDto extends createZodDto(CreateStudentRateBody) {}
 export class CreateSlotAssignmentDto extends createZodDto(CreateSlotAssignmentBody) {}
 export class UpdateSlotAssignmentDto extends createZodDto(UpdateSlotAssignmentBody) {}
+export class UpdateExtraRateDto extends createZodDto(UpdateExtraRateBody) {}
 export class MoveSlotAssignmentDto extends createZodDto(MoveSlotAssignmentBody) {}
 export class AttendanceSessionListQueryDto extends createZodDto(AttendanceSessionListQuery) {}
 export class UpdateAttendanceRecordsDto extends createZodDto(UpdateAttendanceRecordsBody) {}

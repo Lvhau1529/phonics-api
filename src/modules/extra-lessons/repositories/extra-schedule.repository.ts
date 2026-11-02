@@ -59,6 +59,10 @@ export class ExtraScheduleRepository {
     return tx.studentSlotAssignment.update({ where: { id }, data, include: assignmentInclude });
   }
 
+  async deleteAssignment(id: string): Promise<void> {
+    await this.prisma.studentSlotAssignment.delete({ where: { id } });
+  }
+
   /** Học sinh từng / đang học một trong các ca này */
   async everInSlots(studentId: string, slotIds: readonly string[]): Promise<boolean> {
     if (!slotIds.length) return false;
@@ -92,7 +96,15 @@ export class ExtraScheduleRepository {
   findRate(id: string) {
     return this.prisma.extraRate.findUnique({
       where: { id },
-      select: { id: true, studentId: true, slotId: true, effectiveFrom: true },
+      select: {
+        id: true,
+        studentId: true,
+        slotId: true,
+        pricePerSession: true,
+        effectiveFrom: true,
+        effectiveTo: true,
+        note: true,
+      },
     });
   }
 
@@ -140,5 +152,9 @@ export class ExtraScheduleRepository {
 
   createRate(tx: Tx, data: Prisma.ExtraRateUncheckedCreateInput): Promise<RateRowWithAuthor> {
     return tx.extraRate.create({ data, include: rateInclude });
+  }
+
+  updateRate(tx: Tx, id: string, data: Prisma.ExtraRateUncheckedUpdateInput): Promise<RateRowWithAuthor> {
+    return tx.extraRate.update({ where: { id }, data, include: rateInclude });
   }
 }

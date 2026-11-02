@@ -195,6 +195,13 @@ export const MoveSlotAssignmentBody = z.strictObject({
 });
 export type MoveSlotAssignmentBody = z.infer<typeof MoveSlotAssignmentBody>;
 
+/**
+ * Xoá hẳn một dòng lịch (từ 1.11.0 — thêm nhầm / không còn cần lịch sử). Buổi chưa xác nhận tự bỏ học sinh; buổi đã
+ * xác nhận còn học sinh trả về để hỏi người dùng rồi gọi `slot-assignments/apply`.
+ */
+export const DeleteSlotAssignmentResponse = z.object({ affectedSessions: z.array(AffectedSessionRef) });
+export type DeleteSlotAssignmentResponse = z.infer<typeof DeleteSlotAssignmentResponse>;
+
 /** Học sinh của ca tại một ngày (mặc định hôm nay) */
 export const SlotStudentsQuery = z.object({ date: IsoDate.optional() });
 export type SlotStudentsQuery = z.infer<typeof SlotStudentsQuery>;
@@ -233,7 +240,7 @@ export const ExtraRate = z.object({
   createdBy: z.object({ id: Id, displayName: DisplayName }).nullable(),
   createdAt: IsoDateTime,
   /**
-   * Chỉ có ở response tạo giá (từ 1.9.0): bản ghi điểm danh đã xác nhận có đơn giá khác giá mới — hỏi rồi gọi
+   * Chỉ có ở response tạo / sửa giá (từ 1.9.0 / 1.11.0): bản ghi điểm danh đã xác nhận có đơn giá khác giá mới — hỏi rồi gọi
    * `extra-rates/:id/apply`. Buổi chưa xác nhận đã tự tính lại.
    */
   affectedRecords: z.array(AffectedRecordRef).optional(),
@@ -257,6 +264,19 @@ export type CreateSlotRateBody = z.infer<typeof CreateSlotRateBody>;
 /** Giá riêng học sinh; `slotId` = giá riêng ở một ca (mở rộng, UI chưa bật) */
 export const CreateStudentRateBody = CreateSlotRateBody.extend({ slotId: Id.optional() }).strict();
 export type CreateStudentRateBody = z.infer<typeof CreateStudentRateBody>;
+
+/**
+ * Sửa đơn giá / ghi chú của một dòng giá đã có (từ 1.11.0 — nhập sai giá), giữ nguyên khoảng ngày. Response kèm
+ * `affectedRecords` như khi đặt giá. Dòng bị thay thế từ đầu không sửa được.
+ */
+export const UpdateExtraRateBody = z
+  .strictObject({
+    pricePerSession: PricePerSession,
+    note: z.string().trim().max(200).nullable(),
+  })
+  .partial()
+  .refine((b) => Object.keys(b).length > 0, ValidationMessage.atLeastOneField);
+export type UpdateExtraRateBody = z.infer<typeof UpdateExtraRateBody>;
 
 /** Tab "Học thêm" của học sinh */
 export const StudentExtraResponse = z.object({
