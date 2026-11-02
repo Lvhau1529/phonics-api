@@ -8,8 +8,10 @@ import {
   AttendanceSessionListQueryDto,
   CancelAttendanceSessionsDto,
   CreateAttendanceSessionDto,
+  ResendDigestDto,
   UpdateAttendanceRecordsDto,
 } from '@/modules/extra-lessons/dto/requests/extra.dto';
+import { AttendanceDigestService } from '@/modules/extra-lessons/services/attendance-digest.service';
 import { AttendanceReaderService } from '@/modules/extra-lessons/services/attendance-reader.service';
 import { AttendanceWriterService } from '@/modules/extra-lessons/services/attendance-writer.service';
 
@@ -22,6 +24,7 @@ export class AttendanceController {
   constructor(
     private readonly reader: AttendanceReaderService,
     private readonly writer: AttendanceWriterService,
+    private readonly digests: AttendanceDigestService,
   ) {}
 
   @Get()
@@ -52,6 +55,14 @@ export class AttendanceController {
   @Post('cancel')
   cancel(@CurrentUser() user: AuthUser, @Body() body: CancelAttendanceSessionsDto) {
     return this.writer.cancel(user, body);
+  }
+
+  /** Gửi lại mail xác nhận cho GV các buổi chọn (chỉ ADMIN) */
+  @Roles('ADMIN')
+  @HttpCode(200)
+  @Post('resend-digest')
+  resendDigest(@CurrentUser() user: AuthUser, @Body() body: ResendDigestDto) {
+    return this.digests.resend(user, body.sessionIds);
   }
 
   @RequirePermission('attendance.confirm')

@@ -21,12 +21,14 @@ import {
   CreateStudentRateDto,
   MoveSlotAssignmentDto,
   StudentAttendanceQueryDto,
+  TuitionQueryDto,
   UpdateSlotAssignmentDto,
 } from '@/modules/extra-lessons/dto/requests/extra.dto';
 import { AttendanceReaderService } from '@/modules/extra-lessons/services/attendance-reader.service';
 import { ExtraRateService } from '@/modules/extra-lessons/services/extra-rate.service';
 import { SlotAssignmentService } from '@/modules/extra-lessons/services/slot-assignment.service';
 import { StudentExtraReaderService } from '@/modules/extra-lessons/services/student-extra-reader.service';
+import { TuitionService } from '@/modules/extra-lessons/services/tuition.service';
 
 /** Học thêm của một học sinh: hồ sơ, lịch (extra.manageSchedule), giá riêng (extra.viewPricing / managePricing) */
 @ApiTags('students')
@@ -39,6 +41,7 @@ export class StudentExtraController {
     private readonly assignments: SlotAssignmentService,
     private readonly rates: ExtraRateService,
     private readonly attendance: AttendanceReaderService,
+    private readonly tuitionService: TuitionService,
   ) {}
 
   @Get(':id/extra')
@@ -110,6 +113,17 @@ export class StudentExtraController {
     @Query() query: StudentAttendanceQueryDto,
   ) {
     return this.attendance.studentMonth(user, id, query);
+  }
+
+  /** Học phí theo tháng (tạm tính từ điểm danh) */
+  @RequirePermission('extra.viewPricing')
+  @Get(':id/tuition')
+  tuition(
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Query() query: TuitionQueryDto,
+  ) {
+    return this.tuitionService.student(user, id, query);
   }
 
   @RequirePermission('extra.viewPricing')

@@ -196,6 +196,97 @@ export const ConfirmDigestResponse = z.object({
 });
 export type ConfirmDigestResponse = z.infer<typeof ConfirmDigestResponse>;
 
+/** ADMIN gửi lại mail xác nhận: mỗi GV của các buổi (còn PENDING) một mail mới, link cũ vẫn dùng được */
+export const ResendDigestBody = z.strictObject({ sessionIds: z.array(Id).min(1).max(200) });
+export type ResendDigestBody = z.infer<typeof ResendDigestBody>;
+
+export const DigestTeacherRef = z.object({ teacherId: Id, teacherName: DisplayName });
+
+export const ResendDigestResponse = z.object({
+  /** GV đã xếp hàng mail kèm số buổi trong mail */
+  sent: z.array(DigestTeacherRef.extend({ sessionCount: z.int() })),
+  /** GV không có email */
+  noEmail: z.array(DigestTeacherRef),
+  /** Buổi bỏ qua: không còn PENDING / không có GV phụ trách */
+  skipped: z.array(Id),
+});
+export type ResendDigestResponse = z.infer<typeof ResendDigestResponse>;
+
+// ---------- Thống kê học phí (tạm tính từ điểm danh, chưa phải phiếu học phí §7) ----------
+
+export const YearMonth = z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/, ValidationMessage.monthFormat);
+
+/** Số tháng trong [from, to] (cả hai đầu) */
+export function monthSpan(from: string, to: string): number {
+  const [fy, fm] = from.split('-').map(Number) as [number, number];
+  const [ty, tm] = to.split('-').map(Number) as [number, number];
+  return (ty - fy) * 12 + (tm - fm) + 1;
+}
+
+/** Khoảng tháng [from, to], tối đa 24 tháng */
+export const TuitionQuery = z.object({ from: YearMonth, to: YearMonth }).superRefine((q, ctx) => {
+  const span = monthSpan(q.from, q.to);
+  if (span < 1 || span > 24) addValidationIssue(ctx, ['to'], 'monthRange');
+});
+export type TuitionQuery = z.infer<typeof TuitionQuery>;
+
+/**
+ * Tiền học một tháng (VND), không tính buổi đã huỷ. `confirmedTotal` = Σ đơn giá bản ghi tính phí của buổi đã xác
+ * nhận; `pendingTotal` = như vậy với buổi chưa xác nhận (còn có thể đổi).
+ */
+export const TuitionMonth = z.object({
+  month: YearMonth,
+  confirmedTotal: z.int(),
+  pendingTotal: z.int(),
+  /** Số lượt học sinh-buổi tính phí */
+  chargedCount: z.int(),
+  presentCount: z.int(),
+  absentCount: z.int(),
+  excusedCount: z.int(),
+  /** Số học sinh có điểm danh trong tháng (học sinh: 0 / 1) */
+  studentCount: z.int(),
+});
+export type TuitionMonth = z.infer<typeof TuitionMonth>;
+
+const TuitionTotals = TuitionMonth.omit({ month: true });
+
+export const TuitionBySlot = TuitionTotals.extend({
+  /** null = buổi bù không theo ca */
+  slotId: Id.nullable(),
+  slotName: z.string().nullable(),
+});
+export type TuitionBySlot = z.infer<typeof TuitionBySlot>;
+
+export const TuitionByStudent = TuitionTotals.omit({ studentCount: true }).extend({
+  studentId: Id,
+  displayName: DisplayName,
+});
+export type TuitionByStudent = z.infer<typeof TuitionByStudent>;
+
+export const TuitionOverview = z.object({
+  from: YearMonth,
+  to: YearMonth,
+  /** Đủ mọi tháng trong khoảng (tháng không có buổi = 0) */
+  months: z.array(TuitionMonth),
+  totals: TuitionTotals,
+  bySlot: z.array(TuitionBySlot),
+  /** Học sinh nhiều tiền học nhất (tối đa 10) */
+  topStudents: z.array(TuitionByStudent),
+  /** Buổi còn chờ xác nhận trong khoảng */
+  pendingSessions: z.int(),
+  /** Bản ghi tính phí đơn giá 0 (thiếu giá) */
+  zeroPriceRecords: z.int(),
+});
+export type TuitionOverview = z.infer<typeof TuitionOverview>;
+
+export const StudentTuitionResponse = z.object({
+  from: YearMonth,
+  to: YearMonth,
+  months: z.array(TuitionMonth),
+  totals: TuitionTotals,
+});
+export type StudentTuitionResponse = z.infer<typeof StudentTuitionResponse>;
+
 // ---------- Ảnh hưởng của việc sửa lịch / đơn giá lên buổi đã có ----------
 
 /** Buổi đã xác nhận bị ảnh hưởng khi sửa lịch học sinh (ADD: nên có trong buổi; REMOVE: không còn theo lịch) */
@@ -215,9 +306,7 @@ export type ApplyToSessionsResponse = z.infer<typeof ApplyToSessionsResponse>;
 
 // ---------- Điểm danh theo tháng của học sinh ----------
 
-export const StudentAttendanceQuery = z.object({
-  month: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/, ValidationMessage.monthFormat),
-});
+export const StudentAttendanceQuery = z.object({ month: YearMonth });
 export type StudentAttendanceQuery = z.infer<typeof StudentAttendanceQuery>;
 
 export const StudentAttendanceItem = z.object({
