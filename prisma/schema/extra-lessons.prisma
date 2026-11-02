@@ -8,7 +8,7 @@ model ExtraSlot {
   name       String
   /// ISO weekday 1 = Thứ Hai … 7 = Chủ nhật
   weekday    Int
-  /// 'HH:mm' theo APP_TIMEZONE. Sửa giờ chỉ ảnh hưởng buổi chưa tạo
+  /// 'HH:mm' theo APP_TIMEZONE. Sửa giờ áp cho buổi đã tạo từ ngày chọn (mặc định hôm nay)
   startTime  String    @map("start_time")
   endTime    String    @map("end_time")
   room       String?
@@ -109,7 +109,7 @@ model AttendanceSession {
   slotId         String?                 @map("slot_id") @db.Uuid
   /// 'YYYY-MM-DD'
   date           String
-  /// 'HH:mm' chép từ ca lúc tạo (đổi giờ ca không đổi buổi đã tạo)
+  /// 'HH:mm' chép từ ca lúc tạo; đổi giờ ca cập nhật buổi từ ngày chọn
   startTime      String                  @map("start_time")
   endTime        String                  @map("end_time")
   startsAt       DateTime                @map("starts_at")

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { mockDeep } from 'vitest-mock-extended';
 import { AppError } from '@/common/errors/app-error';
 import { type AccessService } from '@/core/access/access.service';
+import { type TimeService } from '@/core/time/time.service';
 import { type AuditService } from '@/modules/audit/services/audit.service';
 import { type AuthUser } from '@/modules/auth/types/auth.types';
 import { type ExtraLessonsScheduler } from '@/modules/extra-lessons/jobs/extra-lessons.scheduler';
@@ -25,13 +26,21 @@ function setup() {
     mockDeep<ExtraLessonsScheduler>(),
     extraAccess,
     access,
+    { timeZone: 'Asia/Ho_Chi_Minh' } as TimeService,
   );
   repo.transaction.mockImplementation(((fn: (tx: unknown) => unknown) => fn({})) as never);
   repo.create.mockResolvedValue({ id: 'slot1' } as never);
   repo.countTeachers.mockImplementation(((ids: string[]) => Promise.resolve(ids.length)) as never);
   repo.findClass.mockResolvedValue({ id: 'c1' } as never);
-  reader.find.mockResolvedValue({ id: 'slot1', archivedAt: null, teachers: [] } as never);
-  return { repo, extraAccess, access, service };
+  reader.find.mockResolvedValue({
+    id: 'slot1',
+    archivedAt: null,
+    teachers: [],
+    startTime: '18:00',
+    endTime: '19:30',
+  } as never);
+  reader.today.mockReturnValue('2026-11-02');
+  return { repo, reader, extraAccess, access, service };
 }
 
 describe('ExtraSlotWriterService (phạm vi GV)', () => {
@@ -71,5 +80,38 @@ describe('ExtraSlotWriterService (phạm vi GV)', () => {
 
     expect((err as AppError).fieldErrors).toEqual({ teacherIds: ['keepSelfInSlot'] });
     expect(repo.setTeachers).not.toHaveBeenCalled();
+  });
+});
+
+describe('ExtraSlotWriterService (đổi giờ)', () => {
+  const admin: AuthUser = { id: 'a1', role: 'ADMIN', status: 'ACTIVE', tokenVersion: 0 };
+
+  it('đổi giờ → cập nhật buổi đã tạo từ hôm nay (mặc định), tính lại mốc giờ', async () => {
+    const { repo, service } = setup();
+    repo.sessionsFrom.mockResolvedValue([{ id: 's1', date: '2026-11-02' }]);
+
+    await service.update(admin, 'slot1', { startTime: '17:00', endTime: '18:30' });
+
+    expect(repo.update).toHaveBeenCalledWith({}, 'slot1', { startTime: '17:00', endTime: '18:30' });
+    expect(repo.sessionsFrom).toHaveBeenCalledWith({}, 'slot1', '2026-11-02');
+    expect(repo.updateSessionTime).toHaveBeenCalledWith({}, 's1', {
+      startTime: '17:00',
+      endTime: '18:30',
+      startsAt: new Date('2026-11-02T10:00:00Z'),
+      endsAt: new Date('2026-11-02T11:30:00Z'),
+    });
+  });
+
+  it('timeFrom chọn ngày áp; không đổi giờ thì không đụng buổi', async () => {
+    const { repo, service } = setup();
+    repo.sessionsFrom.mockResolvedValue([]);
+
+    await service.update(admin, 'slot1', { startTime: '17:00', endTime: '18:30', timeFrom: '2026-10-01' });
+    expect(repo.sessionsFrom).toHaveBeenCalledWith({}, 'slot1', '2026-10-01');
+
+    repo.sessionsFrom.mockClear();
+    await service.update(admin, 'slot1', { room: 'P2' });
+    await service.update(admin, 'slot1', { startTime: '18:00', endTime: '19:30' });
+    expect(repo.sessionsFrom).not.toHaveBeenCalled();
   });
 });
