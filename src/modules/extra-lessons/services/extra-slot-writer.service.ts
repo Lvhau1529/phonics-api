@@ -7,12 +7,14 @@ import {
 } from '@phonics/contracts';
 import { AppError, notFound } from '@/common/errors/app-error';
 import { AccessService } from '@/core/access/access.service';
+import { TimeService } from '@/core/time/time.service';
 import { AuditService } from '@/modules/audit/services/audit.service';
 import { type AuthUser } from '@/modules/auth/types/auth.types';
 import { ExtraSlotRepository } from '@/modules/extra-lessons/repositories/extra-slot.repository';
 import { ExtraLessonsScheduler } from '@/modules/extra-lessons/jobs/extra-lessons.scheduler';
 import { ExtraAccessService } from '@/modules/extra-lessons/services/extra-access.service';
 import { ExtraSlotReaderService } from '@/modules/extra-lessons/services/extra-slot-reader.service';
+import { sessionTimes } from '@/modules/extra-lessons/utils/session-time';
 
 /**
  * Tạo / sửa / lưu trữ ca, gán GV (quyền extra.manageSlots — kiểm tra ở controller). GV: ca mình tạo tự có mình phụ
@@ -27,6 +29,7 @@ export class ExtraSlotWriterService {
     private readonly scheduler: ExtraLessonsScheduler,
     private readonly extraAccess: ExtraAccessService,
     private readonly access: AccessService,
+    private readonly time: TimeService,
   ) {}
 
   async create(actor: AuthUser, body: CreateExtraSlotBody): Promise<ExtraSlot> {
@@ -45,8 +48,12 @@ export class ExtraSlotWriterService {
     return this.reader.detail(actor, row.id);
   }
 
-  /** Đổi giờ / thứ chỉ ảnh hưởng buổi chưa tạo (buổi điểm danh lưu giờ riêng) */
-  async update(actor: AuthUser, id: string, body: UpdateExtraSlotBody): Promise<ExtraSlot> {
+  /**
+   * Đổi giờ: áp cho cả buổi đã tạo từ `timeFrom` (mặc định hôm nay, kể cả buổi đã xác nhận — giờ không ảnh hưởng
+   * tiền). Đổi thứ chỉ ảnh hưởng buổi chưa tạo.
+   */
+  async update(actor: AuthUser, id: string, input: UpdateExtraSlotBody): Promise<ExtraSlot> {
+    const { timeFrom, ...body } = input;
     const current = await this.reader.find(id);
     await this.extraAccess.assertSlotAccess(actor, id);
     if (current.archivedAt) throw new AppError('CONFLICT', 409, { message: 'extraSlotArchived' });
@@ -59,14 +66,26 @@ export class ExtraSlotWriterService {
     const end = body.endTime ?? current.endTime;
     if (end <= start)
       throw new AppError('VALIDATION_ERROR', 400, { fieldErrors: { endTime: ['endAfterStart'] } });
-    await this.repo.transaction((tx) => this.repo.update(tx, id, body));
+    const retimed = await this.repo.transaction(async (tx) => {
+      await this.repo.update(tx, id, body);
+      if (body.startTime === undefined || (start === current.startTime && end === current.endTime)) return 0;
+      const sessions = await this.repo.sessionsFrom(tx, id, timeFrom ?? this.reader.today());
+      for (const s of sessions) {
+        await this.repo.updateSessionTime(tx, s.id, {
+          startTime: start,
+          endTime: end,
+          ...sessionTimes(s.date, start, end, this.time.timeZone),
+        });
+      }
+      return sessions.length;
+    });
     await this.audit.record(
       actor,
       'extraSlot.update',
       'ExtraSlot',
       id,
       Object.fromEntries(Object.keys(body).map((k) => [k, current[k as keyof typeof current]])),
-      body,
+      retimed ? { ...body, timeFrom, retimedSessions: retimed } : body,
     );
     if (body.weekday !== undefined) await this.scheduler.reschedule();
     return this.reader.detail(actor, id);

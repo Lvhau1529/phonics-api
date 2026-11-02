@@ -62,7 +62,7 @@ Tài khoản `PENDING` (phụ huynh chờ duyệt) chỉ gọi được `auth/me
 | GET | `/extra-slots` | A, T | `ExtraSlotListQuery { includeArchived?, teacherId?, classId? }` → `ExtraSlotsResponse` (GV chỉ ca mình; `defaultPrice` cần perm:`extra.viewPricing`) |
 | GET | `/extra-slots/:id` | A, T | → `ExtraSlot` |
 | POST | `/extra-slots` | A, T (perm:`extra.manageSlots`) | `CreateExtraSlotBody` → `ExtraSlot` (201). GV tạo → tự phụ trách ca; `classId` phải là lớp mình dạy |
-| PATCH | `/extra-slots/:id` | A, T (perm:`extra.manageSlots`, ca mình) | `UpdateExtraSlotBody` → `ExtraSlot` (đổi giờ chỉ ảnh hưởng buổi chưa tạo) |
+| PATCH | `/extra-slots/:id` | A, T (perm:`extra.manageSlots`, ca mình) | `UpdateExtraSlotBody` → `ExtraSlot` (đổi giờ áp cho buổi đã tạo từ `timeFrom`, mặc định hôm nay, mọi trạng thái; đổi thứ không dời buổi đã tạo) |
 | DELETE | `/extra-slots/:id` | A, T (perm:`extra.manageSlots`, ca mình) | → 204 lưu trữ; lịch còn mở kết thúc từ hôm nay |
 | PUT | `/extra-slots/:id/teachers` | A, T (perm:`extra.manageSlots`, ca mình) | `SetSlotTeachersBody` → `ExtraSlot`. GV phải còn trong danh sách (400 `keepSelfInSlot`) |
 | GET | `/extra-slots/:id/students` | A, T | `?date` → `SlotStudentsResponse` (học sinh học ca tại ngày + đơn giá áp dụng nếu có quyền xem giá) |

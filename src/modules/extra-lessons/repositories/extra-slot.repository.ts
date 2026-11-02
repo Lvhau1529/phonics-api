@@ -40,6 +40,22 @@ export class ExtraSlotRepository {
     return tx.extraSlot.update({ where: { id }, data, include: slotInclude });
   }
 
+  /** Buổi đã tạo của ca từ ngày `from` (để đổi giờ theo ca) */
+  sessionsFrom(tx: Tx, slotId: string, from: string): Promise<{ id: string; date: string }[]> {
+    return tx.attendanceSession.findMany({
+      where: { slotId, date: { gte: from } },
+      select: { id: true, date: true },
+    });
+  }
+
+  async updateSessionTime(
+    tx: Tx,
+    id: string,
+    data: { startTime: string; endTime: string; startsAt: Date; endsAt: Date },
+  ): Promise<void> {
+    await tx.attendanceSession.update({ where: { id }, data });
+  }
+
   async setTeachers(tx: Tx, slotId: string, teacherIds: readonly string[]): Promise<void> {
     await tx.extraSlotTeacher.deleteMany({ where: { slotId } });
     if (teacherIds.length) {

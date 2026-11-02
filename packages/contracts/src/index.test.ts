@@ -523,6 +523,10 @@ describe('học thêm', () => {
       'startEndTogether',
     );
     expect(UpdateExtraSlotBody.safeParse({ room: null }).success).toBe(true);
+    expect(
+      UpdateExtraSlotBody.safeParse({ startTime: '17:00', endTime: '18:00', timeFrom: '2026-10-01' }).success,
+    ).toBe(true);
+    expect(UpdateExtraSlotBody.safeParse({ timeFrom: '2026-10-01' }).success).toBe(false);
   });
 
   it('lịch: ngày kết thúc phải sau ngày bắt đầu; null = học tiếp', () => {

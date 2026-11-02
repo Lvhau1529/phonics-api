@@ -97,16 +97,20 @@ export const CreateExtraSlotBody = z
   .superRefine(endAfterStart);
 export type CreateExtraSlotBody = z.infer<typeof CreateExtraSlotBody>;
 
-/** Đổi giờ chỉ ảnh hưởng buổi chưa tạo. `null` = xoá giá trị. Sửa một trong hai giờ thì gửi cả hai. */
+/**
+ * `null` = xoá giá trị. Sửa một trong hai giờ thì gửi cả hai; giờ mới áp cho cả buổi đã tạo từ ngày `timeFrom`
+ * (mặc định hôm nay, mọi trạng thái — giờ không ảnh hưởng tiền). Đổi thứ không dời buổi đã tạo.
+ */
 export const UpdateExtraSlotBody = z
   .strictObject({
     ...slotFields,
     room: slotFields.room.nullable(),
     capacity: slotFields.capacity.nullable(),
     classId: slotFields.classId.nullable(),
+    timeFrom: IsoDate,
   })
   .partial()
-  .refine((b) => Object.keys(b).length > 0, ValidationMessage.atLeastOneField)
+  .refine((b) => Object.keys(b).some((k) => k !== 'timeFrom'), ValidationMessage.atLeastOneField)
   .refine((b) => (b.startTime === undefined) === (b.endTime === undefined), {
     message: ValidationMessage.startEndTogether,
     path: ['endTime'],
