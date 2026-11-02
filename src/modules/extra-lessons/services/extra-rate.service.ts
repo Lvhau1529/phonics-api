@@ -6,6 +6,7 @@ import {
   type CreateStudentRateBody,
   type ExtraRate,
   type ExtraRatesResponse,
+  type UpdateExtraRateBody,
 } from '@phonics/contracts';
 import { AppError, notFound } from '@/common/errors/app-error';
 import { AuditService } from '@/modules/audit/services/audit.service';
@@ -99,6 +100,33 @@ export class ExtraRateService {
       },
     );
     // Buổi chưa xác nhận tự tính lại; buổi đã xác nhận có giá khác → trả về để hỏi người dùng
+    const affectedRecords = await this.sync.repriceForRate(row);
+    return { ...toExtraRate(row), affectedRecords };
+  }
+
+  /**
+   * Sửa giá / ghi chú của một dòng đã có (nhập sai), giữ khoảng ngày. Cùng luật phạm vi như lúc đặt giá; buổi chưa xác
+   * nhận tự tính lại, buổi đã xác nhận có giá khác trả về để hỏi người dùng.
+   */
+  async update(actor: AuthUser, rateId: string, body: UpdateExtraRateBody): Promise<ExtraRate> {
+    const rate = await this.repo.findRate(rateId);
+    if (!rate) throw notFound('extraRateNotFound');
+    await this.assertRateScope(actor, rate);
+    if (rate.effectiveTo === rate.effectiveFrom) {
+      throw new AppError('CONFLICT', 409, { message: 'extraRateSuperseded' });
+    }
+    const row = await this.repo.transaction(async (tx) => {
+      await this.repo.lockScope(tx, rate.studentId, rate.slotId);
+      return this.repo.updateRate(tx, rate.id, body);
+    });
+    await this.audit.record(
+      actor,
+      'extraRate.update',
+      'ExtraRate',
+      rateId,
+      { pricePerSession: rate.pricePerSession, note: rate.note },
+      body,
+    );
     const affectedRecords = await this.sync.repriceForRate(row);
     return { ...toExtraRate(row), affectedRecords };
   }

@@ -1,4 +1,15 @@
-import { Body, Controller, Get, HttpCode, Param, ParseUUIDPipe, Patch, Post, Query } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  Param,
+  ParseUUIDPipe,
+  Patch,
+  Post,
+  Query,
+} from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '@/common/decorators/current-user.decorator';
 import { RequirePermission, Roles } from '@/common/decorators/roles.decorator';
@@ -66,6 +77,18 @@ export class StudentExtraController {
     @Body() body: UpdateSlotAssignmentDto,
   ) {
     return this.assignments.update(user, id, assignmentId, body);
+  }
+
+  /** Xoá hẳn dòng lịch (thêm nhầm) → `{ affectedSessions }` */
+  @RequirePermission('extra.manageSchedule')
+  @HttpCode(200)
+  @Delete(':id/slot-assignments/:assignmentId')
+  deleteAssignment(
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('assignmentId', ParseUUIDPipe) assignmentId: string,
+  ) {
+    return this.assignments.remove(user, id, assignmentId);
   }
 
   /** Chuyển sang ca khác từ ngày `from` → trả dòng lịch mới */

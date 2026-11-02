@@ -135,6 +135,7 @@ export const en: Messages = {
   effectiveToAfterFrom: 'The end date must be after the start date',
   sessionNotFound: 'Session not found',
   extraRateNotFound: 'Rate not found',
+  extraRateSuperseded: 'This rate was replaced from its first day and cannot be edited',
   billingFieldsAdminOnly: 'Only admins can change per-session price or billing',
   removeManualOnly:
     'Only manually added students can be removed — mark scheduled students absent or fix their schedule',

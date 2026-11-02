@@ -151,6 +151,7 @@ export const vi = {
   effectiveToAfterFrom: 'Ngày kết thúc phải sau ngày bắt đầu',
   sessionNotFound: 'Không tìm thấy buổi học',
   extraRateNotFound: 'Không tìm thấy đơn giá',
+  extraRateSuperseded: 'Dòng giá đã bị thay thế từ đầu, không sửa được',
   billingFieldsAdminOnly: 'Chỉ admin sửa được đơn giá / tính phí từng buổi',
   removeManualOnly: 'Chỉ bỏ được học sinh thêm tay — học sinh theo lịch thì đánh vắng hoặc sửa lịch',
   sessionAlreadyConfirmed: 'Buổi đã được người khác xác nhận',

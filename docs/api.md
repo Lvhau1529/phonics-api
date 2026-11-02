@@ -76,6 +76,7 @@ Tài khoản `PENDING` (phụ huynh chờ duyệt) chỉ gọi được `auth/me
 | GET | `/students/:id/extra` | A, T | → `StudentExtraResponse` (lịch + giá riêng + đơn giá áp dụng hôm nay + cờ `canManageSchedule` / `canManagePricing`) |
 | POST | `/students/:id/slot-assignments` | A, T (perm:`extra.manageSchedule`, ca mình) | `CreateSlotAssignmentBody` → `SlotAssignment` (201). 409 `SLOT_ASSIGNMENT_OVERLAP` |
 | PATCH | `/students/:id/slot-assignments/:aid` | A, T (perm:`extra.manageSchedule`, ca mình) | `UpdateSlotAssignmentBody` → `SlotAssignment` (sửa ngày; rời ca = đặt `effectiveTo`) |
+| DELETE | `/students/:id/slot-assignments/:aid` | A, T (perm:`extra.manageSchedule`, ca mình) | → `DeleteSlotAssignmentResponse { affectedSessions }` (xoá hẳn dòng thêm nhầm; buổi chưa xác nhận tự bỏ học sinh) |
 | POST | `/students/:id/slot-assignments/:aid/move` | A, T (perm:`extra.manageSchedule`, cả hai ca) | `MoveSlotAssignmentBody { slotId, from }` → `SlotAssignment` mới (201) |
 | GET | `/students/:id/rates` | A, T (perm:`extra.viewPricing`) | → `ExtraRatesResponse` (giá riêng, cả lịch sử) |
 | POST | `/students/:id/rates` | A, T (perm:`extra.managePricing`) | `CreateStudentRateBody` → `ExtraRate` (201). GV: 403 `RATE_SCOPE_FORBIDDEN` nếu học sinh học ca của GV khác |
@@ -97,6 +98,7 @@ Tài khoản `PENDING` (phụ huynh chờ duyệt) chỉ gọi được `auth/me
 | GET | `/attendance/public/digests/:token` | pub | → `AttendanceDigestView` (link mail 21:00; 404 `ATTENDANCE_TOKEN_INVALID`, 410 `ATTENDANCE_TOKEN_EXPIRED`) |
 | POST | `/attendance/public/digests/:token/confirm` | pub | `{ sessionIds }` → `ConfirmDigestResponse` (chỉ buổi trong mail, còn PENDING, danh sách chưa đổi) |
 | POST | `/students/:id/slot-assignments/apply` | A, T (perm:`extra.manageSchedule`) | `{ sessionIds }` → `{ updated }` — áp lịch vào buổi đã xác nhận (`affectedSessions`) |
+| PATCH | `/extra-rates/:id` | A, T (perm:`extra.managePricing`, cùng phạm vi như đặt giá) | `UpdateExtraRateBody { pricePerSession?, note? }` → `ExtraRate` kèm `affectedRecords`. 409 nếu dòng đã bị thay thế từ đầu |
 | POST | `/extra-rates/:id/apply` | A, T (perm:`extra.managePricing`) | `{ sessionIds }` → `{ updated }` — áp giá vào buổi đã xác nhận (`affectedRecords`) |
 | GET | `/students/:id/attendance` | A, T | `?month=YYYY-MM` → `StudentAttendanceResponse` |
 

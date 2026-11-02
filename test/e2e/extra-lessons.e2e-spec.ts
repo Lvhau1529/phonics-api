@@ -1,7 +1,7 @@
 /**
  * Học thêm: admin tạo ca + gán GV → GV chỉ thấy ca mình → GV đặt giá mặc định ca → xếp học sinh lớp mình vào ca
  * (chồng ngày bị chặn) → giá riêng học sinh thắng giá ca → học sinh học thêm ca của GV khác thì GV không đặt được giá
- * riêng → chuyển ca / rời ca → lưu trữ ca đóng lịch.
+ * riêng → chuyển ca / rời ca → sửa giá / xoá dòng lịch → lưu trữ ca đóng lịch.
  * Cần DATABASE_URL_TEST (DB Postgres riêng, bị TRUNCATE); không có thì cả file skip.
  */
 import { API_PREFIX, REFRESH_TRANSPORT_HEADER } from '@phonics/contracts';
@@ -285,6 +285,35 @@ describe.skipIf(!enabled)('extra lessons (e2e)', () => {
         [slotB, FROM, null],
       ]),
     );
+
+    // GV sửa giá mặc định ca A (nhập sai) — giữ khoảng ngày; không sửa được giá của ca người khác
+    const slotRates = await request(t.server)
+      .get(`${API_PREFIX}/extra-slots/${slotA}/rates`)
+      .set(auth(teacherToken))
+      .expect(200);
+    const edited = await request(t.server)
+      .patch(`${API_PREFIX}/extra-rates/${slotRates.body.items[0].id}`)
+      .set(auth(teacherToken))
+      .send({ pricePerSession: 125_000, note: 'Sửa giá' })
+      .expect(200);
+    expect(edited.body).toMatchObject({ pricePerSession: 125_000, effectiveFrom: FROM, affectedRecords: [] });
+    await request(t.server)
+      .patch(`${API_PREFIX}/extra-rates/${slotRates.body.items[0].id}`)
+      .set(auth(otherToken))
+      .send({ pricePerSession: 1 })
+      .expect(403);
+
+    // Xoá hẳn dòng ca C (thêm nhầm); GV khác không xoá được dòng ca A
+    await request(t.server)
+      .delete(`${API_PREFIX}/students/${studentId}/slot-assignments/${rowA.id}`)
+      .set(auth(otherToken))
+      .expect(403);
+    const removed = await request(t.server)
+      .delete(`${API_PREFIX}/students/${studentId}/slot-assignments/${moved.body.id}`)
+      .set(auth(teacherToken))
+      .expect(200);
+    expect(removed.body).toEqual({ affectedSessions: [] });
+    expect(await t.prisma.studentSlotAssignment.count({ where: { id: moved.body.id } })).toBe(0);
 
     // Lưu trữ ca B: lịch còn mở kết thúc từ hôm nay, ca không còn trong danh sách mặc định
     await request(t.server).delete(`${API_PREFIX}/extra-slots/${slotB}`).set(auth(adminToken)).expect(204);

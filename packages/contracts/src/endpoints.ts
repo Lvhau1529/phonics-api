@@ -139,6 +139,7 @@ export const ENDPOINTS = {
     attendance: (id: string) => `/students/${id}/attendance`,
   },
   extraRates: {
+    detail: (id: string) => `/extra-rates/${id}`,
     apply: (id: string) => `/extra-rates/${id}/apply`,
   },
   attendance: {
