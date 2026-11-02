@@ -1,0 +1,242 @@
+import { z } from 'zod';
+import { TeacherRef } from './classes.js';
+import { IsoDate, IsoDateTime } from './common/dates.js';
+import { Id } from './common/ids.js';
+import { PageQuery } from './common/pagination.js';
+import { addValidationIssue, ValidationMessage } from './common/validation-messages.js';
+import {
+  AffectedRecordRef,
+  AffectedSessionRef,
+  ExtraSlotRef,
+  PricePerSession,
+  TimeOfDay,
+} from './extra-lessons.js';
+import { EnglishName, VietnameseName } from './students.js';
+import { AvatarKey, DisplayName } from './users.js';
+
+/**
+ * Điểm danh học thêm (docs/attendance-design.md §5): 00:05 tạo buổi của ngày từ lịch học sinh (mặc định có mặt, chốt
+ * đơn giá), GV điểm danh trong app, 21:00 mỗi GV nhận một mail các buổi chưa xác nhận (duyệt nhanh bằng link token).
+ */
+export const AttendanceSessionStatus = z.enum(['PENDING', 'CONFIRMED', 'CANCELLED']);
+export type AttendanceSessionStatus = z.infer<typeof AttendanceSessionStatus>;
+
+/** ABSENT = vắng không phép, EXCUSED = vắng có phép */
+export const AttendanceMark = z.enum(['PRESENT', 'ABSENT', 'EXCUSED']);
+export type AttendanceMark = z.infer<typeof AttendanceMark>;
+
+/** SNAPSHOT = từ lịch học sinh; MANUAL = GV thêm (học bù / học thử) */
+export const AttendanceRecordSource = z.enum(['SNAPSHOT', 'MANUAL']);
+export type AttendanceRecordSource = z.infer<typeof AttendanceRecordSource>;
+
+/** Có tính tiền buổi theo điểm danh không (mặc định; admin ghi đè từng bản ghi) — vắng không tính tiền */
+export const BILLING_POLICY: Record<AttendanceMark, boolean> = {
+  PRESENT: true,
+  ABSENT: false,
+  EXCUSED: false,
+};
+
+export const ConfirmedVia = z.enum(['APP', 'EMAIL']);
+export type ConfirmedVia = z.infer<typeof ConfirmedVia>;
+
+export const AttendanceRecord = z.object({
+  studentId: Id,
+  displayName: DisplayName,
+  vietnameseName: VietnameseName,
+  englishName: EnglishName.nullable(),
+  avatarKey: AvatarKey,
+  mark: AttendanceMark,
+  charged: z.boolean(),
+  /** Đơn giá chốt — null khi người xem không có quyền extra.viewPricing */
+  unitPrice: PricePerSession.nullable(),
+  /** Không tìm được đơn giá lúc chốt (0đ) — cảnh báo */
+  missingRate: z.boolean(),
+  source: AttendanceRecordSource,
+  note: z.string().nullable(),
+  updatedAt: IsoDateTime,
+});
+export type AttendanceRecord = z.infer<typeof AttendanceRecord>;
+
+export const AttendanceSessionSummary = z.object({
+  id: Id,
+  /** null = buổi bù tạo tay */
+  slot: ExtraSlotRef.nullable(),
+  date: IsoDate,
+  startTime: TimeOfDay,
+  endTime: TimeOfDay,
+  startsAt: IsoDateTime,
+  endsAt: IsoDateTime,
+  teachers: z.array(TeacherRef),
+  status: AttendanceSessionStatus,
+  studentCount: z.int().min(0),
+  presentCount: z.int().min(0),
+  /** Tăng mỗi lần sửa danh sách — duyệt qua mail chỉ hợp lệ khi chưa đổi */
+  recordsVersion: z.int().min(0),
+  missingRateCount: z.int().min(0),
+  confirmedBy: z.object({ id: Id, displayName: DisplayName }).nullable(),
+  confirmedAt: IsoDateTime.nullable(),
+  confirmedVia: ConfirmedVia.nullable(),
+  cancelReason: z.string().nullable(),
+  note: z.string().nullable(),
+});
+export type AttendanceSessionSummary = z.infer<typeof AttendanceSessionSummary>;
+
+export const AttendanceSessionDetail = AttendanceSessionSummary.extend({
+  records: z.array(AttendanceRecord),
+  /** Người xem được điểm danh / xác nhận (attendance.confirm + dạy buổi) */
+  canEdit: z.boolean(),
+  /** Admin: ghi đè `charged` / `unitPrice` từng bản ghi */
+  canEditBilling: z.boolean(),
+});
+export type AttendanceSessionDetail = z.infer<typeof AttendanceSessionDetail>;
+
+export const ATTENDANCE_SORT_FIELDS = ['date', 'startsAt', 'status'] as const;
+
+export const AttendanceSessionListQuery = PageQuery.extend({
+  from: IsoDate.optional(),
+  to: IsoDate.optional(),
+  slotId: Id.optional(),
+  teacherId: Id.optional(),
+  status: AttendanceSessionStatus.optional(),
+});
+export type AttendanceSessionListQuery = z.infer<typeof AttendanceSessionListQuery>;
+
+/** Sửa điểm danh: học sinh chưa có trong buổi → thêm MANUAL (học bù / học thử). `charged` / `unitPrice` chỉ admin. */
+export const AttendanceRecordChange = z.strictObject({
+  studentId: Id,
+  mark: AttendanceMark.optional(),
+  note: z.string().trim().max(200).nullable().optional(),
+  charged: z.boolean().optional(),
+  unitPrice: PricePerSession.optional(),
+});
+export type AttendanceRecordChange = z.infer<typeof AttendanceRecordChange>;
+
+export const UpdateAttendanceRecordsBody = z
+  .strictObject({
+    records: z.array(AttendanceRecordChange).max(100).optional(),
+    /** Bỏ học sinh MANUAL khỏi buổi (học sinh theo lịch thì đánh vắng hoặc sửa lịch) */
+    remove: z.array(Id).max(100).optional(),
+    note: z.string().trim().max(500).nullable().optional(),
+  })
+  .refine((b) => (b.records?.length ?? 0) + (b.remove?.length ?? 0) > 0 || b.note !== undefined, {
+    message: ValidationMessage.atLeastOneChange,
+  })
+  .superRefine((b, ctx) => {
+    const ids = b.records?.map((r) => r.studentId) ?? [];
+    if (new Set(ids).size !== ids.length) addValidationIssue(ctx, ['records'], 'duplicateStudent');
+  });
+export type UpdateAttendanceRecordsBody = z.infer<typeof UpdateAttendanceRecordsBody>;
+
+/** Buổi bù (không theo ca): admin tạo tay rồi thêm học sinh MANUAL */
+export const CreateAttendanceSessionBody = z
+  .strictObject({
+    date: IsoDate,
+    startTime: TimeOfDay,
+    endTime: TimeOfDay,
+    teacherIds: z.array(Id).min(1).max(5),
+    note: z.string().trim().max(500).optional(),
+  })
+  .superRefine((b, ctx) => {
+    if (b.endTime <= b.startTime) addValidationIssue(ctx, ['endTime'], 'endAfterStart');
+  });
+export type CreateAttendanceSessionBody = z.infer<typeof CreateAttendanceSessionBody>;
+
+/** Huỷ hàng loạt (nghỉ lễ): theo danh sách buổi hoặc cả một ngày (buổi chưa tạo thì tạo luôn ở trạng thái huỷ) */
+export const CancelAttendanceSessionsBody = z
+  .strictObject({
+    sessionIds: z.array(Id).min(1).max(100).optional(),
+    date: IsoDate.optional(),
+    reason: z.string().trim().min(1).max(200),
+  })
+  .refine((b) => !!b.sessionIds !== !!b.date, {
+    message: ValidationMessage.sessionsOrDate,
+    path: ['sessionIds'],
+  });
+export type CancelAttendanceSessionsBody = z.infer<typeof CancelAttendanceSessionsBody>;
+
+export const CancelAttendanceSessionsResponse = z.object({ cancelled: z.array(Id) });
+export type CancelAttendanceSessionsResponse = z.infer<typeof CancelAttendanceSessionsResponse>;
+
+// ---------- Mail 21:00 → trang duyệt nhanh (public, theo token) ----------
+
+export const DigestSession = z.object({
+  id: Id,
+  slotName: z.string().nullable(),
+  date: IsoDate,
+  startTime: TimeOfDay,
+  endTime: TimeOfDay,
+  studentCount: z.int().min(0),
+  presentCount: z.int().min(0),
+  status: AttendanceSessionStatus,
+  /** Danh sách đã đổi sau khi gửi mail → phải đăng nhập để xem / xác nhận */
+  changed: z.boolean(),
+  confirmedByName: z.string().nullable(),
+  confirmedAt: IsoDateTime.nullable(),
+});
+export type DigestSession = z.infer<typeof DigestSession>;
+
+export const AttendanceDigestView = z.object({
+  teacherName: DisplayName,
+  date: IsoDate,
+  expiresAt: IsoDateTime,
+  sessions: z.array(DigestSession),
+});
+export type AttendanceDigestView = z.infer<typeof AttendanceDigestView>;
+
+export const ConfirmDigestBody = z.strictObject({ sessionIds: z.array(Id).min(1).max(50) });
+export type ConfirmDigestBody = z.infer<typeof ConfirmDigestBody>;
+
+export const ConfirmDigestResponse = z.object({
+  confirmed: z.array(Id),
+  /** Đã được xác nhận trước đó (bởi mình / GV khác / trong app) */
+  alreadyConfirmed: z.array(Id),
+  /** Danh sách đổi sau khi gửi mail, đã huỷ, hoặc không thuộc mail này */
+  rejected: z.array(Id),
+  digest: AttendanceDigestView,
+});
+export type ConfirmDigestResponse = z.infer<typeof ConfirmDigestResponse>;
+
+// ---------- Ảnh hưởng của việc sửa lịch / đơn giá lên buổi đã có ----------
+
+/** Buổi đã xác nhận bị ảnh hưởng khi sửa lịch học sinh (ADD: nên có trong buổi; REMOVE: không còn theo lịch) */
+export const AffectedSession = AffectedSessionRef;
+export type AffectedSession = z.infer<typeof AffectedSession>;
+
+/** Bản ghi đã xác nhận có đơn giá khác giá mới (buổi chưa xác nhận tự tính lại) */
+export const AffectedRecord = AffectedRecordRef;
+export type AffectedRecord = z.infer<typeof AffectedRecord>;
+
+/** Áp thay đổi lịch / giá vào các buổi đã xác nhận được liệt kê */
+export const ApplyToSessionsBody = z.strictObject({ sessionIds: z.array(Id).min(1).max(200) });
+export type ApplyToSessionsBody = z.infer<typeof ApplyToSessionsBody>;
+
+export const ApplyToSessionsResponse = z.object({ updated: z.array(Id) });
+export type ApplyToSessionsResponse = z.infer<typeof ApplyToSessionsResponse>;
+
+// ---------- Điểm danh theo tháng của học sinh ----------
+
+export const StudentAttendanceQuery = z.object({
+  month: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/, ValidationMessage.monthFormat),
+});
+export type StudentAttendanceQuery = z.infer<typeof StudentAttendanceQuery>;
+
+export const StudentAttendanceItem = z.object({
+  sessionId: Id,
+  date: IsoDate,
+  startTime: TimeOfDay,
+  slotName: z.string().nullable(),
+  status: AttendanceSessionStatus,
+  mark: AttendanceMark,
+  charged: z.boolean(),
+  unitPrice: PricePerSession.nullable(),
+  source: AttendanceRecordSource,
+});
+export type StudentAttendanceItem = z.infer<typeof StudentAttendanceItem>;
+
+export const StudentAttendanceResponse = z.object({
+  month: z.string(),
+  items: z.array(StudentAttendanceItem),
+  /** Tổng tiền các buổi tính phí (không gồm buổi huỷ) — null khi không có quyền xem giá */
+  chargedTotal: z.int().nullable(),
+});
+export type StudentAttendanceResponse = z.infer<typeof StudentAttendanceResponse>;

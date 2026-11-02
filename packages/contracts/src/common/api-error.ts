@@ -42,6 +42,21 @@ export const ErrorCode = z.enum([
   'SUBMISSION_NOT_SUBMITTED',
   'GRADING_INCOMPLETE',
   'ANSWER_TYPE_MISMATCH',
+  // Tài khoản gia đình / duyệt tài khoản
+  'ACCOUNT_PENDING',
+  'ACCOUNT_REJECTED',
+  'PROFILE_NOT_ACCESSIBLE',
+  'PROFILE_NOT_APPROVED',
+  'GUARDIAN_EMAIL_TAKEN',
+  'STUDENT_IS_MANAGED',
+  'INVITE_TOKEN_INVALID',
+  // Học thêm
+  'SLOT_ASSIGNMENT_OVERLAP',
+  'RATE_SCOPE_FORBIDDEN',
+  // Điểm danh
+  'ATTENDANCE_TOKEN_INVALID',
+  'ATTENDANCE_TOKEN_EXPIRED',
+  'ATTENDANCE_SESSION_CANCELLED',
 ]);
 export type ErrorCode = z.infer<typeof ErrorCode>;
 

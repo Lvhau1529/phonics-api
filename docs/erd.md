@@ -25,6 +25,22 @@ erDiagram
   users o|--o{ game_events : "nếu đăng nhập"
   users ||--o{ notifications : ""
   users ||--o{ refresh_tokens : ""
+  users ||--o{ auth_tokens : "link mời"
+  users |o--o| guardians : "tài khoản gia đình (PARENT)"
+  guardians ||--o{ student_guardians : ""
+  student_profiles ||--o{ student_guardians : "phụ huynh"
+  classes o|--o{ student_profiles : "lớp đăng ký (chờ duyệt)"
+  classes o|--o{ extra_slots : "lớp tham khảo"
+  extra_slots ||--o{ extra_slot_teachers : ""
+  users ||--o{ extra_slot_teachers : "dạy ca"
+  extra_slots ||--o{ student_slot_assignments : ""
+  student_profiles ||--o{ student_slot_assignments : "lịch học thêm"
+  student_profiles o|--o{ extra_rates : "giá riêng"
+  extra_slots o|--o{ extra_rates : "giá mặc định ca"
+  extra_slots o|--o{ attendance_sessions : "buổi (null = buổi bù)"
+  attendance_sessions ||--o{ attendance_records : ""
+  student_profiles ||--o{ attendance_records : "điểm danh"
+  users ||--o{ attendance_digests : "mail 21:00"
   users o|--o{ audit_logs : "actor"
   users ||--o{ media_assets : "tải lên"
   users ||--o{ questions : "tạo"
@@ -42,12 +58,13 @@ erDiagram
 
   users {
     uuid id PK
-    string email UK
+    string email UK "null với học sinh MANAGED"
     string password_hash "null với Google"
     string google_sub UK
     enum provider "LOCAL | GOOGLE"
-    enum role "ADMIN | TEACHER | STUDENT"
-    enum status "ACTIVE | DISABLED"
+    enum role "ADMIN | TEACHER | STUDENT | PARENT"
+    enum status "ACTIVE | DISABLED | PENDING | REJECTED"
+    enum login_mode "OWN | MANAGED"
     string display_name
     string avatar_key "preset"
     int token_version
@@ -55,10 +72,103 @@ erDiagram
   }
   student_profiles {
     uuid user_id PK
-    string parent_name
-    string parent_email
-    string parent_phone
+    string vietnamese_name "bắt buộc"
+    string english_name "tuỳ chọn; có thì = users.display_name"
+    string name_search "2 tên bỏ dấu — tìm"
+    string name_sort_key "tên (từ cuối) + họ tên — sắp xếp"
+    string parent_name "cũ, chỉ đọc — đã chuyển sang guardians"
+    string parent_email "cũ"
+    string parent_phone "cũ"
     string notes "admin"
+    uuid requested_class_id FK "lớp đăng ký, chờ duyệt"
+    uuid reviewed_by_id FK
+    datetime reviewed_at
+    string reject_reason
+  }
+  guardians {
+    uuid id PK
+    string full_name
+    string email "chữ thường; unique khi khác null"
+    string phone "E.164"
+    uuid user_id FK,UK "tài khoản gia đình"
+    string note
+  }
+  student_guardians {
+    uuid student_id PK
+    uuid guardian_id PK
+    enum relation "MOTHER | FATHER | GRANDPARENT | OTHER"
+    bool is_billing_contact "đúng 1 / học sinh"
+    bool receives_reports "cc mail tháng"
+    bool can_access "được vào hồ sơ bé"
+  }
+  extra_slots {
+    uuid id PK
+    string name
+    int weekday "1 = T2 … 7 = CN"
+    string start_time "HH:mm"
+    string end_time "HH:mm"
+    string room
+    int capacity
+    uuid class_id FK "tham khảo"
+    datetime archived_at
+  }
+  extra_slot_teachers {
+    uuid slot_id PK
+    uuid teacher_id PK
+  }
+  student_slot_assignments {
+    uuid id PK
+    uuid student_id FK
+    uuid slot_id FK
+    string effective_from "YYYY-MM-DD"
+    string effective_to "null = đang học"
+    string note
+  }
+  extra_rates {
+    uuid id PK
+    uuid student_id FK "null = giá mặc định ca"
+    uuid slot_id FK "null = mọi ca"
+    int price_per_session "VND"
+    string effective_from
+    string effective_to "= effective_from: bị thay thế"
+  }
+  attendance_sessions {
+    uuid id PK
+    uuid slot_id FK "unique (slot_id, date)"
+    string date
+    string start_time
+    string end_time
+    uuid_array teacher_ids
+    enum status "PENDING | CONFIRMED | CANCELLED"
+    int present_count
+    int records_version "tăng mỗi lần sửa"
+    int digest_count
+    uuid confirmed_by_id FK
+    string confirmed_via "APP | EMAIL"
+  }
+  attendance_records {
+    uuid session_id PK
+    uuid student_id PK
+    enum mark "PRESENT | ABSENT | EXCUSED"
+    int unit_price "chốt lúc thêm"
+    uuid rate_id "null = thiếu giá"
+    bool charged "BILLING_POLICY, admin ghi đè"
+    string source "SNAPSHOT | MANUAL"
+  }
+  attendance_digests {
+    uuid id PK
+    uuid teacher_id FK "unique (teacher_id, date)"
+    string date
+    string token_hash UK
+    json items "[{ sessionId, recordsVersion }]"
+  }
+  auth_tokens {
+    uuid id PK
+    uuid user_id FK
+    enum purpose "INVITE"
+    string token_hash UK
+    datetime expires_at
+    datetime used_at
   }
   classes {
     uuid id PK
@@ -300,6 +410,19 @@ erDiagram
 - **Sự kiện** ẩn danh theo `client_id`; unique `(client_id, game_id, type, occurred_at)` để gửi lại không trùng.
 - **Refresh token**: chỉ lưu hash; `family_id` để phát hiện dùng lại ([ADR 0002](../adr/0002-api-separate-origin-jwt-refresh-transport.md)).
 - Xoá lớp = `archived_at` (mềm); xoá user là cascade (chỉ admin, hiếm).
+- **Phụ huynh / tài khoản gia đình** ([attendance-design.md §3, §10](attendance-design.md)): `guardians` N–N học sinh
+  qua `student_guardians` (partial unique `guardians_email`, `student_guardians_billing` thêm tay trong migration).
+  Phụ huynh có tài khoản = `guardians.user_id` → user `PARENT`; học sinh `login_mode = MANAGED` không email / mật khẩu,
+  chỉ vào qua `auth/switch-profile` (refresh token lưu `actor_id`). Tự đăng ký → `PENDING` (lớp muốn vào ở
+  `requested_class_id`), GV / admin duyệt từng bé. Ba cột `parent_*` cũ đã được migration chuyển sang `guardians`,
+  giữ chỉ đọc một phiên bản rồi xoá.
+- **Học thêm** ([attendance-design.md §4, §6](attendance-design.md)): `extra_slots` độc lập lớp chính; lịch học sinh
+  = các dòng `student_slot_assignments` theo khoảng ngày nửa mở `[effective_from, effective_to)` (chồng ngày cùng ca
+  kiểm tra trong service). `extra_rates` có lịch sử theo phạm vi (HS, ca) / (HS) / (ca); CHECK ít nhất một khác null +
+  partial unique `extra_rates_open` (mỗi phạm vi một dòng mở) thêm tay trong migration.
+- **Điểm danh**: `attendance_records.unit_price` chốt giá lúc thêm (đổi giá sau chỉ áp khi người dùng đồng ý với buổi
+  đã xác nhận); `rate_id` để truy vết / tính lại. Buổi giữ giờ riêng (`start_time`, `starts_at`) nên sửa giờ ca không
+  đổi buổi đã tạo. Token mail 21:00 chỉ lưu sha256; duyệt chỉ hợp lệ khi `records_version` bằng lúc gửi.
 - **Phiếu bài tập** ([ADR 0017](../../phonics-dev/docs/adr/0017-worksheet-domain.md)): `questions.config` / `answer_key`
   là JSON theo discriminated union của contracts; giao bài = **đóng băng snapshot** vào `assignments.snapshot`, nên
   `submission_answers.worksheet_item_id` không có FK (phiếu / câu sửa sau không ảnh hưởng bài đã chấm). Partial unique

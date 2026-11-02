@@ -15,6 +15,9 @@ import { EventsModule } from '@/modules/events/events.module';
 import { GameResultsModule } from '@/modules/game-results/game-results.module';
 import { GamesModule } from '@/modules/games/games.module';
 import { HealthModule } from '@/modules/health/health.module';
+import { ExtraLessonsModule } from '@/modules/extra-lessons/extra-lessons.module';
+import { FamiliesModule } from '@/modules/families/families.module';
+import { MailModule } from '@/modules/mail/mail.module';
 import { MediaModule } from '@/modules/media/media.module';
 import { NotificationsModule } from '@/modules/notifications/notifications.module';
 import { PermissionsModule } from '@/modules/permissions/permissions.module';
@@ -41,6 +44,9 @@ import { WorksheetsModule } from '@/modules/worksheets/worksheets.module';
     CoreModule,
     AuditModule,
     NotificationsModule,
+    MailModule,
+    FamiliesModule,
+    ExtraLessonsModule,
     PermissionsModule,
     UsersModule,
     PointsModule,

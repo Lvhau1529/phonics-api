@@ -60,6 +60,20 @@ const vi = {
   answerKeyTypeMismatch: 'answerKey.type phải trùng type',
   configAnswerKeyTogether: 'config và answerKey phải gửi cùng nhau',
   answerKeyConfigTypeMismatch: 'answerKey.type phải trùng config.type',
+
+  // ---------- Phụ huynh / tài khoản gia đình ----------
+  oneBillingContact: 'Cần đúng một phụ huynh nhận học phí',
+  duplicateGuardian: 'Phụ huynh bị trùng',
+  duplicateStudent: 'Học sinh bị trùng',
+  duplicateChild: 'Bé bị trùng tên',
+
+  // ---------- Học thêm ----------
+  timeFormat: 'Giờ dạng HH:mm',
+  endAfterStart: 'Giờ kết thúc phải sau giờ bắt đầu',
+  startEndTogether: 'Sửa giờ thì gửi cả giờ bắt đầu và giờ kết thúc',
+  effectiveToAfterFrom: 'Ngày kết thúc phải sau ngày bắt đầu',
+  sessionsOrDate: 'Chọn danh sách buổi hoặc một ngày (không cả hai)',
+  monthFormat: 'Tháng dạng YYYY-MM',
 };
 
 export type ValidationCatalog = typeof vi;
@@ -115,6 +129,18 @@ const en: ValidationCatalog = {
   answerKeyTypeMismatch: 'answerKey.type must match type',
   configAnswerKeyTogether: 'config and answerKey must be sent together',
   answerKeyConfigTypeMismatch: 'answerKey.type must match config.type',
+
+  oneBillingContact: 'Exactly one guardian must receive the tuition',
+  duplicateGuardian: 'Duplicate guardian',
+  duplicateStudent: 'Duplicate student',
+  duplicateChild: 'Two children have the same name',
+
+  timeFormat: 'Time must look like HH:mm',
+  endAfterStart: 'The end time must be after the start time',
+  startEndTogether: 'Send both the start and the end time',
+  effectiveToAfterFrom: 'The end date must be after the start date',
+  sessionsOrDate: 'Choose either sessions or a date (not both)',
+  monthFormat: 'Month must look like YYYY-MM',
 };
 
 export const VALIDATION_LOCALES = ['vi', 'en'] as const;

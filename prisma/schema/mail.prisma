@@ -1,0 +1,56 @@
+// Mail: hàng đợi gửi (outbox) và mẫu mail có phiên bản
+
+enum MailStatus {
+  QUEUED
+  SENT
+  /// Hết số lần thử hoặc lỗi vĩnh viễn (SMTP 5xx)
+  FAILED
+  /// Không có địa chỉ người nhận (vd học sinh chưa có email phụ huynh)
+  SKIPPED
+}
+
+/// Mail chờ gửi. Ghi trong cùng transaction với thay đổi nghiệp vụ, worker gửi sau khi commit (retry + backoff).
+/// Nội dung đã render sẵn: thứ người duyệt xem trước chính là thứ được gửi.
+model MailOutbox {
+  id            String     @id @default(uuid()) @db.Uuid
+  /// Loại mail = khoá template, vd 'teacher.digest'
+  kind          String
+  toEmail       String?    @map("to_email")
+  cc            String[]   @default([])
+  subject       String
+  html          String
+  text          String
+  /// Chống gửi trùng, vd `digest:<teacherId>:<date>`
+  dedupeKey     String     @unique @map("dedupe_key")
+  refType       String?    @map("ref_type")
+  refId         String?    @map("ref_id")
+  status        MailStatus @default(QUEUED)
+  attempts      Int        @default(0)
+  /// Mốc gửi / thử lại kế tiếp; cũng là "hẹn giờ gửi" khi enqueue với `sendAt`
+  nextAttemptAt DateTime   @default(now()) @map("next_attempt_at")
+  lastError     String?    @map("last_error")
+  sentAt        DateTime?  @map("sent_at")
+  createdAt     DateTime   @default(now()) @map("created_at")
+
+  @@index([status, nextAttemptAt])
+  @@index([refType, refId])
+  @@map("mail_outbox")
+}
+
+/// Mẫu mail (Liquid). Sửa = tạo phiên bản mới; mỗi `key` có tối đa một phiên bản active
+/// (partial unique index `mail_templates_active` thêm tay trong migration SQL).
+model MailTemplate {
+  id          String   @id @default(uuid()) @db.Uuid
+  key         String
+  version     Int
+  subject     String
+  bodyHtml    String   @map("body_html")
+  isActive    Boolean  @default(false) @map("is_active")
+  /// null = seed từ mẫu mặc định trong code
+  createdById String?  @map("created_by_id") @db.Uuid
+  createdAt   DateTime @default(now()) @map("created_at")
+  createdBy   User?    @relation("MailTemplateCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@unique([key, version])
+  @@map("mail_templates")
+}

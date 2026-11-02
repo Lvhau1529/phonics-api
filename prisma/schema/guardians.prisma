@@ -1,0 +1,46 @@
+// Phụ huynh (guardian) N–N với học sinh + tài khoản gia đình (docs/attendance-design.md §3, §10)
+
+enum GuardianRelation {
+  MOTHER
+  FATHER
+  GRANDPARENT
+  OTHER
+}
+
+/// Phụ huynh. Có tài khoản gia đình = `userId` (user role PARENT)
+model Guardian {
+  id        String            @id @default(uuid()) @db.Uuid
+  fullName  String            @map("full_name")
+  /// Chữ thường; unique khi khác null (partial index `guardians_email` thêm tay trong migration)
+  email     String?
+  /// E.164
+  phone     String?
+  userId    String?           @unique @map("user_id") @db.Uuid
+  note      String?
+  createdAt DateTime          @default(now()) @map("created_at")
+  updatedAt DateTime          @updatedAt @map("updated_at")
+  user      User?             @relation(fields: [userId], references: [id], onDelete: SetNull)
+  students  StudentGuardian[]
+
+  @@index([phone])
+  @@map("guardians")
+}
+
+model StudentGuardian {
+  studentId        String           @map("student_id") @db.Uuid
+  guardianId       String           @map("guardian_id") @db.Uuid
+  relation         GuardianRelation @default(OTHER)
+  /// Đúng một / học sinh (partial unique index `student_guardians_billing` thêm tay trong migration)
+  isBillingContact Boolean          @default(false) @map("is_billing_contact")
+  /// Nhận bản sao (cc) mail tháng
+  receivesReports  Boolean          @default(true) @map("receives_reports")
+  /// Được vào hồ sơ bé bằng tài khoản gia đình
+  canAccess        Boolean          @default(true) @map("can_access")
+  createdAt        DateTime         @default(now()) @map("created_at")
+  student          StudentProfile   @relation(fields: [studentId], references: [userId], onDelete: Cascade)
+  guardian         Guardian         @relation(fields: [guardianId], references: [id], onDelete: Cascade)
+
+  @@id([studentId, guardianId])
+  @@index([guardianId])
+  @@map("student_guardians")
+}

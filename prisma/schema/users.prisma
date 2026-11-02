@@ -4,11 +4,22 @@ enum Role {
   ADMIN
   TEACHER
   STUDENT
+  /// Tài khoản gia đình: phụ huynh giữ đăng nhập, vào hồ sơ từng bé (guardians.user_id)
+  PARENT
 }
 
 enum UserStatus {
   ACTIVE
   DISABLED
+  /// Tự đăng ký, chờ GV / admin duyệt
+  PENDING
+  REJECTED
+}
+
+/// OWN: tự đăng nhập; MANAGED: học sinh chỉ vào qua tài khoản gia đình (không email / mật khẩu)
+enum LoginMode {
+  OWN
+  MANAGED
 }
 
 enum AuthProvider {
@@ -19,8 +30,8 @@ enum AuthProvider {
 /// Tài khoản chung cho admin / giáo viên / học sinh
 model User {
   id            String       @id @default(uuid()) @db.Uuid
-  /// Lưu chữ thường, đã trim
-  email         String       @unique
+  /// Lưu chữ thường, đã trim. null với học sinh MANAGED (Postgres cho phép nhiều null trong unique)
+  email         String?      @unique
   emailVerified Boolean      @default(false) @map("email_verified")
   /// null với tài khoản chỉ đăng nhập Google
   passwordHash  String?      @map("password_hash")
@@ -28,6 +39,7 @@ model User {
   provider      AuthProvider @default(LOCAL)
   role          Role
   status        UserStatus   @default(ACTIVE)
+  loginMode     LoginMode    @default(OWN) @map("login_mode")
   displayName   String       @map("display_name")
   /// Key avatar preset (contracts AVATARS)
   avatarKey     String       @default("pip") @map("avatar_key")
@@ -39,22 +51,31 @@ model User {
 
   studentProfile    StudentProfile?
   teachingClasses   ClassTeacher[]
-  permissions       UserPermission[]      @relation("UserPermissions")
+  permissions       UserPermission[]        @relation("UserPermissions")
   permissionGroups  UserPermissionGroup[]
-  grantedPerms      UserPermission[]      @relation("GrantedBy")
+  grantedPerms      UserPermission[]        @relation("GrantedBy")
   refreshTokens     RefreshToken[]
   notifications     Notification[]
-  pointEntriesMade  PointEntry[]          @relation("PointEntryCreatedBy")
-  unlocksGranted    StudentGameUnlock[]   @relation("UnlockGrantedBy")
+  pointEntriesMade  PointEntry[]            @relation("PointEntryCreatedBy")
+  unlocksGranted    StudentGameUnlock[]     @relation("UnlockGrantedBy")
   auditLogs         AuditLog[]
   gameEvents        GameEvent[]
-  mediaAssets       MediaAsset[]          @relation("MediaOwner")
-  questionsCreated  Question[]            @relation("QuestionCreatedBy")
-  worksheetsCreated Worksheet[]           @relation("WorksheetCreatedBy")
-  assignmentsMade   Assignment[]          @relation("AssignmentAssignedBy")
-  submissionsGraded Submission[]          @relation("SubmissionGradedBy")
-  answersGraded     SubmissionAnswer[]    @relation("AnswerGradedBy")
-  comments          Comment[]             @relation("CommentAuthor")
+  mediaAssets       MediaAsset[]            @relation("MediaOwner")
+  questionsCreated  Question[]              @relation("QuestionCreatedBy")
+  worksheetsCreated Worksheet[]             @relation("WorksheetCreatedBy")
+  assignmentsMade   Assignment[]            @relation("AssignmentAssignedBy")
+  submissionsGraded Submission[]            @relation("SubmissionGradedBy")
+  answersGraded     SubmissionAnswer[]      @relation("AnswerGradedBy")
+  comments          Comment[]               @relation("CommentAuthor")
+  mailTemplates     MailTemplate[]          @relation("MailTemplateCreatedBy")
+  guardian          Guardian?
+  authTokens        AuthToken[]
+  reviewedStudents  StudentProfile[]        @relation("StudentReviewedBy")
+  extraSlots        ExtraSlotTeacher[]
+  slotAssignments   StudentSlotAssignment[] @relation("SlotAssignmentCreatedBy")
+  extraRates        ExtraRate[]             @relation("ExtraRateCreatedBy")
+  sessionsConfirmed AttendanceSession[]     @relation("SessionConfirmedBy")
+  attendanceDigests AttendanceDigest[]
 
   @@index([role, status])
   @@map("users")
@@ -62,23 +83,64 @@ model User {
 
 /// Thông tin riêng của học sinh (liên hệ phụ huynh)
 model StudentProfile {
-  userId      String   @id @map("user_id") @db.Uuid
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  parentName  String?  @map("parent_name")
-  parentEmail String?  @map("parent_email")
-  parentPhone String?  @map("parent_phone")
+  userId           String    @id @map("user_id") @db.Uuid
+  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// Họ tên tiếng Việt (bắt buộc). `users.display_name` = english_name ?? vietnamese_name (writer tự đồng bộ)
+  vietnameseName   String    @map("vietnamese_name")
+  /// Tên tiếng Anh (tuỳ chọn) — có thì là tên hiển thị trong game
+  englishName      String?   @map("english_name")
+  /// Hai tên chữ thường, bỏ dấu (`đ` → `d`) — tìm không dấu
+  nameSearch       String    @default("") @map("name_search")
+  /// Tên (từ cuối) + họ tên, chữ thường bỏ dấu — sắp xếp kiểu Việt Nam theo tên
+  nameSortKey      String    @default("") @map("name_sort_key")
+  parentName       String?   @map("parent_name")
+  parentEmail      String?   @map("parent_email")
+  parentPhone      String?   @map("parent_phone")
   /// Ghi chú nội bộ của admin
-  notes       String?
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  notes            String?
+  /// Lớp muốn vào khi tự đăng ký (chờ duyệt); xoá khi được duyệt
+  requestedClassId String?   @map("requested_class_id") @db.Uuid
+  reviewedById     String?   @map("reviewed_by_id") @db.Uuid
+  reviewedAt       DateTime? @map("reviewed_at")
+  rejectReason     String?   @map("reject_reason")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
 
-  memberships  ClassMembership[]
-  gameResults  GameResult[]
-  pointEntries PointEntry[]
-  gameUnlocks  StudentGameUnlock[]
-  submissions  Submission[]
+  requestedClass         Class?                  @relation("StudentRequestedClass", fields: [requestedClassId], references: [id], onDelete: SetNull)
+  reviewedBy             User?                   @relation("StudentReviewedBy", fields: [reviewedById], references: [id], onDelete: SetNull)
+  guardians              StudentGuardian[]
+  memberships            ClassMembership[]
+  gameResults            GameResult[]
+  pointEntries           PointEntry[]
+  gameUnlocks            StudentGameUnlock[]
+  submissions            Submission[]
+  studentSlotAssignments StudentSlotAssignment[]
+  extraRates             ExtraRate[]
+  attendance             AttendanceRecord[]
 
+  @@index([nameSortKey])
   @@map("student_profiles")
+}
+
+/// Mục đích của token một lần gửi qua mail
+enum AuthTokenPurpose {
+  /// Mời phụ huynh đặt mật khẩu tài khoản gia đình
+  INVITE
+}
+
+/// Token một lần (link trong mail): DB chỉ lưu sha256
+model AuthToken {
+  id        String           @id @default(uuid()) @db.Uuid
+  userId    String           @map("user_id") @db.Uuid
+  purpose   AuthTokenPurpose
+  tokenHash String           @unique @map("token_hash")
+  expiresAt DateTime         @map("expires_at")
+  usedAt    DateTime?        @map("used_at")
+  createdAt DateTime         @default(now()) @map("created_at")
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, purpose])
+  @@map("auth_tokens")
 }
 
 /// Refresh token: lưu hash, xoay vòng mỗi lần dùng, phát hiện dùng lại theo family
@@ -90,6 +152,8 @@ model RefreshToken {
   expiresAt    DateTime  @map("expires_at")
   revokedAt    DateTime? @map("revoked_at")
   replacedById String?   @map("replaced_by_id") @db.Uuid
+  /// Phụ huynh mở phiên này cho bé (`auth/switch-profile`) — access token mang claim `act`
+  actorId      String?   @map("actor_id") @db.Uuid
   userAgent    String?   @map("user_agent")
   ip           String?
   createdAt    DateTime  @default(now()) @map("created_at")

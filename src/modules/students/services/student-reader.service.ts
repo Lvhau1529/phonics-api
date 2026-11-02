@@ -7,16 +7,17 @@ import {
 } from '@phonics/contracts';
 import { notFound } from '@/common/errors/app-error';
 import { orderBy, paginate } from '@/common/utils/paginate';
+import { foldName } from '@/common/utils/student-names';
 import { AccessService } from '@/core/access/access.service';
 import { PrismaService } from '@/database/prisma.service';
 import { type Prisma } from '@/generated/prisma/client';
 import { type AuthUser } from '@/modules/auth/types/auth.types';
-import { PermissionsService } from '@/modules/permissions/services/permissions.service';
+import { GuardianReaderService } from '@/modules/families/services/guardian-reader.service';
 import { PointReaderService } from '@/modules/points/services/point-reader.service';
 import { RankingService } from '@/modules/points/services/ranking.service';
 import { toParentContact, toStudentSummary } from '@/modules/students/dto/responses/student.view';
 import { StudentRepository } from '@/modules/students/repositories/student.repository';
-import { STUDENT_SORT_FIELDS, type StudentRow } from '@/modules/students/types/student.types';
+import { STUDENT_SORT_FIELDS, studentOrderBy, type StudentRow } from '@/modules/students/types/student.types';
 
 /** Đọc học sinh: danh sách / chi tiết (ADMIN mọi lớp, TEACHER lớp mình) */
 @Injectable()
@@ -27,7 +28,7 @@ export class StudentReaderService {
     private readonly access: AccessService,
     private readonly points: PointReaderService,
     private readonly ranking: RankingService,
-    private readonly permissions: PermissionsService,
+    private readonly guardians: GuardianReaderService,
   ) {}
 
   /** ADMIN không có classId → mọi học sinh (kể cả chưa vào lớp); TEACHER → học sinh các lớp mình dạy */
@@ -36,9 +37,11 @@ export class StudentReaderService {
     const where: Prisma.UserWhereInput = {
       role: 'STUDENT',
       status: query.status,
+      loginMode: query.loginMode,
+      // Tìm không dấu theo tên tiếng Việt + tiếng Anh ("nguyen an" ra "Nguyễn Văn An"), hoặc theo email
       OR: query.q
         ? [
-            { displayName: { contains: query.q, mode: 'insensitive' } },
+            { studentProfile: { nameSearch: { contains: foldName(query.q) } } },
             { email: { contains: query.q, mode: 'insensitive' } },
           ]
         : undefined,
@@ -46,7 +49,10 @@ export class StudentReaderService {
         ? { memberships: { some: { leftAt: null, classId: { in: classIds } } } }
         : undefined,
     };
-    const sort = [orderBy(query.sort, STUDENT_SORT_FIELDS, { createdAt: 'desc' }), { id: 'asc' as const }];
+    const sort = [
+      studentOrderBy(orderBy(query.sort, STUDENT_SORT_FIELDS, { createdAt: 'desc' })),
+      { id: 'asc' as const },
+    ];
     return paginate(
       query,
       async (page) => this.toSummaries(await this.repo.findPage(where, page, sort)),
@@ -89,26 +95,22 @@ export class StudentReaderService {
     );
   }
 
-  /** Chi tiết: liên hệ phụ huynh chỉ khi được phép, ghi chú chỉ ADMIN */
+  /** Chi tiết: phụ huynh chỉ khi được phép xem liên hệ, ghi chú chỉ ADMIN */
   async toDetail(viewer: AuthUser, row: StudentRow): Promise<StudentDetail> {
     const [[summary], totals, gamesPlayed, canSeeParent] = await Promise.all([
       this.toSummaries([row]),
       this.points.totals(row.id, null),
       this.repo.countGameResults({ studentId: row.id }),
-      this.canViewParent(viewer),
+      this.guardians.canViewContacts(viewer),
     ]);
+    const guardians = canSeeParent ? await this.guardians.forStudent(row.id) : null;
     return {
       ...summary,
-      parent: canSeeParent ? toParentContact(row.studentProfile) : null,
+      parent: guardians ? toParentContact(guardians) : null,
+      guardians,
       notes: viewer.role === 'ADMIN' ? (row.studentProfile?.notes ?? null) : null,
       pointsByKind: totals.byKind,
       gamesPlayed,
     };
-  }
-
-  private async canViewParent(viewer: AuthUser): Promise<boolean> {
-    if (viewer.role === 'ADMIN') return true;
-    if (viewer.role !== 'TEACHER') return false;
-    return (await this.permissions.effectiveFor(viewer)).has('students.viewParentContact');
   }
 }

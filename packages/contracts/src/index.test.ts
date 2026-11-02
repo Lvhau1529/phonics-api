@@ -7,15 +7,27 @@ import {
   STUDENT_MEDIA_LIMITS,
   AvatarKey,
   AwardBonusBody,
+  BILLING_POLICY,
+  CancelAttendanceSessionsBody,
+  CreateExtraSlotBody,
+  CreateSlotAssignmentBody,
   DEFAULT_AVATAR,
   EventBatchBody,
   GameResultBody,
   MarkReadBody,
   PageQuery,
   RegisterBody,
+  RegisterFamilyBody,
+  StudentAttendanceQuery,
+  UpdateAttendanceRecordsBody,
+  SetStudentGuardiansBody,
   ROLE_DEFAULT_PERMISSIONS,
+  UpdateExtraSlotBody,
   UpdateProfileBody,
+  UpdateSlotAssignmentBody,
+  UpdateStudentBody,
   parseSort,
+  studentFullName,
 } from './index.js';
 
 describe('GameResultBody', () => {
@@ -48,6 +60,12 @@ describe('GameResultBody', () => {
     expect(
       GameResultBody.parse({ ...valid, gameId: 'english-explorers', levelId: 'habitats', total: 10 }).gameId,
     ).toBe('english-explorers');
+  });
+
+  it('nhận game Halloween Candy Quest (contracts 1.5.0)', () => {
+    expect(
+      GameResultBody.parse({ ...valid, gameId: 'halloween-candy-quest', levelId: 'easy', total: 8 }).gameId,
+    ).toBe('halloween-candy-quest');
   });
 
   it('từ chối game chưa đăng ký', () => {
@@ -83,6 +101,30 @@ describe('RegisterBody', () => {
 describe('UpdateProfileBody', () => {
   it('từ chối body rỗng', () => {
     expect(UpdateProfileBody.safeParse({}).success).toBe(false);
+  });
+});
+
+describe('UpdateStudentBody (tên tiếng Việt / tiếng Anh)', () => {
+  it('nhận tên tiếng Việt, xoá tên tiếng Anh bằng null, trim', () => {
+    expect(UpdateStudentBody.parse({ vietnameseName: '  Nguyễn Văn An ', englishName: null })).toEqual({
+      vietnameseName: 'Nguyễn Văn An',
+      englishName: null,
+    });
+  });
+
+  it('từ chối tên rỗng / quá 30 ký tự; vẫn nhận displayName của client cũ', () => {
+    expect(UpdateStudentBody.safeParse({ vietnameseName: '  ' }).success).toBe(false);
+    expect(UpdateStudentBody.safeParse({ englishName: 'x'.repeat(31) }).success).toBe(false);
+    expect(UpdateStudentBody.parse({ displayName: 'Bin' })).toEqual({ displayName: 'Bin' });
+  });
+});
+
+describe('studentFullName', () => {
+  it('ghép tên tiếng Anh trong ngoặc khi có', () => {
+    expect(studentFullName({ vietnameseName: 'Nguyễn Văn An', englishName: 'Andy' })).toBe(
+      'Nguyễn Văn An (Andy)',
+    );
+    expect(studentFullName({ vietnameseName: 'Nguyễn Văn An', englishName: null })).toBe('Nguyễn Văn An');
   });
 });
 
@@ -391,6 +433,147 @@ describe('media limits', () => {
     );
     expect(PresignMediaBody.safeParse({ ...body, sizeBytes: MEDIA_LIMITS.AUDIO.maxBytes + 1 }).success).toBe(
       false,
+    );
+  });
+});
+
+describe('tài khoản gia đình', () => {
+  const classId = '00000000-0000-4000-8000-000000000001';
+  const parent = { fullName: 'Nguyễn Thị Lan', phone: '0912 345 678' };
+
+  it('RegisterFamilyBody: đăng nhập bằng mật khẩu hoặc Google, chặn hai bé trùng tên', () => {
+    const child = { vietnameseName: 'Nguyễn Văn An', classId };
+    const password = { type: 'password', email: 'Lan@Example.vn', password: 'secret1' };
+    const ok = RegisterFamilyBody.safeParse({ credentials: password, parent, children: [child] });
+    expect(ok.success && ok.data.credentials).toEqual({ ...password, email: 'lan@example.vn' });
+    expect(
+      RegisterFamilyBody.safeParse({
+        credentials: { type: 'google', idToken: 'x' },
+        parent,
+        children: [child],
+      }).success,
+    ).toBe(true);
+    // Google không kèm mật khẩu
+    expect(
+      RegisterFamilyBody.safeParse({
+        credentials: { type: 'google', idToken: 'x', password: 'secret1' },
+        parent,
+        children: [child],
+      }).success,
+    ).toBe(false);
+    const dup = RegisterFamilyBody.safeParse({
+      credentials: password,
+      parent,
+      children: [child, { ...child, vietnameseName: 'nguyễn văn an' }],
+    });
+    expect(dup.error?.issues[0]?.message).toBe('duplicateChild');
+    expect(RegisterFamilyBody.safeParse({ credentials: password, parent, children: [] }).success).toBe(false);
+  });
+
+  it('SetStudentGuardiansBody: đúng một người nhận học phí, không trùng phụ huynh; rỗng = gỡ hết', () => {
+    const link = (guardianId: string, isBillingContact: boolean) => ({
+      guardianId,
+      relation: 'MOTHER',
+      isBillingContact,
+      receivesReports: true,
+      canAccess: true,
+    });
+    const g1 = '00000000-0000-4000-8000-0000000000a1';
+    const g2 = '00000000-0000-4000-8000-0000000000a2';
+    expect(SetStudentGuardiansBody.safeParse({ guardians: [] }).success).toBe(true);
+    expect(SetStudentGuardiansBody.safeParse({ guardians: [link(g1, true), link(g2, false)] }).success).toBe(
+      true,
+    );
+    expect(
+      SetStudentGuardiansBody.safeParse({ guardians: [link(g1, true), link(g2, true)] }).error?.issues[0]
+        ?.message,
+    ).toBe('oneBillingContact');
+    expect(
+      SetStudentGuardiansBody.safeParse({ guardians: [link(g1, false)] }).error?.issues[0]?.message,
+    ).toBe('oneBillingContact');
+    expect(
+      SetStudentGuardiansBody.safeParse({ guardians: [link(g1, true), link(g1, false)] }).error?.issues[0]
+        ?.message,
+    ).toBe('duplicateGuardian');
+  });
+
+  it('quyền mặc định: GV duyệt tài khoản + xem liên hệ phụ huynh, PARENT không có quyền quản trị', () => {
+    expect(ROLE_DEFAULT_PERMISSIONS.TEACHER).toEqual(
+      expect.arrayContaining(['families.approve', 'students.viewParentContact']),
+    );
+    expect(ROLE_DEFAULT_PERMISSIONS.TEACHER).not.toContain('guardians.manage');
+    expect(ROLE_DEFAULT_PERMISSIONS.PARENT).toEqual([]);
+  });
+});
+
+describe('học thêm', () => {
+  it('ca: giờ HH:mm, kết thúc sau bắt đầu; sửa giờ phải gửi cả hai', () => {
+    const body = { name: 'Phonics T3', weekday: 2, startTime: '18:00', endTime: '19:30' };
+    expect(CreateExtraSlotBody.safeParse(body).success).toBe(true);
+    expect(CreateExtraSlotBody.safeParse({ ...body, startTime: '8:00' }).error?.issues[0]?.message).toBe(
+      'timeFormat',
+    );
+    expect(CreateExtraSlotBody.safeParse({ ...body, endTime: '18:00' }).error?.issues[0]?.message).toBe(
+      'endAfterStart',
+    );
+    expect(CreateExtraSlotBody.safeParse({ ...body, weekday: 8 }).success).toBe(false);
+    expect(UpdateExtraSlotBody.safeParse({ startTime: '17:00' }).error?.issues[0]?.message).toBe(
+      'startEndTogether',
+    );
+    expect(UpdateExtraSlotBody.safeParse({ room: null }).success).toBe(true);
+  });
+
+  it('lịch: ngày kết thúc phải sau ngày bắt đầu; null = học tiếp', () => {
+    const slotId = '00000000-0000-4000-8000-000000000001';
+    expect(
+      CreateSlotAssignmentBody.safeParse({ slotId, effectiveFrom: '2026-10-01', effectiveTo: '2026-10-01' })
+        .error?.issues[0]?.message,
+    ).toBe('effectiveToAfterFrom');
+    expect(UpdateSlotAssignmentBody.safeParse({ effectiveTo: null }).success).toBe(true);
+  });
+
+  it('quyền mặc định: GV xếp lịch + đặt giá, chỉ admin tạo ca', () => {
+    expect(ROLE_DEFAULT_PERMISSIONS.TEACHER).toEqual(
+      expect.arrayContaining(['extra.manageSchedule', 'extra.viewPricing', 'extra.managePricing']),
+    );
+    expect(ROLE_DEFAULT_PERMISSIONS.TEACHER).not.toContain('extra.manageSlots');
+  });
+});
+
+describe('điểm danh', () => {
+  const id = '00000000-0000-4000-8000-000000000001';
+
+  it('vắng không tính phí', () => {
+    expect(BILLING_POLICY).toEqual({ PRESENT: true, ABSENT: false, EXCUSED: false });
+  });
+
+  it('huỷ buổi: danh sách buổi hoặc một ngày, không cả hai', () => {
+    expect(CancelAttendanceSessionsBody.safeParse({ sessionIds: [id], reason: 'Lễ' }).success).toBe(true);
+    expect(CancelAttendanceSessionsBody.safeParse({ date: '2026-09-02', reason: 'Lễ' }).success).toBe(true);
+    expect(
+      CancelAttendanceSessionsBody.safeParse({ sessionIds: [id], date: '2026-09-02', reason: 'Lễ' }).error
+        ?.issues[0]?.message,
+    ).toBe('sessionsOrDate');
+    expect(CancelAttendanceSessionsBody.safeParse({ reason: 'Lễ' }).success).toBe(false);
+  });
+
+  it('sửa điểm danh: cần ít nhất một thay đổi, không trùng học sinh', () => {
+    expect(UpdateAttendanceRecordsBody.safeParse({}).success).toBe(false);
+    expect(UpdateAttendanceRecordsBody.safeParse({ note: null }).success).toBe(true);
+    expect(
+      UpdateAttendanceRecordsBody.safeParse({
+        records: [
+          { studentId: id, mark: 'ABSENT' },
+          { studentId: id, mark: 'PRESENT' },
+        ],
+      }).error?.issues[0]?.message,
+    ).toBe('duplicateStudent');
+  });
+
+  it('tháng YYYY-MM', () => {
+    expect(StudentAttendanceQuery.safeParse({ month: '2026-11' }).success).toBe(true);
+    expect(StudentAttendanceQuery.safeParse({ month: '2026-13' }).error?.issues[0]?.message).toBe(
+      'monthFormat',
     );
   });
 });

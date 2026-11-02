@@ -3,11 +3,17 @@ import { IsoDateTime } from './common/dates.js';
 import { Id } from './common/ids.js';
 import { ValidationMessage } from './common/validation-messages.js';
 
-export const Role = z.enum(['ADMIN', 'TEACHER', 'STUDENT']);
+/** PARENT: tài khoản gia đình (phụ huynh giữ đăng nhập, vào hồ sơ từng bé) */
+export const Role = z.enum(['ADMIN', 'TEACHER', 'STUDENT', 'PARENT']);
 export type Role = z.infer<typeof Role>;
 
-export const UserStatus = z.enum(['ACTIVE', 'DISABLED']);
+/** PENDING: tự đăng ký, chờ GV / admin duyệt; REJECTED: bị từ chối */
+export const UserStatus = z.enum(['ACTIVE', 'DISABLED', 'PENDING', 'REJECTED']);
 export type UserStatus = z.infer<typeof UserStatus>;
+
+/** OWN: tự đăng nhập (email / Google); MANAGED: học sinh chỉ vào qua tài khoản gia đình (không email, không mật khẩu) */
+export const LoginMode = z.enum(['OWN', 'MANAGED']);
+export type LoginMode = z.infer<typeof LoginMode>;
 
 export const AuthProvider = z.enum(['LOCAL', 'GOOGLE']);
 export type AuthProvider = z.infer<typeof AuthProvider>;
@@ -49,6 +55,11 @@ export const DEFAULT_AVATAR: AvatarKey = 'bunny';
 export const DisplayName = z.string().trim().min(1).max(30);
 export const Email = z.string().trim().toLowerCase().max(254).pipe(z.email());
 export const Password = z.string().min(6).max(72);
+/** Số điện thoại nhập tay; server chuẩn hoá E.164 (`0912…` → `+84912…`) */
+export const Phone = z
+  .string()
+  .trim()
+  .regex(/^[0-9+\-\s().]{6,20}$/, ValidationMessage.phoneInvalid);
 
 /** Thông tin lớp hiện tại của học sinh (gắn trong user) */
 export const StudentClassRef = z.object({
@@ -63,7 +74,8 @@ export type StudentClassRef = z.infer<typeof StudentClassRef>;
 /** User trả về cho chính người đó và cho admin (không có hash, token) */
 export const User = z.object({
   id: Id,
-  email: Email,
+  /** null với học sinh MANAGED (vào qua tài khoản gia đình) */
+  email: Email.nullable(),
   role: Role,
   status: UserStatus,
   provider: AuthProvider,
@@ -72,6 +84,8 @@ export const User = z.object({
   /** Chỉ có với STUDENT, null khi chưa vào lớp */
   class: StudentClassRef.nullable(),
   createdAt: IsoDateTime,
+  /** Từ 1.7.0 */
+  loginMode: LoginMode.optional(),
 });
 export type User = z.infer<typeof User>;
 

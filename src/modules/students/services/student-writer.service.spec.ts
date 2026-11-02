@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { mockDeep } from 'vitest-mock-extended';
 import { AppError } from '@/common/errors/app-error';
 import { type AccessService } from '@/core/access/access.service';
@@ -7,8 +7,9 @@ import { type AuditService } from '@/modules/audit/services/audit.service';
 import { type AuthUser } from '@/modules/auth/types/auth.types';
 import { type PasswordService } from '@/modules/auth/services/password.service';
 import { type TokenService } from '@/modules/auth/services/token.service';
+import { type GuardianReaderService } from '@/modules/families/services/guardian-reader.service';
+import { type GuardianWriterService } from '@/modules/families/services/guardian-writer.service';
 import { type NotificationsService } from '@/modules/notifications/services/notifications.service';
-import { type PermissionsService } from '@/modules/permissions/services/permissions.service';
 import { type PointReaderService } from '@/modules/points/services/point-reader.service';
 import { type RankingService } from '@/modules/points/services/ranking.service';
 import { StudentRepository } from '@/modules/students/repositories/student.repository';
@@ -23,15 +24,15 @@ const studentRow = {
   email: 'kid@example.com',
   role: 'STUDENT',
   status: 'ACTIVE',
+  loginMode: 'OWN',
   provider: 'LOCAL',
   displayName: 'Kid',
   avatarKey: 'pip',
   lastLoginAt: null,
   createdAt: new Date('2026-09-01T00:00:00Z'),
   studentProfile: {
-    parentName: null,
-    parentEmail: null,
-    parentPhone: null,
+    vietnameseName: 'Nguyễn Văn Kid',
+    englishName: 'Kid',
     notes: null,
     memberships: [
       {
@@ -53,21 +54,25 @@ function setup() {
     access,
     mockDeep<PointReaderService>(),
     mockDeep<RankingService>(),
-    mockDeep<PermissionsService>(),
+    mockDeep<GuardianReaderService>(),
   );
+  const audit = mockDeep<AuditService>();
   const service = new StudentWriterService(
     repo,
     reader,
     access,
-    mockDeep<AuditService>(),
+    audit,
     mockDeep<RankingService>(),
     mockDeep<NotificationsService>(),
     mockDeep<PasswordService>(),
     mockDeep<TokenService>(),
+    mockDeep<GuardianWriterService>(),
   );
   prisma.user.findUnique.mockResolvedValue(studentRow as never);
+  // Transaction chạy callback với chính Prisma mock
+  prisma.$transaction.mockImplementation(((fn: (tx: unknown) => unknown) => fn(prisma)) as never);
   access.assertStudentAccess.mockResolvedValue(undefined);
-  return { prisma, access, service };
+  return { prisma, access, audit, reader, service };
 }
 
 describe('StudentWriterService', () => {
@@ -83,6 +88,62 @@ describe('StudentWriterService', () => {
     expect((err as AppError).getStatus()).toBe(403);
     expect((err as AppError).details?.fields).toEqual(['email']);
     expect(prisma.user.update).not.toHaveBeenCalled();
+  });
+
+  it('update: GV đổi tên tiếng Anh → display_name + cột tìm / sắp xếp đồng bộ, audit chỉ trường đổi', async () => {
+    const { prisma, audit, reader, service } = setup();
+    vi.spyOn(reader, 'toDetail').mockResolvedValue({} as never);
+    prisma.user.update.mockResolvedValue({
+      ...studentRow,
+      displayName: 'Andy',
+      studentProfile: { ...studentRow.studentProfile, englishName: 'Andy' },
+    } as never);
+
+    await service.update(teacher, 's1', { englishName: ' Andy ' });
+
+    const data = prisma.user.update.mock.calls[0][0].data;
+    expect(data.displayName).toBe('Andy');
+    expect((data.studentProfile as { upsert: { update: unknown } }).upsert.update).toEqual({
+      vietnameseName: 'Nguyễn Văn Kid',
+      englishName: 'Andy',
+      nameSearch: 'nguyen van kid andy',
+      nameSortKey: 'kid nguyen van kid',
+    });
+    expect(audit.record).toHaveBeenCalledWith(
+      teacher,
+      'student.update',
+      'User',
+      's1',
+      { englishName: 'Kid' },
+      { englishName: 'Andy' },
+    );
+  });
+
+  it('update: displayName của client cũ sửa tên đang hiển thị (tên tiếng Anh), không đụng tên tiếng Việt', async () => {
+    const { prisma, reader, service } = setup();
+    vi.spyOn(reader, 'toDetail').mockResolvedValue({} as never);
+    prisma.user.update.mockResolvedValue(studentRow as never);
+
+    await service.update(admin, 's1', { displayName: 'Kiddo' });
+
+    const data = prisma.user.update.mock.calls[0][0].data;
+    expect(data.displayName).toBe('Kiddo');
+    expect((data.studentProfile as { upsert: { update: unknown } }).upsert.update).toMatchObject({
+      vietnameseName: 'Nguyễn Văn Kid',
+      englishName: 'Kiddo',
+    });
+  });
+
+  it('update: không đổi tên → không ghi display_name / cột tên', async () => {
+    const { prisma, reader, service } = setup();
+    vi.spyOn(reader, 'toDetail').mockResolvedValue({} as never);
+    prisma.user.update.mockResolvedValue(studentRow as never);
+
+    await service.update(admin, 's1', { avatarKey: 'cat', vietnameseName: 'Nguyễn Văn Kid' });
+
+    const data = prisma.user.update.mock.calls[0][0].data;
+    expect(data.displayName).toBeUndefined();
+    expect(data.studentProfile).toBeUndefined();
   });
 
   it('update: học sinh không tồn tại → 404', async () => {
@@ -118,5 +179,37 @@ describe('StudentWriterService', () => {
 
     expect((err as AppError).code).toBe('CLASS_NOT_JOINABLE');
     expect(prisma.$transaction).not.toHaveBeenCalled();
+  });
+
+  it('resetPassword: học sinh MANAGED → 409 STUDENT_IS_MANAGED, không đổi mật khẩu', async () => {
+    const { prisma, service } = setup();
+    prisma.user.findUnique.mockResolvedValue({ ...studentRow, loginMode: 'MANAGED', email: null } as never);
+    await expect(service.resetPassword(admin, 's1', { newPassword: 'secret1' })).rejects.toMatchObject({
+      code: 'STUDENT_IS_MANAGED',
+    });
+    expect(prisma.user.update).not.toHaveBeenCalled();
+  });
+
+  it('update: cấp email cho học sinh MANAGED → tự đăng nhập (OWN)', async () => {
+    const { prisma, service, reader } = setup();
+    prisma.user.findUnique.mockResolvedValue({ ...studentRow, loginMode: 'MANAGED', email: null } as never);
+    prisma.user.findFirst.mockResolvedValue(null);
+    prisma.user.update.mockResolvedValue(studentRow as never);
+    vi.spyOn(reader, 'toDetail').mockResolvedValue({} as never);
+
+    await service.update(admin, 's1', { email: 'big.kid@example.com' });
+    expect(prisma.user.update.mock.calls[0][0].data).toMatchObject({
+      email: 'big.kid@example.com',
+      loginMode: 'OWN',
+    });
+  });
+
+  it('update: không đổi tay trạng thái học sinh đang chờ duyệt', async () => {
+    const { prisma, service } = setup();
+    prisma.user.findUnique.mockResolvedValue({ ...studentRow, status: 'PENDING' } as never);
+    await expect(service.update(admin, 's1', { status: 'ACTIVE' })).rejects.toMatchObject({
+      code: 'CONFLICT',
+    });
+    expect(prisma.user.update).not.toHaveBeenCalled();
   });
 });

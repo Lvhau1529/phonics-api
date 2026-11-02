@@ -13,7 +13,8 @@ export function toClassSummary(row: ClassRow): ClassSummary {
     teachers: row.teachers.map(({ teacher }) => ({
       id: teacher.id,
       displayName: teacher.displayName,
-      email: teacher.email,
+      // Giáo viên luôn có email (chỉ học sinh MANAGED mới null)
+      email: teacher.email ?? '',
       avatarKey: AvatarKey.safeParse(teacher.avatarKey).data ?? DEFAULT_AVATAR,
     })),
     createdAt: row.createdAt.toISOString(),

@@ -4,12 +4,14 @@ import { JwtService } from '@nestjs/jwt';
 import { type Request } from 'express';
 import { PrismaService } from '@/database/prisma.service';
 import { type AccessTokenPayload, type AuthUser } from '@/modules/auth/types/auth.types';
+import { ALLOW_PENDING_KEY } from '@/common/decorators/account.decorator';
 import { IS_PUBLIC_KEY, OPTIONAL_AUTH_KEY } from '@/common/decorators/public.decorator';
 import { AppError } from '@/common/errors/app-error';
 
 /**
  * Guard toàn cục #1: đọc `Authorization: Bearer <access>`, kiểm tra chữ ký + tokenVersion + trạng thái user,
- * gắn `req.user: AuthUser`. Route @Public bỏ qua; @OptionalAuth chỉ gắn user nếu token hợp lệ.
+ * gắn `req.user: AuthUser`. Route @Public bỏ qua; @OptionalAuth chỉ gắn user nếu token hợp lệ. Tài khoản PENDING chỉ
+ * gọi được route `@AllowPending`.
  */
 @Injectable()
 export class JwtAuthGuard implements CanActivate {
@@ -31,13 +33,20 @@ export class JwtAuthGuard implements CanActivate {
       throw new AppError('UNAUTHORIZED', 401);
     }
 
+    let user: AuthUser;
     try {
-      req.user = await this.resolveUser(token);
-      return true;
+      user = await this.resolveUser(token);
     } catch (e) {
       if (isPublic || optional) return true; // token hỏng ở route public: coi như khách
       throw e;
     }
+    // Chờ duyệt: chỉ các route của màn "đang chờ duyệt"; route public / tuỳ chọn đăng nhập coi như khách
+    if (user.status === 'PENDING' && !this.reflector.getAllAndOverride<boolean>(ALLOW_PENDING_KEY, targets)) {
+      if (isPublic || optional) return true;
+      throw new AppError('ACCOUNT_PENDING', 403);
+    }
+    req.user = user;
+    return true;
   }
 
   private async resolveUser(token: string): Promise<AuthUser> {
@@ -54,7 +63,8 @@ export class JwtAuthGuard implements CanActivate {
     });
     if (!user || user.tokenVersion !== payload.tv) throw new AppError('UNAUTHORIZED', 401);
     if (user.status === 'DISABLED') throw new AppError('ACCOUNT_DISABLED', 403);
-    return user;
+    if (user.status === 'REJECTED') throw new AppError('ACCOUNT_REJECTED', 403);
+    return { ...user, actorId: payload.act?.sub ?? null };
   }
 }
 

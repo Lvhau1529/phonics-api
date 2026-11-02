@@ -11,6 +11,8 @@ export const GAME_REGISTRY: Record<string, { maxTotal: number; maxScore: number 
   // Câu đố / câu nói: ≤ 15 câu mỗi ván, tối đa 15 điểm / câu (chọn đúng 10 + nói 5)
   'odd-one-out': { maxTotal: 30, maxScore: 1_000 },
   'english-explorers': { maxTotal: 30, maxScore: 1_000 },
+  // Phiêu lưu xin kẹo: ≤ 12 lượt solo, điểm = số kẹo (tối đa 2 / lượt)
+  'halloween-candy-quest': { maxTotal: 30, maxScore: 100 },
 };
 
 /** Khi nào tạo thông báo đổi hạng: 'all' mọi thay đổi, 'improve' chỉ khi lên hạng */
@@ -34,6 +36,25 @@ export const THROTTLE = {
   media: { ttl: 60_000, limit: 30 },
 } as const;
 
+/** Hàng đợi mail (`mail_outbox`) */
+export const MAIL = {
+  /** Số mail lấy ra gửi mỗi lượt */
+  batchSize: 20,
+  /** Quá số lần thử này → FAILED */
+  maxAttempts: 6,
+  /** Chờ trước lần thử thứ n+1 (ms); hết mảng thì dùng phần tử cuối */
+  backoffMs: [60_000, 5 * 60_000, 30 * 60_000, 2 * 3600_000, 6 * 3600_000],
+  /**
+   * Mail đã lấy ra nhưng chưa ghi kết quả (API chết giữa chừng) được lấy lại sau thời gian này. Có thể gửi trùng
+   * một lần trong trường hợp hiếm đó — chấp nhận, đổi lại không mất mail.
+   */
+  leaseMs: 10 * 60_000,
+  /** Worker lỗi (DB tạm mất) → thử lại sau (ms); bình thường hẹn đúng mốc, không chạy định kỳ */
+  retryMs: 60_000,
+  /** Cắt `last_error` lưu DB */
+  maxErrorLength: 1_000,
+} as const;
+
 /** Phiếu bài tập (ADR 0017 / 0018 / 0019) */
 export const WORKSHEETS = {
   /** Media PENDING (presign nhưng không complete) bị cron xoá sau số giờ này */
@@ -46,4 +67,20 @@ export const WORKSHEETS = {
   mediaFilesPath: '/files',
   /** File media có tên bất biến (uuid) → cache 1 năm (đĩa: express static; R2: header lưu kèm đối tượng) */
   mediaCacheControl: 'public, max-age=31536000, immutable',
+} as const;
+
+/** Học thêm / điểm danh (docs/attendance-design.md §5) — giờ theo APP_TIMEZONE */
+export const EXTRA_LESSONS = {
+  /** Tạo buổi của ngày */
+  sessionTime: '00:05',
+  /** Mail tổng hợp cho GV */
+  digestTime: '21:00',
+  /** Một buổi được nhắc tối đa số lần này */
+  maxDigests: 3,
+  /** Hạn link duyệt nhanh trong mail */
+  digestTokenDays: 7,
+  /** API tắt lỡ mốc 00:05: khởi động lại tạo bù buổi của ngần này ngày trước */
+  catchUpDays: 3,
+  /** Lỗi khi chạy mốc → thử lại sau */
+  retryMs: 60_000,
 } as const;

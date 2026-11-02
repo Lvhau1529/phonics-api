@@ -15,15 +15,106 @@ lỗi `{ statusCode, code, message, details?, requestId }`.
 
 | Method | Path | Ai | Request → Response |
 | --- | --- | --- | --- |
-| POST | `/auth/register` | pub | `RegisterBody` → `AuthResponse` (201). Học sinh + lớp. 409 `EMAIL_TAKEN`, 400 `CLASS_NOT_JOINABLE` |
-| POST | `/auth/login` | pub | `LoginBody` → `AuthResponse`. 401 `INVALID_CREDENTIALS`, 403 `ACCOUNT_DISABLED` |
-| POST | `/auth/google` | pub | `GoogleBody { idToken, profile? }` → `AuthResponse`. 422 `PROFILE_REQUIRED` khi tài khoản mới thiếu profile |
+| POST | `/auth/register` | pub | **Cũ** — `RegisterBody` → tạo học sinh `PENDING` (chưa vào lớp) rồi 403 `ACCOUNT_PENDING` (không cấp token). 409 `EMAIL_TAKEN`, 400 `CLASS_NOT_JOINABLE` |
+| POST | `/auth/register-family` | pub | `RegisterFamilyBody { credentials (password \| google), parent, children[] }` → `AuthResponse` (201) của phụ huynh `PENDING` |
+| POST | `/auth/login` | pub | `LoginBody` → `AuthResponse`. 401 `INVALID_CREDENTIALS`, 403 `ACCOUNT_DISABLED` / `ACCOUNT_REJECTED` / `ACCOUNT_PENDING` (học sinh chờ duyệt; phụ huynh chờ duyệt vẫn đăng nhập được) |
+| POST | `/auth/google` | pub | `GoogleBody { idToken, profile? }` → `AuthResponse`. 422 `PROFILE_REQUIRED` khi tài khoản mới (game mới → `register-family`); client cũ gửi `profile` → học sinh `PENDING`, 403 `ACCOUNT_PENDING` |
+| GET | `/auth/profiles` | PARENT | → `FamilyProfilesResponse` (các bé được vào, kể cả chờ duyệt) |
+| POST | `/auth/switch-profile` | PARENT | `{ studentId }` → `AuthResponse` của bé (claim `act`; refresh token **luôn trong body**). 403 `PROFILE_NOT_APPROVED` / `PROFILE_NOT_ACCESSIBLE` |
+| POST | `/auth/set-password` | pub | `SetPasswordBody { token, password }` (link mời 72 h, dùng một lần) → `AuthResponse`. 400 `INVITE_TOKEN_INVALID` |
 | POST | `/auth/refresh` | pub | cookie `pa_rt` hoặc `{ refreshToken }` → `AuthResponse` (token xoay vòng). 401 `INVALID_REFRESH` / `REFRESH_REUSED` |
 | POST | `/auth/logout` | pub/\* | `{ refreshToken?, all? }` → 204 |
-| GET | `/auth/me` | \* | → `MeResponse { user, permissions }` |
+| GET | `/auth/me` | \* | → `MeResponse { user, permissions, actor }` (`actor` = phụ huynh đã mở phiên của bé) |
 | POST | `/auth/change-password` | \* | `ChangePasswordBody` → 204 (thu hồi mọi phiên) |
 
 Header `X-Refresh-Transport: body` trên các route auth → refresh token trả trong body thay vì cookie.
+
+Tài khoản `PENDING` (phụ huynh chờ duyệt) chỉ gọi được `auth/me`, `auth/profiles`, `auth/logout`,
+`auth/change-password`, `me/children*`, `me/guardian`; route khác 403 `ACCOUNT_PENDING`. Tài khoản `PARENT` bị chặn
+(403 `FORBIDDEN`) ở mọi route không khai báo PARENT — kể cả `/me/*` của học sinh.
+
+## Tài khoản gia đình (PARENT)
+
+| Method | Path | Ai | Request → Response |
+| --- | --- | --- | --- |
+| GET | `/me/children` | PARENT | → `FamilyProfilesResponse` |
+| POST | `/me/children` | PARENT | `ChildInput` → `FamilyProfile` (bé mới `PENDING`) |
+| PATCH | `/me/children/:id` | PARENT | `UpdateChildBody` → `FamilyProfile` (chỉ bé chờ duyệt) |
+| DELETE | `/me/children/:id` | PARENT | → 204 (huỷ bé chờ duyệt / bị từ chối) |
+| GET / PATCH | `/me/guardian` | PARENT | `UpdateMyGuardianBody { fullName?, phone? }` → `MyGuardian` |
+
+## families — duyệt tài khoản (perm:`families.approve`; T: bé đăng ký vào lớp mình)
+
+| Method | Path | Ai | Request → Response |
+| --- | --- | --- | --- |
+| GET | `/families/pending` | A, T | → `PendingFamiliesResponse` (đơn + bé chờ + cảnh báo trùng; ngoài phạm vi GV ẩn tên) |
+| GET | `/families/pending/count` | A, T | → `{ count }` (badge menu) |
+| POST | `/families/:id/approve` | A, T | `ApproveFamilyBody { children: [{ studentId, classId }] }` → `FamilyReviewResult`. GV chỉ xếp vào lớp mình; 409 `alreadyReviewed` |
+| POST | `/families/:id/reject` | A, T | `RejectFamilyBody { studentIds?, reason }` → `FamilyReviewResult` (không `studentIds` = mọi bé chờ trong phạm vi) |
+| POST | `/families/:id/merge` | A, T | `{ guardianId }` → `FamilyReviewResult` (gộp vào phụ huynh có sẵn; GV: phụ huynh đó có con lớp mình) |
+
+`:id` = tài khoản đăng ký: user PARENT, hoặc chính học sinh với đăng ký kiểu cũ.
+
+## extra-slots — ca học thêm (A; T: ca mình dạy)
+
+| Method | Path | Ai | Request → Response |
+| --- | --- | --- | --- |
+| GET | `/extra-slots` | A, T | `ExtraSlotListQuery { includeArchived?, teacherId?, classId? }` → `ExtraSlotsResponse` (GV chỉ ca mình; `defaultPrice` cần perm:`extra.viewPricing`) |
+| GET | `/extra-slots/:id` | A, T | → `ExtraSlot` |
+| POST | `/extra-slots` | A (perm:`extra.manageSlots`) | `CreateExtraSlotBody` → `ExtraSlot` (201) |
+| PATCH | `/extra-slots/:id` | A (perm:`extra.manageSlots`) | `UpdateExtraSlotBody` → `ExtraSlot` (đổi giờ chỉ ảnh hưởng buổi chưa tạo) |
+| DELETE | `/extra-slots/:id` | A (perm:`extra.manageSlots`) | → 204 lưu trữ; lịch còn mở kết thúc từ hôm nay |
+| PUT | `/extra-slots/:id/teachers` | A (perm:`extra.manageSlots`) | `SetSlotTeachersBody` → `ExtraSlot` |
+| GET | `/extra-slots/:id/students` | A, T | `?date` → `SlotStudentsResponse` (học sinh học ca tại ngày + đơn giá áp dụng nếu có quyền xem giá) |
+| GET | `/extra-slots/:id/rates` | A, T (perm:`extra.viewPricing`) | → `ExtraRatesResponse` (lịch sử giá mặc định của ca) |
+| POST | `/extra-slots/:id/rates` | A, T (perm:`extra.managePricing`) | `CreateSlotRateBody` → `ExtraRate` (201) |
+
+## students — học thêm (A; T: học sinh lớp mình hoặc từng học ca mình)
+
+| Method | Path | Ai | Request → Response |
+| --- | --- | --- | --- |
+| GET | `/students/:id/extra` | A, T | → `StudentExtraResponse` (lịch + giá riêng + đơn giá áp dụng hôm nay + cờ `canManageSchedule` / `canManagePricing`) |
+| POST | `/students/:id/slot-assignments` | A, T (perm:`extra.manageSchedule`, ca mình) | `CreateSlotAssignmentBody` → `SlotAssignment` (201). 409 `SLOT_ASSIGNMENT_OVERLAP` |
+| PATCH | `/students/:id/slot-assignments/:aid` | A, T (perm:`extra.manageSchedule`, ca mình) | `UpdateSlotAssignmentBody` → `SlotAssignment` (sửa ngày; rời ca = đặt `effectiveTo`) |
+| POST | `/students/:id/slot-assignments/:aid/move` | A, T (perm:`extra.manageSchedule`, cả hai ca) | `MoveSlotAssignmentBody { slotId, from }` → `SlotAssignment` mới (201) |
+| GET | `/students/:id/rates` | A, T (perm:`extra.viewPricing`) | → `ExtraRatesResponse` (giá riêng, cả lịch sử) |
+| POST | `/students/:id/rates` | A, T (perm:`extra.managePricing`) | `CreateStudentRateBody` → `ExtraRate` (201). GV: 403 `RATE_SCOPE_FORBIDDEN` nếu học sinh học ca của GV khác |
+
+Đơn giá mới từ ngày D: dòng cùng phạm vi đang phủ D đóng tại D; dòng bắt đầu từ D trở đi bị thay thế
+(`effectiveTo = effectiveFrom`). Giải đơn giá: (HS, ca) → (HS) → (ca) → 0đ `NONE` (`resolveRate`, §4.1 thiết kế).
+
+## attendance — buổi học thêm & điểm danh (A; T: buổi mình phụ trách / ca mình dạy)
+
+| Method | Path | Ai | Request → Response |
+| --- | --- | --- | --- |
+| GET | `/attendance/sessions` | A, T | `AttendanceSessionListQuery { from?, to?, slotId?, teacherId?, status? }` → `Paginated<AttendanceSessionSummary>` |
+| GET | `/attendance/sessions/pending/count` | A, T | → `{ count }` (buổi PENDING đã bắt đầu — badge menu) |
+| GET | `/attendance/sessions/:id` | A, T | → `AttendanceSessionDetail` (`unitPrice` cần perm:`extra.viewPricing`) |
+| PUT | `/attendance/sessions/:id/records` | A, T (perm:`attendance.confirm`) | `UpdateAttendanceRecordsBody` → detail. Học sinh chưa có → thêm MANUAL; `charged` / `unitPrice` chỉ A. 409 `ATTENDANCE_SESSION_CANCELLED` |
+| POST | `/attendance/sessions/:id/confirm` | A, T (perm:`attendance.confirm`) | `{}` → detail (đã xác nhận → ghi lại người / lúc) |
+| POST | `/attendance/sessions` | A (perm:`extra.manageSlots`) | `CreateAttendanceSessionBody` → detail (201) — buổi bù |
+| POST | `/attendance/sessions/cancel` | A (perm:`extra.manageSlots`) | `CancelAttendanceSessionsBody { sessionIds \| date, reason }` → `{ cancelled }` |
+| GET | `/attendance/public/digests/:token` | pub | → `AttendanceDigestView` (link mail 21:00; 404 `ATTENDANCE_TOKEN_INVALID`, 410 `ATTENDANCE_TOKEN_EXPIRED`) |
+| POST | `/attendance/public/digests/:token/confirm` | pub | `{ sessionIds }` → `ConfirmDigestResponse` (chỉ buổi trong mail, còn PENDING, danh sách chưa đổi) |
+| POST | `/students/:id/slot-assignments/apply` | A, T (perm:`extra.manageSchedule`) | `{ sessionIds }` → `{ updated }` — áp lịch vào buổi đã xác nhận (`affectedSessions`) |
+| POST | `/extra-rates/:id/apply` | A, T (perm:`extra.managePricing`) | `{ sessionIds }` → `{ updated }` — áp giá vào buổi đã xác nhận (`affectedRecords`) |
+| GET | `/students/:id/attendance` | A, T | `?month=YYYY-MM` → `StudentAttendanceResponse` |
+
+Hẹn giờ (`ExtraLessonsScheduler`, theo APP_TIMEZONE): **00:05** tạo buổi của ngày cho mọi ca (học sinh theo lịch, mặc
+định có mặt, chốt đơn giá; idempotent theo (ca, ngày), tạo bù `catchUpDays` ngày khi API tắt qua mốc); **21:00** mỗi
+GV một mail `teacher.digest` các buổi PENDING (tối đa 3 lần nhắc / buổi). Sửa lịch / đặt giá: buổi PENDING tự đồng
+bộ, buổi CONFIRMED trả trong `affectedSessions` / `affectedRecords` để hỏi người dùng.
+
+## guardians (A, perm:`guardians.manage`)
+
+| Method | Path | Ai | Request → Response |
+| --- | --- | --- | --- |
+| GET | `/guardians` | A | `GuardianListQuery (+ hasAccount)` → `Paginated<GuardianSummary>` (tìm theo tên, email, SĐT, tên con) |
+| GET / PATCH | `/guardians/:id` | A | `UpdateGuardianBody` → `GuardianSummary`. 409 `GUARDIAN_EMAIL_TAKEN` |
+| POST | `/guardians` | A | `CreateGuardianBody` → `GuardianSummary` (201) |
+| POST | `/guardians/:id/family-account` | A | → `FamilyAccountResponse` (user PARENT + mail `parent.invite`; chưa đặt mật khẩu → gửi lại) |
+| POST | `/guardians/:id/convert-preview` | A | `ConvertFamilyBody { studentIds }` → `ConvertPreview` |
+| POST | `/guardians/:id/convert` | A | `ConvertFamilyBody` → `ConvertResult` (học sinh → MANAGED; email phụ huynh trùng email học sinh → chuyển đăng nhập) |
 
 ## public
 
@@ -76,11 +167,13 @@ Header `X-Refresh-Transport: body` trên các route auth → refresh token trả
 
 | Method | Path | Ai | Request → Response |
 | --- | --- | --- | --- |
-| GET | `/students` | A, T | `StudentListQuery` → `Paginated<StudentSummary>` |
+| GET | `/students` | A, T | `StudentListQuery` → `Paginated<StudentSummary>` (`q` tìm không dấu theo tên tiếng Việt / tiếng Anh hoặc email; `sort=vietnameseName:asc` = theo tên rồi họ tên) |
 | GET | `/students/:id` | A, T | → `StudentDetail` (`parent` chỉ A / perm:`students.viewParentContact`) |
-| PATCH | `/students/:id` | A; T perm:`students.edit` (chỉ tên, avatar) | `UpdateStudentBody` → `StudentDetail` |
+| PATCH | `/students/:id` | A; T perm:`students.edit` (chỉ tên, avatar) | `UpdateStudentBody` → `StudentDetail` (`vietnameseName`, `englishName` — `null` xoá; `displayName` hiển thị = tên tiếng Anh ?? tên tiếng Việt) |
 | POST | `/students/:id/move-class` | A, T perm:`class.changeStudentClass` | `MoveClassBody` → `StudentDetail` |
-| POST | `/students/:id/reset-password` | A | `ResetPasswordBody` → 204 |
+| POST | `/students/:id/reset-password` | A | `ResetPasswordBody` → 204. 409 `STUDENT_IS_MANAGED` (bé vào qua phụ huynh) |
+| GET | `/students/:id/guardians` | A, T (perm:`students.viewParentContact`) | → `StudentGuardiansResponse` |
+| PUT | `/students/:id/guardians` | A (perm:`guardians.manage`) | `SetStudentGuardiansBody` → `StudentGuardiansResponse` (thôi `canAccess` → phiên phụ huynh mở cho bé hết hiệu lực) |
 | GET | `/students/:id/points` | A, T | `PointsListQuery` → `Paginated<PointEntryView>` |
 | GET | `/students/:id/points/by-game` | A, T | `?range` → `{ items: PointsByGame[] }` |
 | GET | `/students/:id/game-results` | A, T | → `Paginated<GameResultView>` |

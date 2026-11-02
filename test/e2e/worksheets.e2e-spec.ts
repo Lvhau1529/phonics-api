@@ -67,7 +67,9 @@ describe.skipIf(!enabled)('worksheets (e2e)', () => {
         role: 'STUDENT',
         displayName: 'Kid WS',
         emailVerified: true,
-        studentProfile: { create: { memberships: { create: { classId } } } },
+        studentProfile: {
+          create: { vietnameseName: 'Kid WS', memberships: { create: { classId } } },
+        },
       },
     });
     studentId = student.id;

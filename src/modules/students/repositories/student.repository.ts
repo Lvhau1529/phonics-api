@@ -30,8 +30,12 @@ export class StudentRepository {
     return this.prisma.user.count({ where });
   }
 
-  update(id: string, data: Prisma.UserUpdateInput): Promise<StudentRow> {
-    return this.prisma.user.update({ where: { id }, data, include: studentInclude });
+  update(
+    id: string,
+    data: Prisma.UserUpdateInput,
+    db: Tx | PrismaService = this.prisma,
+  ): Promise<StudentRow> {
+    return db.user.update({ where: { id }, data, include: studentInclude });
   }
 
   async setPasswordHash(id: string, passwordHash: string): Promise<void> {

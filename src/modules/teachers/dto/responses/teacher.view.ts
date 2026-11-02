@@ -4,7 +4,8 @@ import { type TeacherRow } from '@/modules/teachers/types/teacher.types';
 export function toTeacherSummary(row: TeacherRow): TeacherSummary {
   return {
     id: row.id,
-    email: row.email,
+    // Giáo viên luôn có email (chỉ học sinh MANAGED mới null)
+    email: row.email ?? '',
     displayName: row.displayName,
     avatarKey: AvatarKey.safeParse(row.avatarKey).data ?? DEFAULT_AVATAR,
     status: row.status,

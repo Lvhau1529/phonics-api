@@ -1,0 +1,181 @@
+// Học thêm: ca định kỳ hằng tuần (độc lập lớp chính), lịch từng học sinh, đơn giá có lịch sử
+// (docs/attendance-design.md §4, §6). Ngày lưu 'YYYY-MM-DD' theo APP_TIMEZONE, khoảng nửa mở [from, to).
+
+/// Ca học thêm định kỳ hằng tuần
+model ExtraSlot {
+  id         String    @id @default(uuid()) @db.Uuid
+  /// "Phonics nâng cao — T3 18:00"
+  name       String
+  /// ISO weekday 1 = Thứ Hai … 7 = Chủ nhật
+  weekday    Int
+  /// 'HH:mm' theo APP_TIMEZONE. Sửa giờ chỉ ảnh hưởng buổi chưa tạo
+  startTime  String    @map("start_time")
+  endTime    String    @map("end_time")
+  room       String?
+  capacity   Int?
+  /// Lớp chính tham khảo (để lọc), không bắt buộc
+  classId    String?   @map("class_id") @db.Uuid
+  archivedAt DateTime? @map("archived_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+  updatedAt  DateTime  @updatedAt @map("updated_at")
+
+  class       Class?                  @relation(fields: [classId], references: [id], onDelete: SetNull)
+  teachers    ExtraSlotTeacher[]
+  assignments StudentSlotAssignment[]
+  rates       ExtraRate[]
+  sessions    AttendanceSession[]
+
+  @@index([weekday, archivedAt])
+  @@map("extra_slots")
+}
+
+model ExtraSlotTeacher {
+  slotId    String    @map("slot_id") @db.Uuid
+  teacherId String    @map("teacher_id") @db.Uuid
+  slot      ExtraSlot @relation(fields: [slotId], references: [id], onDelete: Cascade)
+  teacher   User      @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+
+  @@id([slotId, teacherId])
+  @@index([teacherId])
+  @@map("extra_slot_teachers")
+}
+
+/// Học sinh học ca nào trong [effective_from, effective_to) — lịch của học sinh = các dòng đang hiệu lực.
+/// Hai dòng cùng học sinh + ca không chồng nhau: kiểm tra trong service.
+model StudentSlotAssignment {
+  id            String         @id @default(uuid()) @db.Uuid
+  studentId     String         @map("student_id") @db.Uuid
+  slotId        String         @map("slot_id") @db.Uuid
+  /// 'YYYY-MM-DD'
+  effectiveFrom String         @map("effective_from")
+  /// null = đang học; ngày đầu tiên KHÔNG học nữa
+  effectiveTo   String?        @map("effective_to")
+  createdById   String?        @map("created_by_id") @db.Uuid
+  note          String?
+  createdAt     DateTime       @default(now()) @map("created_at")
+  updatedAt     DateTime       @updatedAt @map("updated_at")
+  student       StudentProfile @relation(fields: [studentId], references: [userId], onDelete: Cascade)
+  slot          ExtraSlot      @relation(fields: [slotId], references: [id], onDelete: Cascade)
+  createdBy     User?          @relation("SlotAssignmentCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([slotId, effectiveTo])
+  @@index([studentId, effectiveTo])
+  @@map("student_slot_assignments")
+}
+
+/// Đơn giá / buổi (VND), có lịch sử. Phạm vi (student_id, slot_id): (HS, ca) giá riêng HS ở ca — mở rộng sau;
+/// (HS, null) giá riêng HS mọi ca; (null, ca) giá mặc định của ca. CHECK ít nhất một khác null + partial unique
+/// `extra_rates_open` (mỗi phạm vi một dòng đang mở) thêm tay trong migration.
+model ExtraRate {
+  id              String          @id @default(uuid()) @db.Uuid
+  studentId       String?         @map("student_id") @db.Uuid
+  slotId          String?         @map("slot_id") @db.Uuid
+  pricePerSession Int             @map("price_per_session")
+  /// 'YYYY-MM-DD'
+  effectiveFrom   String          @map("effective_from")
+  /// null = đang áp dụng; = effective_from khi bị dòng nhập sau thay thế từ đầu
+  effectiveTo     String?         @map("effective_to")
+  createdById     String?         @map("created_by_id") @db.Uuid
+  note            String?
+  createdAt       DateTime        @default(now()) @map("created_at")
+  student         StudentProfile? @relation(fields: [studentId], references: [userId], onDelete: Cascade)
+  slot            ExtraSlot?      @relation(fields: [slotId], references: [id], onDelete: Cascade)
+  createdBy       User?           @relation("ExtraRateCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([studentId, effectiveFrom])
+  @@index([slotId, effectiveFrom])
+  @@map("extra_rates")
+}
+
+// ===== Buổi & điểm danh (§5) =====
+
+enum AttendanceSessionStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+}
+
+enum AttendanceMark {
+  PRESENT
+  /// Vắng không phép
+  ABSENT
+  /// Vắng có phép
+  EXCUSED
+}
+
+/// Một buổi học thêm của một ngày: 00:05 tạo từ ca (idempotent theo (slot_id, date)); slot_id null = buổi bù tạo tay
+model AttendanceSession {
+  id             String                  @id @default(uuid()) @db.Uuid
+  slotId         String?                 @map("slot_id") @db.Uuid
+  /// 'YYYY-MM-DD'
+  date           String
+  /// 'HH:mm' chép từ ca lúc tạo (đổi giờ ca không đổi buổi đã tạo)
+  startTime      String                  @map("start_time")
+  endTime        String                  @map("end_time")
+  startsAt       DateTime                @map("starts_at")
+  endsAt         DateTime                @map("ends_at")
+  /// GV phụ trách lúc tạo buổi (chép từ ca; buổi bù chọn tay)
+  teacherIds     String[]                @map("teacher_ids") @db.Uuid
+  status         AttendanceSessionStatus @default(PENDING)
+  presentCount   Int                     @default(0) @map("present_count")
+  /// Tăng mỗi lần sửa danh sách — duyệt qua mail chỉ hợp lệ khi bằng giá trị lúc gửi
+  recordsVersion Int                     @default(0) @map("records_version")
+  /// Số mail 21:00 đã nhắc buổi này
+  digestCount    Int                     @default(0) @map("digest_count")
+  confirmedById  String?                 @map("confirmed_by_id") @db.Uuid
+  confirmedAt    DateTime?               @map("confirmed_at")
+  /// 'APP' | 'EMAIL'
+  confirmedVia   String?                 @map("confirmed_via")
+  cancelReason   String?                 @map("cancel_reason")
+  note           String?
+  createdAt      DateTime                @default(now()) @map("created_at")
+  updatedAt      DateTime                @updatedAt @map("updated_at")
+  slot           ExtraSlot?              @relation(fields: [slotId], references: [id], onDelete: SetNull)
+  confirmedBy    User?                   @relation("SessionConfirmedBy", fields: [confirmedById], references: [id], onDelete: SetNull)
+  records        AttendanceRecord[]
+
+  @@unique([slotId, date])
+  @@index([status, date])
+  @@index([date])
+  @@map("attendance_sessions")
+}
+
+model AttendanceRecord {
+  sessionId   String            @map("session_id") @db.Uuid
+  studentId   String            @map("student_id") @db.Uuid
+  mark        AttendanceMark    @default(PRESENT)
+  /// Đơn giá chốt lúc thêm vào buổi (VND)
+  unitPrice   Int               @map("unit_price")
+  /// Dòng extra_rates đã dùng (null = thiếu giá) — truy vết / tính lại khi sửa giá hồi tố
+  rateId      String?           @map("rate_id") @db.Uuid
+  /// Có tính tiền buổi này không — mặc định BILLING_POLICY[mark], admin ghi đè được
+  charged     Boolean
+  /// 'SNAPSHOT' (từ lịch học sinh) | 'MANUAL' (GV thêm)
+  source      String
+  note        String?
+  updatedById String?           @map("updated_by_id") @db.Uuid
+  updatedAt   DateTime          @updatedAt @map("updated_at")
+  session     AttendanceSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  student     StudentProfile    @relation(fields: [studentId], references: [userId], onDelete: Cascade)
+
+  @@id([sessionId, studentId])
+  @@index([studentId])
+  @@index([rateId])
+  @@map("attendance_records")
+}
+
+/// Một mail 21:00 gửi một GV — token duyệt nhanh (lưu sha256) chỉ duyệt được các buổi trong mail
+model AttendanceDigest {
+  id        String   @id @default(uuid()) @db.Uuid
+  teacherId String   @map("teacher_id") @db.Uuid
+  date      String
+  tokenHash String   @unique @map("token_hash")
+  expiresAt DateTime @map("expires_at")
+  /// [{ sessionId, recordsVersion }] lúc gửi
+  items     Json
+  createdAt DateTime @default(now()) @map("created_at")
+  teacher   User     @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+
+  @@unique([teacherId, date])
+  @@map("attendance_digests")
+}

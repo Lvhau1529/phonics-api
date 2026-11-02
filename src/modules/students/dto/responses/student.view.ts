@@ -4,6 +4,7 @@ import {
   DEFAULT_AVATAR,
   type GameResultView,
   type ParentContact,
+  type StudentGuardianView,
   type StudentSummary,
 } from '@phonics/contracts';
 import { type GameResult } from '@/generated/prisma/client';
@@ -30,12 +31,13 @@ export function toGameResultView(row: GameResult): GameResultView {
   };
 }
 
-/** Liên hệ phụ huynh từ profile (chỉ giữ trường có dữ liệu) */
-export function toParentContact(profile: StudentRow['studentProfile']): ParentContact {
+/** Liên hệ phụ huynh dạng cũ (`parent`) = phụ huynh nhận học phí (chỉ giữ trường có dữ liệu) */
+export function toParentContact(guardians: readonly StudentGuardianView[]): ParentContact {
+  const billing = guardians.find((g) => g.isBillingContact)?.guardian;
   const parent: ParentContact = {};
-  if (profile?.parentName) parent.name = profile.parentName;
-  if (profile?.parentEmail) parent.email = profile.parentEmail;
-  if (profile?.parentPhone) parent.phone = profile.parentPhone;
+  if (billing?.fullName) parent.name = billing.fullName;
+  if (billing?.email) parent.email = billing.email;
+  if (billing?.phone) parent.phone = billing.phone;
   return parent;
 }
 
@@ -46,8 +48,12 @@ export function toStudentSummary(row: StudentRow, points: number, rank: number |
     id: row.id,
     email: row.email,
     displayName: row.displayName,
+    // Thiếu profile (dữ liệu hỏng) → coi tên hiển thị là tên tiếng Việt
+    vietnameseName: row.studentProfile?.vietnameseName ?? row.displayName,
+    englishName: row.studentProfile?.englishName ?? null,
     avatarKey: AvatarKey.safeParse(row.avatarKey).data ?? DEFAULT_AVATAR,
     status: row.status,
+    loginMode: row.loginMode,
     class: membership ? { ...membership.class, joinedAt: membership.joinedAt.toISOString() } : null,
     points,
     rank: membership ? rank : null,

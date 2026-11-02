@@ -13,6 +13,7 @@ export const GameId = z.enum([
   'phonics-ocean',
   'odd-one-out',
   'english-explorers',
+  'halloween-candy-quest',
 ]);
 export type GameId = z.infer<typeof GameId>;
 export const GAME_IDS: readonly GameId[] = GameId.options;
