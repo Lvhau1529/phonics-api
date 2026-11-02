@@ -42,7 +42,16 @@ export async function seedDemoClasses(prisma: PrismaClient): Promise<void> {
   const random = createRandom(20261001);
   const passwordHash = await hashPassword(DEMO_PASSWORD);
   const now = new Date();
-  const summary = { teachers: 0, classes: 0, students: 0, results: 0, points: 0, bonus: 0, events: 0 };
+  const summary = {
+    teachers: 0,
+    classes: 0,
+    students: 0,
+    results: 0,
+    points: 0,
+    bonus: 0,
+    events: 0,
+    extraSlots: 0,
+  };
 
   await prisma.$transaction(
     async (tx) => {
@@ -237,6 +246,44 @@ export async function seedDemoClasses(prisma: PrismaClient): Promise<void> {
         }
         summary.events += (await tx.gameEvent.createMany({ data: anonymous, skipDuplicates: true })).count;
 
+        // Ca học thêm của lớp (T3 + T6 18:00): giá mặc định ca, nửa lớp học cả hai ca, một bé có giá riêng
+        const from = dayjs(now).startOf('month').subtract(1, 'month').format('YYYY-MM-DD');
+        for (const [weekday, label] of [
+          [2, 'T3'],
+          [5, 'T6'],
+        ] as const) {
+          const slot = await tx.extraSlot.create({
+            data: {
+              name: `${def.name} học thêm — ${label} 18:00`,
+              weekday,
+              startTime: '18:00',
+              endTime: '19:30',
+              capacity: 8,
+              classId: cls.id,
+              teachers: { create: { teacherId } },
+              rates: { create: { pricePerSession: 120_000, effectiveFrom: from, createdById: teacherId } },
+            },
+            select: { id: true },
+          });
+          await tx.studentSlotAssignment.createMany({
+            data: studentIds.slice(0, weekday === 2 ? 6 : 4).map((studentId) => ({
+              studentId,
+              slotId: slot.id,
+              effectiveFrom: from,
+              createdById: teacherId,
+            })),
+          });
+          summary.extraSlots += 1;
+        }
+        await tx.extraRate.create({
+          data: {
+            studentId: studentIds[0],
+            pricePerSession: 100_000,
+            effectiveFrom: from,
+            createdById: teacherId,
+          },
+        });
+
         // Hạng hiện tại (last_rank) — cùng SQL với RankingService
         const ranks = await rankClass(tx, cls.id);
         for (const row of ranks) {
@@ -252,7 +299,8 @@ export async function seedDemoClasses(prisma: PrismaClient): Promise<void> {
 
   console.log(
     `[seed] demo: ${summary.teachers} giáo viên, ${summary.classes} lớp, ${summary.students} học sinh, ` +
-      `${summary.results} ván, ${summary.points} bút toán GAME, ${summary.bonus} thưởng, ${summary.events} sự kiện`,
+      `${summary.results} ván, ${summary.points} bút toán GAME, ${summary.bonus} thưởng, ${summary.events} sự kiện, ` +
+      `${summary.extraSlots} ca học thêm`,
   );
   console.log(
     `[seed] demo: mật khẩu chung ${DEMO_PASSWORD} (teacher1@demo.local, k2a.student01@demo.local…)`,

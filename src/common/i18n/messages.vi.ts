@@ -51,6 +51,9 @@ const codeMessages = {
   GUARDIAN_EMAIL_TAKEN: 'Email đã thuộc về một phụ huynh khác',
   STUDENT_IS_MANAGED: 'Học sinh vào qua tài khoản gia đình — hãy thao tác trên tài khoản phụ huynh',
   INVITE_TOKEN_INVALID: 'Link đặt mật khẩu không hợp lệ hoặc đã hết hạn',
+  SLOT_ASSIGNMENT_OVERLAP: 'Học sinh đã học ca này trong khoảng ngày trùng',
+  RATE_SCOPE_FORBIDDEN:
+    'Học sinh đang học ca của giáo viên khác — giá riêng áp cho mọi ca nên hãy nhờ admin đặt',
 } satisfies Record<ErrorCode, string>;
 
 export const vi = {
@@ -130,6 +133,16 @@ export const vi = {
   fileAlreadyUploaded: 'File đã tải lên xong',
   contentTypeMismatch: 'Content-Type khác lúc presign',
   fileEmpty: 'File rỗng',
+
+  // Học thêm
+  extraSlotNotFound: 'Không tìm thấy ca học thêm',
+  extraSlotArchived: 'Ca học thêm đã lưu trữ',
+  slotAssignmentNotFound: 'Không tìm thấy dòng lịch học',
+  sameSlot: 'Học sinh đang ở ca này rồi',
+  moveDateOutOfRange: 'Ngày chuyển phải nằm trong thời gian học sinh đang học ca cũ (sau ngày bắt đầu)',
+  studentNotActive: 'Học sinh chưa được duyệt hoặc đã bị khoá',
+  endAfterStart: 'Giờ kết thúc phải sau giờ bắt đầu',
+  effectiveToAfterFrom: 'Ngày kết thúc phải sau ngày bắt đầu',
 };
 
 export type Messages = typeof vi;

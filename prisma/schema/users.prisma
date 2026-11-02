@@ -51,26 +51,29 @@ model User {
 
   studentProfile    StudentProfile?
   teachingClasses   ClassTeacher[]
-  permissions       UserPermission[]      @relation("UserPermissions")
+  permissions       UserPermission[]        @relation("UserPermissions")
   permissionGroups  UserPermissionGroup[]
-  grantedPerms      UserPermission[]      @relation("GrantedBy")
+  grantedPerms      UserPermission[]        @relation("GrantedBy")
   refreshTokens     RefreshToken[]
   notifications     Notification[]
-  pointEntriesMade  PointEntry[]          @relation("PointEntryCreatedBy")
-  unlocksGranted    StudentGameUnlock[]   @relation("UnlockGrantedBy")
+  pointEntriesMade  PointEntry[]            @relation("PointEntryCreatedBy")
+  unlocksGranted    StudentGameUnlock[]     @relation("UnlockGrantedBy")
   auditLogs         AuditLog[]
   gameEvents        GameEvent[]
-  mediaAssets       MediaAsset[]          @relation("MediaOwner")
-  questionsCreated  Question[]            @relation("QuestionCreatedBy")
-  worksheetsCreated Worksheet[]           @relation("WorksheetCreatedBy")
-  assignmentsMade   Assignment[]          @relation("AssignmentAssignedBy")
-  submissionsGraded Submission[]          @relation("SubmissionGradedBy")
-  answersGraded     SubmissionAnswer[]    @relation("AnswerGradedBy")
-  comments          Comment[]             @relation("CommentAuthor")
-  mailTemplates     MailTemplate[]        @relation("MailTemplateCreatedBy")
+  mediaAssets       MediaAsset[]            @relation("MediaOwner")
+  questionsCreated  Question[]              @relation("QuestionCreatedBy")
+  worksheetsCreated Worksheet[]             @relation("WorksheetCreatedBy")
+  assignmentsMade   Assignment[]            @relation("AssignmentAssignedBy")
+  submissionsGraded Submission[]            @relation("SubmissionGradedBy")
+  answersGraded     SubmissionAnswer[]      @relation("AnswerGradedBy")
+  comments          Comment[]               @relation("CommentAuthor")
+  mailTemplates     MailTemplate[]          @relation("MailTemplateCreatedBy")
   guardian          Guardian?
   authTokens        AuthToken[]
-  reviewedStudents  StudentProfile[]      @relation("StudentReviewedBy")
+  reviewedStudents  StudentProfile[]        @relation("StudentReviewedBy")
+  extraSlots        ExtraSlotTeacher[]
+  slotAssignments   StudentSlotAssignment[] @relation("SlotAssignmentCreatedBy")
+  extraRates        ExtraRate[]             @relation("ExtraRateCreatedBy")
 
   @@index([role, status])
   @@map("users")
@@ -101,14 +104,16 @@ model StudentProfile {
   createdAt        DateTime  @default(now()) @map("created_at")
   updatedAt        DateTime  @updatedAt @map("updated_at")
 
-  requestedClass Class?              @relation("StudentRequestedClass", fields: [requestedClassId], references: [id], onDelete: SetNull)
-  reviewedBy     User?               @relation("StudentReviewedBy", fields: [reviewedById], references: [id], onDelete: SetNull)
-  guardians      StudentGuardian[]
-  memberships    ClassMembership[]
-  gameResults    GameResult[]
-  pointEntries   PointEntry[]
-  gameUnlocks    StudentGameUnlock[]
-  submissions    Submission[]
+  requestedClass         Class?                  @relation("StudentRequestedClass", fields: [requestedClassId], references: [id], onDelete: SetNull)
+  reviewedBy             User?                   @relation("StudentReviewedBy", fields: [reviewedById], references: [id], onDelete: SetNull)
+  guardians              StudentGuardian[]
+  memberships            ClassMembership[]
+  gameResults            GameResult[]
+  pointEntries           PointEntry[]
+  gameUnlocks            StudentGameUnlock[]
+  submissions            Submission[]
+  studentSlotAssignments StudentSlotAssignment[]
+  extraRates             ExtraRate[]
 
   @@index([nameSortKey])
   @@map("student_profiles")

@@ -48,6 +48,14 @@ export const AuditAction = z.enum([
   'family.approve',
   'family.reject',
   'family.merge',
+  'extraSlot.create',
+  'extraSlot.update',
+  'extraSlot.archive',
+  'extraSlot.setTeachers',
+  'slotAssignment.create',
+  'slotAssignment.update',
+  'slotAssignment.move',
+  'extraRate.create',
 ]);
 export type AuditAction = z.infer<typeof AuditAction>;
 

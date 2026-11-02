@@ -25,6 +25,10 @@ export const PermissionCode = z.enum([
   'worksheets.viewStats',
   'guardians.manage',
   'families.approve',
+  'extra.manageSlots',
+  'extra.manageSchedule',
+  'extra.viewPricing',
+  'extra.managePricing',
 ]);
 export type Permission = z.infer<typeof PermissionCode>;
 
@@ -73,6 +77,26 @@ export const PERMISSIONS: readonly PermissionDef[] = [
     code: 'families.approve',
     defaultRoles: ['ADMIN', 'TEACHER'],
     description: 'Duyệt tài khoản tự đăng ký (GV: bé đăng ký vào lớp mình)',
+  },
+  {
+    code: 'extra.manageSlots',
+    defaultRoles: ['ADMIN'],
+    description: 'Tạo / sửa / lưu trữ ca học thêm, gán GV',
+  },
+  {
+    code: 'extra.manageSchedule',
+    defaultRoles: ['ADMIN', 'TEACHER'],
+    description: 'Xếp / sửa lịch học thêm của học sinh (GV: ca mình dạy)',
+  },
+  {
+    code: 'extra.viewPricing',
+    defaultRoles: ['ADMIN', 'TEACHER'],
+    description: 'Xem đơn giá học thêm (GV: ca mình dạy)',
+  },
+  {
+    code: 'extra.managePricing',
+    defaultRoles: ['ADMIN', 'TEACHER'],
+    description: 'Đặt đơn giá học thêm: giá mặc định của ca, giá riêng học sinh (GV: ca mình dạy)',
   },
 ];
 

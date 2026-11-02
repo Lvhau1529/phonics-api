@@ -55,6 +55,34 @@ Tài khoản `PENDING` (phụ huynh chờ duyệt) chỉ gọi được `auth/me
 
 `:id` = tài khoản đăng ký: user PARENT, hoặc chính học sinh với đăng ký kiểu cũ.
 
+## extra-slots — ca học thêm (A; T: ca mình dạy)
+
+| Method | Path | Ai | Request → Response |
+| --- | --- | --- | --- |
+| GET | `/extra-slots` | A, T | `ExtraSlotListQuery { includeArchived?, teacherId?, classId? }` → `ExtraSlotsResponse` (GV chỉ ca mình; `defaultPrice` cần perm:`extra.viewPricing`) |
+| GET | `/extra-slots/:id` | A, T | → `ExtraSlot` |
+| POST | `/extra-slots` | A (perm:`extra.manageSlots`) | `CreateExtraSlotBody` → `ExtraSlot` (201) |
+| PATCH | `/extra-slots/:id` | A (perm:`extra.manageSlots`) | `UpdateExtraSlotBody` → `ExtraSlot` (đổi giờ chỉ ảnh hưởng buổi chưa tạo) |
+| DELETE | `/extra-slots/:id` | A (perm:`extra.manageSlots`) | → 204 lưu trữ; lịch còn mở kết thúc từ hôm nay |
+| PUT | `/extra-slots/:id/teachers` | A (perm:`extra.manageSlots`) | `SetSlotTeachersBody` → `ExtraSlot` |
+| GET | `/extra-slots/:id/students` | A, T | `?date` → `SlotStudentsResponse` (học sinh học ca tại ngày + đơn giá áp dụng nếu có quyền xem giá) |
+| GET | `/extra-slots/:id/rates` | A, T (perm:`extra.viewPricing`) | → `ExtraRatesResponse` (lịch sử giá mặc định của ca) |
+| POST | `/extra-slots/:id/rates` | A, T (perm:`extra.managePricing`) | `CreateSlotRateBody` → `ExtraRate` (201) |
+
+## students — học thêm (A; T: học sinh lớp mình hoặc từng học ca mình)
+
+| Method | Path | Ai | Request → Response |
+| --- | --- | --- | --- |
+| GET | `/students/:id/extra` | A, T | → `StudentExtraResponse` (lịch + giá riêng + đơn giá áp dụng hôm nay + cờ `canManageSchedule` / `canManagePricing`) |
+| POST | `/students/:id/slot-assignments` | A, T (perm:`extra.manageSchedule`, ca mình) | `CreateSlotAssignmentBody` → `SlotAssignment` (201). 409 `SLOT_ASSIGNMENT_OVERLAP` |
+| PATCH | `/students/:id/slot-assignments/:aid` | A, T (perm:`extra.manageSchedule`, ca mình) | `UpdateSlotAssignmentBody` → `SlotAssignment` (sửa ngày; rời ca = đặt `effectiveTo`) |
+| POST | `/students/:id/slot-assignments/:aid/move` | A, T (perm:`extra.manageSchedule`, cả hai ca) | `MoveSlotAssignmentBody { slotId, from }` → `SlotAssignment` mới (201) |
+| GET | `/students/:id/rates` | A, T (perm:`extra.viewPricing`) | → `ExtraRatesResponse` (giá riêng, cả lịch sử) |
+| POST | `/students/:id/rates` | A, T (perm:`extra.managePricing`) | `CreateStudentRateBody` → `ExtraRate` (201). GV: 403 `RATE_SCOPE_FORBIDDEN` nếu học sinh học ca của GV khác |
+
+Đơn giá mới từ ngày D: dòng cùng phạm vi đang phủ D đóng tại D; dòng bắt đầu từ D trở đi bị thay thế
+(`effectiveTo = effectiveFrom`). Giải đơn giá: (HS, ca) → (HS) → (ca) → 0đ `NONE` (`resolveRate`, §4.1 thiết kế).
+
 ## guardians (A, perm:`guardians.manage`)
 
 | Method | Path | Ai | Request → Response |

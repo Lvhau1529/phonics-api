@@ -7,6 +7,8 @@ import {
   STUDENT_MEDIA_LIMITS,
   AvatarKey,
   AwardBonusBody,
+  CreateExtraSlotBody,
+  CreateSlotAssignmentBody,
   DEFAULT_AVATAR,
   EventBatchBody,
   GameResultBody,
@@ -16,7 +18,9 @@ import {
   RegisterFamilyBody,
   SetStudentGuardiansBody,
   ROLE_DEFAULT_PERMISSIONS,
+  UpdateExtraSlotBody,
   UpdateProfileBody,
+  UpdateSlotAssignmentBody,
   UpdateStudentBody,
   parseSort,
   studentFullName,
@@ -495,5 +499,39 @@ describe('tài khoản gia đình', () => {
     );
     expect(ROLE_DEFAULT_PERMISSIONS.TEACHER).not.toContain('guardians.manage');
     expect(ROLE_DEFAULT_PERMISSIONS.PARENT).toEqual([]);
+  });
+});
+
+describe('học thêm', () => {
+  it('ca: giờ HH:mm, kết thúc sau bắt đầu; sửa giờ phải gửi cả hai', () => {
+    const body = { name: 'Phonics T3', weekday: 2, startTime: '18:00', endTime: '19:30' };
+    expect(CreateExtraSlotBody.safeParse(body).success).toBe(true);
+    expect(CreateExtraSlotBody.safeParse({ ...body, startTime: '8:00' }).error?.issues[0]?.message).toBe(
+      'timeFormat',
+    );
+    expect(CreateExtraSlotBody.safeParse({ ...body, endTime: '18:00' }).error?.issues[0]?.message).toBe(
+      'endAfterStart',
+    );
+    expect(CreateExtraSlotBody.safeParse({ ...body, weekday: 8 }).success).toBe(false);
+    expect(UpdateExtraSlotBody.safeParse({ startTime: '17:00' }).error?.issues[0]?.message).toBe(
+      'startEndTogether',
+    );
+    expect(UpdateExtraSlotBody.safeParse({ room: null }).success).toBe(true);
+  });
+
+  it('lịch: ngày kết thúc phải sau ngày bắt đầu; null = học tiếp', () => {
+    const slotId = '00000000-0000-4000-8000-000000000001';
+    expect(
+      CreateSlotAssignmentBody.safeParse({ slotId, effectiveFrom: '2026-10-01', effectiveTo: '2026-10-01' })
+        .error?.issues[0]?.message,
+    ).toBe('effectiveToAfterFrom');
+    expect(UpdateSlotAssignmentBody.safeParse({ effectiveTo: null }).success).toBe(true);
+  });
+
+  it('quyền mặc định: GV xếp lịch + đặt giá, chỉ admin tạo ca', () => {
+    expect(ROLE_DEFAULT_PERMISSIONS.TEACHER).toEqual(
+      expect.arrayContaining(['extra.manageSchedule', 'extra.viewPricing', 'extra.managePricing']),
+    );
+    expect(ROLE_DEFAULT_PERMISSIONS.TEACHER).not.toContain('extra.manageSlots');
   });
 });

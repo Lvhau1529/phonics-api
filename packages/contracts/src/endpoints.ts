@@ -127,6 +127,19 @@ export const ENDPOINTS = {
     games: (id: string) => `/students/${id}/games`,
     game: (id: string, gameId: string) => `/students/${id}/games/${gameId}`,
     guardians: (id: string) => `/students/${id}/guardians`,
+    extra: (id: string) => `/students/${id}/extra`,
+    slotAssignments: (id: string) => `/students/${id}/slot-assignments`,
+    slotAssignment: (id: string, assignmentId: string) => `/students/${id}/slot-assignments/${assignmentId}`,
+    moveSlotAssignment: (id: string, assignmentId: string) =>
+      `/students/${id}/slot-assignments/${assignmentId}/move`,
+    rates: (id: string) => `/students/${id}/rates`,
+  },
+  extraSlots: {
+    list: '/extra-slots',
+    detail: (id: string) => `/extra-slots/${id}`,
+    teachers: (id: string) => `/extra-slots/${id}/teachers`,
+    students: (id: string) => `/extra-slots/${id}/students`,
+    rates: (id: string) => `/extra-slots/${id}/rates`,
   },
   guardians: {
     list: '/guardians',

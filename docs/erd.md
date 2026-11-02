@@ -30,6 +30,13 @@ erDiagram
   guardians ||--o{ student_guardians : ""
   student_profiles ||--o{ student_guardians : "phụ huynh"
   classes o|--o{ student_profiles : "lớp đăng ký (chờ duyệt)"
+  classes o|--o{ extra_slots : "lớp tham khảo"
+  extra_slots ||--o{ extra_slot_teachers : ""
+  users ||--o{ extra_slot_teachers : "dạy ca"
+  extra_slots ||--o{ student_slot_assignments : ""
+  student_profiles ||--o{ student_slot_assignments : "lịch học thêm"
+  student_profiles o|--o{ extra_rates : "giá riêng"
+  extra_slots o|--o{ extra_rates : "giá mặc định ca"
   users o|--o{ audit_logs : "actor"
   users ||--o{ media_assets : "tải lên"
   users ||--o{ questions : "tạo"
@@ -89,6 +96,37 @@ erDiagram
     bool is_billing_contact "đúng 1 / học sinh"
     bool receives_reports "cc mail tháng"
     bool can_access "được vào hồ sơ bé"
+  }
+  extra_slots {
+    uuid id PK
+    string name
+    int weekday "1 = T2 … 7 = CN"
+    string start_time "HH:mm"
+    string end_time "HH:mm"
+    string room
+    int capacity
+    uuid class_id FK "tham khảo"
+    datetime archived_at
+  }
+  extra_slot_teachers {
+    uuid slot_id PK
+    uuid teacher_id PK
+  }
+  student_slot_assignments {
+    uuid id PK
+    uuid student_id FK
+    uuid slot_id FK
+    string effective_from "YYYY-MM-DD"
+    string effective_to "null = đang học"
+    string note
+  }
+  extra_rates {
+    uuid id PK
+    uuid student_id FK "null = giá mặc định ca"
+    uuid slot_id FK "null = mọi ca"
+    int price_per_session "VND"
+    string effective_from
+    string effective_to "= effective_from: bị thay thế"
   }
   auth_tokens {
     uuid id PK
@@ -344,6 +382,10 @@ erDiagram
   chỉ vào qua `auth/switch-profile` (refresh token lưu `actor_id`). Tự đăng ký → `PENDING` (lớp muốn vào ở
   `requested_class_id`), GV / admin duyệt từng bé. Ba cột `parent_*` cũ đã được migration chuyển sang `guardians`,
   giữ chỉ đọc một phiên bản rồi xoá.
+- **Học thêm** ([attendance-design.md §4, §6](attendance-design.md)): `extra_slots` độc lập lớp chính; lịch học sinh
+  = các dòng `student_slot_assignments` theo khoảng ngày nửa mở `[effective_from, effective_to)` (chồng ngày cùng ca
+  kiểm tra trong service). `extra_rates` có lịch sử theo phạm vi (HS, ca) / (HS) / (ca); CHECK ít nhất một khác null +
+  partial unique `extra_rates_open` (mỗi phạm vi một dòng mở) thêm tay trong migration.
 - **Phiếu bài tập** ([ADR 0017](../../phonics-dev/docs/adr/0017-worksheet-domain.md)): `questions.config` / `answer_key`
   là JSON theo discriminated union của contracts; giao bài = **đóng băng snapshot** vào `assignments.snapshot`, nên
   `submission_answers.worksheet_item_id` không có FK (phiếu / câu sửa sau không ảnh hưởng bài đã chấm). Partial unique

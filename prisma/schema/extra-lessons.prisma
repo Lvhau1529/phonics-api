@@ -1,0 +1,87 @@
+// Học thêm: ca định kỳ hằng tuần (độc lập lớp chính), lịch từng học sinh, đơn giá có lịch sử
+// (docs/attendance-design.md §4, §6). Ngày lưu 'YYYY-MM-DD' theo APP_TIMEZONE, khoảng nửa mở [from, to).
+
+/// Ca học thêm định kỳ hằng tuần
+model ExtraSlot {
+  id         String    @id @default(uuid()) @db.Uuid
+  /// "Phonics nâng cao — T3 18:00"
+  name       String
+  /// ISO weekday 1 = Thứ Hai … 7 = Chủ nhật
+  weekday    Int
+  /// 'HH:mm' theo APP_TIMEZONE. Sửa giờ chỉ ảnh hưởng buổi chưa tạo
+  startTime  String    @map("start_time")
+  endTime    String    @map("end_time")
+  room       String?
+  capacity   Int?
+  /// Lớp chính tham khảo (để lọc), không bắt buộc
+  classId    String?   @map("class_id") @db.Uuid
+  archivedAt DateTime? @map("archived_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+  updatedAt  DateTime  @updatedAt @map("updated_at")
+
+  class       Class?                  @relation(fields: [classId], references: [id], onDelete: SetNull)
+  teachers    ExtraSlotTeacher[]
+  assignments StudentSlotAssignment[]
+  rates       ExtraRate[]
+
+  @@index([weekday, archivedAt])
+  @@map("extra_slots")
+}
+
+model ExtraSlotTeacher {
+  slotId    String    @map("slot_id") @db.Uuid
+  teacherId String    @map("teacher_id") @db.Uuid
+  slot      ExtraSlot @relation(fields: [slotId], references: [id], onDelete: Cascade)
+  teacher   User      @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+
+  @@id([slotId, teacherId])
+  @@index([teacherId])
+  @@map("extra_slot_teachers")
+}
+
+/// Học sinh học ca nào trong [effective_from, effective_to) — lịch của học sinh = các dòng đang hiệu lực.
+/// Hai dòng cùng học sinh + ca không chồng nhau: kiểm tra trong service.
+model StudentSlotAssignment {
+  id            String         @id @default(uuid()) @db.Uuid
+  studentId     String         @map("student_id") @db.Uuid
+  slotId        String         @map("slot_id") @db.Uuid
+  /// 'YYYY-MM-DD'
+  effectiveFrom String         @map("effective_from")
+  /// null = đang học; ngày đầu tiên KHÔNG học nữa
+  effectiveTo   String?        @map("effective_to")
+  createdById   String?        @map("created_by_id") @db.Uuid
+  note          String?
+  createdAt     DateTime       @default(now()) @map("created_at")
+  updatedAt     DateTime       @updatedAt @map("updated_at")
+  student       StudentProfile @relation(fields: [studentId], references: [userId], onDelete: Cascade)
+  slot          ExtraSlot      @relation(fields: [slotId], references: [id], onDelete: Cascade)
+  createdBy     User?          @relation("SlotAssignmentCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([slotId, effectiveTo])
+  @@index([studentId, effectiveTo])
+  @@map("student_slot_assignments")
+}
+
+/// Đơn giá / buổi (VND), có lịch sử. Phạm vi (student_id, slot_id): (HS, ca) giá riêng HS ở ca — mở rộng sau;
+/// (HS, null) giá riêng HS mọi ca; (null, ca) giá mặc định của ca. CHECK ít nhất một khác null + partial unique
+/// `extra_rates_open` (mỗi phạm vi một dòng đang mở) thêm tay trong migration.
+model ExtraRate {
+  id              String          @id @default(uuid()) @db.Uuid
+  studentId       String?         @map("student_id") @db.Uuid
+  slotId          String?         @map("slot_id") @db.Uuid
+  pricePerSession Int             @map("price_per_session")
+  /// 'YYYY-MM-DD'
+  effectiveFrom   String          @map("effective_from")
+  /// null = đang áp dụng; = effective_from khi bị dòng nhập sau thay thế từ đầu
+  effectiveTo     String?         @map("effective_to")
+  createdById     String?         @map("created_by_id") @db.Uuid
+  note            String?
+  createdAt       DateTime        @default(now()) @map("created_at")
+  student         StudentProfile? @relation(fields: [studentId], references: [userId], onDelete: Cascade)
+  slot            ExtraSlot?      @relation(fields: [slotId], references: [id], onDelete: Cascade)
+  createdBy       User?           @relation("ExtraRateCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([studentId, effectiveFrom])
+  @@index([slotId, effectiveFrom])
+  @@map("extra_rates")
+}

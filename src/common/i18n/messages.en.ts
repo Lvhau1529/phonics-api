@@ -47,6 +47,9 @@ export const en: Messages = {
   GUARDIAN_EMAIL_TAKEN: 'This email already belongs to another guardian',
   STUDENT_IS_MANAGED: "This student signs in through a family account — use the parent's account",
   INVITE_TOKEN_INVALID: 'The password link is invalid or has expired',
+  SLOT_ASSIGNMENT_OVERLAP: 'The student is already in this slot for overlapping dates',
+  RATE_SCOPE_FORBIDDEN:
+    "The student also attends another teacher's slot — ask an admin to set a student-wide price",
 
   assignmentNotFound: 'Assignment not found',
   homeworkNotFound: 'Homework not found',
@@ -115,4 +118,13 @@ export const en: Messages = {
   fileAlreadyUploaded: 'The file has already been uploaded',
   contentTypeMismatch: 'Content-Type differs from the presigned request',
   fileEmpty: 'The file is empty',
+
+  extraSlotNotFound: 'Extra-lesson slot not found',
+  extraSlotArchived: 'The extra-lesson slot is archived',
+  slotAssignmentNotFound: 'Schedule entry not found',
+  sameSlot: 'The student is already in this slot',
+  moveDateOutOfRange: 'The move date must fall within the current slot period (after its start date)',
+  studentNotActive: 'The student is not approved yet or is disabled',
+  endAfterStart: 'The end time must be after the start time',
+  effectiveToAfterFrom: 'The end date must be after the start date',
 };

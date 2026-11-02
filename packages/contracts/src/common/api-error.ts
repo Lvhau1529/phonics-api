@@ -50,6 +50,9 @@ export const ErrorCode = z.enum([
   'GUARDIAN_EMAIL_TAKEN',
   'STUDENT_IS_MANAGED',
   'INVITE_TOKEN_INVALID',
+  // Học thêm
+  'SLOT_ASSIGNMENT_OVERLAP',
+  'RATE_SCOPE_FORBIDDEN',
 ]);
 export type ErrorCode = z.infer<typeof ErrorCode>;
 

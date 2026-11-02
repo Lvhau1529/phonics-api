@@ -990,6 +990,11 @@ Chuỗi UI thêm vào cả `vi.ts` + `en.ts`; route ADMIN-only bọc `adminOnly`
   PR riêng ở phonics-game; notification khi có đơn mới (admin / GV thấy qua badge `families/pending/count`); job giải
   phóng email của đơn bị từ chối sau 30 ngày; xoá ba cột `parent_*` (bản sau).
 
+**Đã làm ở PR 4 (API + admin)**: ca học thêm, lịch học sinh (thêm / sửa ngày / rời / chuyển ca), đơn giá ca + giá
+riêng học sinh với `resolveRate`, quyền `extra.*`, màn Ca học thêm / chi tiết ca / tab Học thêm. Chưa có buổi điểm danh
+nên các API sửa lịch / giá **chưa trả** `affectedSessions` / `affectedRecords` và chưa có `.../apply` — thêm ở PR 5
+(trường mới tuỳ chọn, không phá client). GV thêm học sinh: học sinh lớp chính mình dạy hoặc từng học ca mình.
+
 ## 15. Câu hỏi còn lại
 
 Không còn câu hỏi nghiệp vụ mở. Mặc định đang áp (đổi được ở trang Phân quyền / template, không cần sửa code):

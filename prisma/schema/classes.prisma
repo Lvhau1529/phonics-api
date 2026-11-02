@@ -19,6 +19,7 @@ model Class {
   pointEntries PointEntry[]
   gameResults  GameResult[]
   assignments  Assignment[]
+  extraSlots   ExtraSlot[]
 
   @@unique([name, schoolYear])
   @@index([joinVisible, archivedAt])

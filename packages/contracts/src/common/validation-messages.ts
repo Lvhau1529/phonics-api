@@ -66,6 +66,12 @@ const vi = {
   duplicateGuardian: 'Phụ huynh bị trùng',
   duplicateStudent: 'Học sinh bị trùng',
   duplicateChild: 'Bé bị trùng tên',
+
+  // ---------- Học thêm ----------
+  timeFormat: 'Giờ dạng HH:mm',
+  endAfterStart: 'Giờ kết thúc phải sau giờ bắt đầu',
+  startEndTogether: 'Sửa giờ thì gửi cả giờ bắt đầu và giờ kết thúc',
+  effectiveToAfterFrom: 'Ngày kết thúc phải sau ngày bắt đầu',
 };
 
 export type ValidationCatalog = typeof vi;
@@ -126,6 +132,11 @@ const en: ValidationCatalog = {
   duplicateGuardian: 'Duplicate guardian',
   duplicateStudent: 'Duplicate student',
   duplicateChild: 'Two children have the same name',
+
+  timeFormat: 'Time must look like HH:mm',
+  endAfterStart: 'The end time must be after the start time',
+  startEndTogether: 'Send both the start and the end time',
+  effectiveToAfterFrom: 'The end date must be after the start date',
 };
 
 export const VALIDATION_LOCALES = ['vi', 'en'] as const;
