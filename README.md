@@ -165,6 +165,11 @@ Sau đó đặt `VITE_API_URL=https://api.example.vn` cho game / admin trên Ver
 - Caddy (`Caddyfile`, service `caddy`): nhận 80 / 443, xin chứng chỉ Let's Encrypt cho `API_DOMAIN`, proxy tới
   `api:3000` (cả API lẫn file media `/files/*`). Chứng chỉ lưu ở volume `caddy_data`. Không chạy thêm Caddy / nginx
   trên host (tranh cổng 80 / 443).
+- API đứng sau proxy Cloudflare (bản ghi `api` đám mây cam): Caddy chỉ tin dải IP Cloudflare (`trusted_proxies` trong
+  `Caddyfile`, lấy từ https://www.cloudflare.com/ips/ — cập nhật khi Cloudflare đổi dải) và đưa IP thật từ
+  `CF-Connecting-IP` vào `X-Forwarded-For` → throttle / audit theo IP người dùng. Cloudflare > SSL/TLS đặt **Full
+  (strict)**; giữ **Always Use HTTPS** tắt cho `api` để Caddy gia hạn chứng chỉ Let's Encrypt qua cổng 80. Bỏ proxy
+  (đám mây xám) vẫn chạy bình thường.
 - Dữ liệu nằm trong volume `pgdata` (Postgres) và `media` (ảnh / audio) — `docker compose down` giữ volume,
   **`down -v` xoá sạch**. psql: `docker compose exec db psql -U phonics`.
 - Backup (service `backup`, `deploy/backup.sh`): khi khởi động và mỗi 24 giờ ghi `./backups/db-<thời điểm>.dump`
