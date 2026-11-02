@@ -860,8 +860,8 @@ Module mới: `modules/extra-lessons/` (ca, xếp HS, đơn giá, buổi, điể
 | GET | `attendance/sessions/:id` | ADMIN / GV buổi | |
 | PUT | `attendance/sessions/:id/records` | `attendance.confirm` | Đổi mark / thêm HS MANUAL; `charged` / `unitPrice` chỉ ADMIN |
 | POST | `attendance/sessions/:id/confirm` | `attendance.confirm` | |
-| POST | `attendance/sessions` | `extra.manageSlots` | Buổi bù |
-| POST | `attendance/sessions/cancel` | `extra.manageSlots` | `{ sessionIds?, date?, reason }` — huỷ hàng loạt (nghỉ lễ) |
+| POST | `attendance/sessions` | `extra.manageSlots` | Buổi bù (GV: phải có mình phụ trách) |
+| POST | `attendance/sessions/cancel` | `extra.manageSlots` | `{ sessionIds?, date?, reason }` — huỷ hàng loạt (nghỉ lễ); GV chỉ buổi / ca mình |
 | GET / POST | `attendance/public/digests/:token[/confirm]` | `@Public` + throttle riêng | |
 | GET / POST / PATCH | `guardians[/:id]` | `guardians.manage` (đọc: `students.viewParentContact`) | Tìm theo email / SĐT để gộp |
 | PUT | `students/:id/guardians` | `guardians.manage` | `[{ guardianId, relation, isBillingContact, receivesReports, canAccess }]` |
@@ -891,7 +891,7 @@ Sửa endpoint có sẵn: tạo / sửa HS nhận `vietnameseName` + `englishNam
 
 Contracts thêm `extra-lessons.ts`, `guardians.ts`, `billing.ts`, `mail-templates.ts` (+ `ENDPOINTS`) và:
 
-- `PermissionCode`: `extra.manageSlots` (ADMIN), `extra.manageSchedule` (ADMIN, TEACHER), `extra.viewPricing`
+- `PermissionCode`: `extra.manageSlots` (ADMIN, TEACHER từ contracts 1.10.0 — GV: ca mình tạo / dạy), `extra.manageSchedule` (ADMIN, TEACHER), `extra.viewPricing`
   (ADMIN, TEACHER), `extra.managePricing` (ADMIN, TEACHER), `attendance.confirm` (ADMIN, TEACHER), `guardians.manage`
   (ADMIN), `families.approve` (ADMIN, TEACHER), `billing.approve` (ADMIN), `mailTemplates.manage` (ADMIN). Scope GV kiểm tra
   trong service.

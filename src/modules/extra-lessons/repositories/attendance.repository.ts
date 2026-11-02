@@ -79,9 +79,15 @@ export class AttendanceRepository {
   // ---------- Tạo buổi (00:05) ----------
 
   /** Ca còn hoạt động dạy vào thứ `weekday`, tạo trước cuối ngày đó */
-  slotsOnWeekday(weekday: number, createdBefore: Date) {
+  /** `teacherId`: chỉ ca GV đó dạy */
+  slotsOnWeekday(weekday: number, createdBefore: Date, teacherId?: string) {
     return this.prisma.extraSlot.findMany({
-      where: { weekday, archivedAt: null, createdAt: { lt: createdBefore } },
+      where: {
+        weekday,
+        archivedAt: null,
+        createdAt: { lt: createdBefore },
+        teachers: teacherId ? { some: { teacherId } } : undefined,
+      },
       select: {
         id: true,
         startTime: true,
@@ -203,16 +209,21 @@ export class AttendanceRepository {
     });
   }
 
-  findCancellable(ids: readonly string[]) {
+  /** `teacherId`: chỉ buổi GV đó phụ trách */
+  findCancellable(ids: readonly string[], teacherId?: string) {
     return this.prisma.attendanceSession.findMany({
-      where: { id: { in: [...ids] }, status: { not: 'CANCELLED' } },
+      where: {
+        id: { in: [...ids] },
+        status: { not: 'CANCELLED' },
+        teacherIds: teacherId ? { has: teacherId } : undefined,
+      },
       select: { id: true },
     });
   }
 
-  findByDate(date: string) {
+  findByDate(date: string, teacherId?: string) {
     return this.prisma.attendanceSession.findMany({
-      where: { date, status: { not: 'CANCELLED' } },
+      where: { date, status: { not: 'CANCELLED' }, teacherIds: teacherId ? { has: teacherId } : undefined },
       select: { id: true },
     });
   }

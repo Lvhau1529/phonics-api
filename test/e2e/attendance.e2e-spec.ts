@@ -4,6 +4,7 @@
  * buổi bù. Mốc 00:05 / 21:00 gọi thẳng service với `now` dựng sẵn (không chờ timer).
  * Cần DATABASE_URL_TEST (DB Postgres riêng, bị TRUNCATE); không có thì cả file skip.
  */
+import { randomUUID } from 'node:crypto';
 import { API_PREFIX, REFRESH_TRANSPORT_HEADER } from '@phonics/contracts';
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -273,10 +274,17 @@ describe.skipIf(!enabled)('attendance (e2e)', () => {
       .send({ date: today, startTime: '08:00', endTime: '09:00', teacherIds: [teacherId] })
       .expect(201);
     expect(makeup.body).toMatchObject({ slot: null, status: 'PENDING', records: [] });
+    // GV (extra.manageSlots) tạo buổi bù được, nhưng phải có mình phụ trách
     await request(t.server)
       .post(`${API_PREFIX}/attendance/sessions`)
       .set(auth(teacherToken))
       .send({ date: today, startTime: '08:00', endTime: '09:00', teacherIds: [teacherId] })
-      .expect(403);
+      .expect(201);
+    const notMine = await request(t.server)
+      .post(`${API_PREFIX}/attendance/sessions`)
+      .set(auth(teacherToken))
+      .send({ date: today, startTime: '08:00', endTime: '09:00', teacherIds: [randomUUID()] })
+      .expect(400);
+    expect(notMine.body.details).toHaveProperty('teacherIds');
   });
 });

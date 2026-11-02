@@ -6,13 +6,18 @@ import {
   type UpdateExtraSlotBody,
 } from '@phonics/contracts';
 import { AppError, notFound } from '@/common/errors/app-error';
+import { AccessService } from '@/core/access/access.service';
 import { AuditService } from '@/modules/audit/services/audit.service';
 import { type AuthUser } from '@/modules/auth/types/auth.types';
 import { ExtraSlotRepository } from '@/modules/extra-lessons/repositories/extra-slot.repository';
 import { ExtraLessonsScheduler } from '@/modules/extra-lessons/jobs/extra-lessons.scheduler';
+import { ExtraAccessService } from '@/modules/extra-lessons/services/extra-access.service';
 import { ExtraSlotReaderService } from '@/modules/extra-lessons/services/extra-slot-reader.service';
 
-/** Tạo / sửa / lưu trữ ca, gán GV (quyền extra.manageSlots — kiểm tra ở controller) */
+/**
+ * Tạo / sửa / lưu trữ ca, gán GV (quyền extra.manageSlots — kiểm tra ở controller). GV: ca mình tạo tự có mình phụ
+ * trách; chỉ sửa / lưu trữ / gán GV ca mình dạy, luôn giữ mình trong danh sách GV; lớp tham khảo phải là lớp mình dạy.
+ */
 @Injectable()
 export class ExtraSlotWriterService {
   constructor(
@@ -20,17 +25,21 @@ export class ExtraSlotWriterService {
     private readonly reader: ExtraSlotReaderService,
     private readonly audit: AuditService,
     private readonly scheduler: ExtraLessonsScheduler,
+    private readonly extraAccess: ExtraAccessService,
+    private readonly access: AccessService,
   ) {}
 
   async create(actor: AuthUser, body: CreateExtraSlotBody): Promise<ExtraSlot> {
-    const { teacherIds = [], ...data } = body;
+    const { teacherIds: requested = [], ...data } = body;
+    const teacherIds = this.withSelf(actor, requested);
     await this.assertRefs(data.classId, teacherIds);
+    if (data.classId) await this.access.assertClassAccess(actor, data.classId);
     const row = await this.repo.transaction(async (tx) => {
       const slot = await this.repo.create(tx, data);
       await this.repo.setTeachers(tx, slot.id, teacherIds);
       return slot;
     });
-    await this.audit.record(actor, 'extraSlot.create', 'ExtraSlot', row.id, null, body);
+    await this.audit.record(actor, 'extraSlot.create', 'ExtraSlot', row.id, null, { ...body, teacherIds });
     // Ca của hôm nay (đã qua 00:05) có buổi luôn
     await this.scheduler.reschedule();
     return this.reader.detail(actor, row.id);
@@ -39,8 +48,12 @@ export class ExtraSlotWriterService {
   /** Đổi giờ / thứ chỉ ảnh hưởng buổi chưa tạo (buổi điểm danh lưu giờ riêng) */
   async update(actor: AuthUser, id: string, body: UpdateExtraSlotBody): Promise<ExtraSlot> {
     const current = await this.reader.find(id);
+    await this.extraAccess.assertSlotAccess(actor, id);
     if (current.archivedAt) throw new AppError('CONFLICT', 409, { message: 'extraSlotArchived' });
-    if (body.classId) await this.assertRefs(body.classId, []);
+    if (body.classId) {
+      await this.assertRefs(body.classId, []);
+      await this.access.assertClassAccess(actor, body.classId);
+    }
     // Sửa một giờ: so với giờ còn lại đang lưu
     const start = body.startTime ?? current.startTime;
     const end = body.endTime ?? current.endTime;
@@ -62,6 +75,7 @@ export class ExtraSlotWriterService {
   /** Lưu trữ: học sinh đang học ca kết thúc từ hôm nay; buổi đã điểm danh giữ nguyên */
   async archive(actor: AuthUser, id: string): Promise<void> {
     const current = await this.reader.find(id);
+    await this.extraAccess.assertSlotAccess(actor, id);
     if (current.archivedAt) return;
     const today = this.reader.today();
     const closed = await this.repo.transaction(async (tx) => {
@@ -76,7 +90,12 @@ export class ExtraSlotWriterService {
 
   async setTeachers(actor: AuthUser, id: string, body: SetSlotTeachersBody): Promise<ExtraSlot> {
     const current = await this.reader.find(id);
+    await this.extraAccess.assertSlotAccess(actor, id);
     const teacherIds = [...new Set(body.teacherIds)];
+    // GV bỏ mình ra khỏi ca = ca ra ngoài phạm vi của chính mình
+    if (actor.role !== 'ADMIN' && !teacherIds.includes(actor.id)) {
+      throw new AppError('VALIDATION_ERROR', 400, { fieldErrors: { teacherIds: ['keepSelfInSlot'] } });
+    }
     await this.assertRefs(undefined, teacherIds);
     await this.repo.transaction((tx) => this.repo.setTeachers(tx, id, teacherIds));
     await this.audit.record(
@@ -88,6 +107,13 @@ export class ExtraSlotWriterService {
       { teacherIds },
     );
     return this.reader.detail(actor, id);
+  }
+
+  /** GV tạo ca → luôn phụ trách ca đó */
+  private withSelf(actor: AuthUser, teacherIds: readonly string[]): string[] {
+    const ids = new Set(teacherIds);
+    if (actor.role === 'TEACHER') ids.add(actor.id);
+    return [...ids];
   }
 
   private async assertRefs(classId: string | undefined, teacherIds: readonly string[]): Promise<void> {

@@ -19,7 +19,7 @@ import { GuardianReaderService } from '@/modules/families/services/guardian-read
 const emailTaken = () =>
   new AppError('GUARDIAN_EMAIL_TAKEN', 409, { fieldErrors: { email: ['GUARDIAN_EMAIL_TAKEN'] } });
 
-/** Ghi phụ huynh + liên kết phụ huynh ↔ học sinh (admin, quyền guardians.manage) */
+/** Ghi phụ huynh + liên kết phụ huynh ↔ học sinh (admin, quyền guardians.manage; gắn lúc tạo học sinh: cả GV) */
 @Injectable()
 export class GuardianWriterService {
   constructor(
@@ -160,8 +160,34 @@ export class GuardianWriterService {
       await this.repo.update(billing.guardianId, data, tx);
       return;
     }
+    await this.linkNewBillingContact(tx, [studentId], data);
+  }
+
+  /**
+   * Học sinh vừa tạo (`POST /students`): một phụ huynh nhận học phí chung cho các bé — trùng email phụ huynh có sẵn
+   * thì gắn vào phụ huynh đó (anh chị em gộp một mail học phí), không thì tạo mới.
+   */
+  async linkBillingContactForNew(
+    tx: Tx,
+    studentIds: readonly string[],
+    parent: ParentContact,
+    fallbackName: string,
+  ): Promise<void> {
+    if (!parent.name && !parent.email && !parent.phone) return;
+    await this.linkNewBillingContact(tx, studentIds, {
+      fullName: parent.name ?? `Phụ huynh ${fallbackName}`.slice(0, 60),
+      email: parent.email ?? null,
+      phone: parent.phone ? normalizePhone(parent.phone) : null,
+    });
+  }
+
+  private async linkNewBillingContact(
+    tx: Tx,
+    studentIds: readonly string[],
+    data: { fullName: string; email: string | null; phone: string | null },
+  ): Promise<void> {
     const existing = data.email ? await this.repo.findIdByEmail(data.email, tx) : null;
     const guardianId = existing?.id ?? (await this.repo.create(data, tx)).id;
-    await this.repo.upsertBillingLink(tx, studentId, guardianId);
+    for (const studentId of studentIds) await this.repo.upsertBillingLink(tx, studentId, guardianId);
   }
 }
