@@ -6,9 +6,11 @@ import { RangeQueryDto } from '@/common/dto/query.dto';
 import { API_V1 } from '@/config/api-version';
 import { type AuthUser } from '@/modules/auth/types/auth.types';
 import { StudentActivityService } from '@/modules/students/services/student-activity.service';
+import { StudentCreatorService } from '@/modules/students/services/student-creator.service';
 import { StudentReaderService } from '@/modules/students/services/student-reader.service';
 import { StudentWriterService } from '@/modules/students/services/student-writer.service';
 import {
+  CreateStudentsDto,
   GameResultListQueryDto,
   MoveClassDto,
   ResetPasswordDto,
@@ -29,11 +31,19 @@ export class StudentsController {
     private readonly reader: StudentReaderService,
     private readonly writer: StudentWriterService,
     private readonly activity: StudentActivityService,
+    private readonly creator: StudentCreatorService,
   ) {}
 
   @Get()
   list(@CurrentUser() user: AuthUser, @Query() query: StudentListQueryDto) {
     return this.reader.list(user, query);
+  }
+
+  /** Thêm học sinh chưa có tài khoản (MANAGED): một hoặc nhiều bé cùng phụ huynh; GV vào lớp / ca mình dạy */
+  @RequirePermission('students.create')
+  @Post()
+  create(@CurrentUser() user: AuthUser, @Body() body: CreateStudentsDto) {
+    return this.creator.create(user, body);
   }
 
   @Get(':id')

@@ -5,6 +5,7 @@ import { PageQuery } from './common/pagination.js';
 
 /** Hành động được ghi nhật ký (xem AuditService ở API) */
 export const AuditAction = z.enum([
+  'student.create',
   'student.update',
   'student.moveClass',
   'student.resetPassword',

@@ -140,7 +140,11 @@ export class AttendanceWriterService {
   }
 
   /** Buổi bù (không theo ca) — thêm học sinh MANUAL sau */
+  /** GV (extra.manageSlots): buổi bù phải có mình phụ trách */
   async createMakeup(actor: AuthUser, body: CreateAttendanceSessionBody): Promise<AttendanceSessionDetail> {
+    if (actor.role !== 'ADMIN' && !body.teacherIds.includes(actor.id)) {
+      throw new AppError('VALIDATION_ERROR', 400, { fieldErrors: { teacherIds: ['keepSelfInSession'] } });
+    }
     if ((await this.slots.countTeachers(body.teacherIds)) !== new Set(body.teacherIds).size) {
       throw new AppError('VALIDATION_ERROR', 400, { fieldErrors: { teacherIds: ['notTeacherIds'] } });
     }
@@ -161,21 +165,22 @@ export class AttendanceWriterService {
 
   /**
    * Huỷ buổi (nghỉ lễ): theo danh sách hoặc cả một ngày. Theo ngày: ca của thứ đó chưa có buổi thì tạo luôn buổi đã huỷ
-   * để 00:05 không tạo lại. Buổi huỷ không tính học phí.
+   * để 00:05 không tạo lại. Buổi huỷ không tính học phí. GV: chỉ buổi / ca mình phụ trách.
    */
   async cancel(
     actor: AuthUser,
     body: CancelAttendanceSessionsBody,
   ): Promise<CancelAttendanceSessionsResponse> {
     const ids: string[] = [];
+    const own = actor.role === 'ADMIN' ? undefined : actor.id;
     await this.repo.transaction(async (tx) => {
       if (body.sessionIds) {
-        ids.push(...(await this.repo.findCancellable(body.sessionIds)).map((s) => s.id));
+        ids.push(...(await this.repo.findCancellable(body.sessionIds, own)).map((s) => s.id));
       } else if (body.date) {
         const date = body.date;
-        ids.push(...(await this.repo.findByDate(date)).map((s) => s.id));
+        ids.push(...(await this.repo.findByDate(date, own)).map((s) => s.id));
         const end = this.time.afterIsoDate(date);
-        const slots = await this.repo.slotsOnWeekday(isoWeekdayOf(date), end);
+        const slots = await this.repo.slotsOnWeekday(isoWeekdayOf(date), end, own);
         const existing = await this.repo.existingSlotDates(
           slots.map((s) => s.id),
           [date],

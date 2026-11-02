@@ -116,20 +116,33 @@ describe.skipIf(!enabled)('extra lessons (e2e)', () => {
       teacherIds: [teacherId],
     });
 
-    // Giờ kết thúc phải sau giờ bắt đầu; GV không tạo được ca (extra.manageSlots mặc định chỉ ADMIN)
+    // Giờ kết thúc phải sau giờ bắt đầu; GV tạo được ca (extra.manageSlots) và tự phụ trách ca đó
     await request(t.server)
       .post(`${API_PREFIX}/extra-slots`)
       .set(auth(adminToken))
       .send({ name: 'Sai giờ', weekday: 1, startTime: '18:00', endTime: '17:00' })
       .expect(400);
-    await request(t.server)
+    const own = await request(t.server)
       .post(`${API_PREFIX}/extra-slots`)
       .set(auth(teacherToken))
       .send({ name: 'GV tạo', weekday: 1, startTime: '18:00', endTime: '19:00' })
+      .expect(201);
+    expect(own.body.teachers.map((x: { id: string }) => x.id)).toEqual([teacherId]);
+    await request(t.server)
+      .put(`${API_PREFIX}/extra-slots/${slotB}/teachers`)
+      .set(auth(teacherToken))
+      .send({ teacherIds: [teacherId] })
       .expect(403);
 
     const mine = await request(t.server).get(`${API_PREFIX}/extra-slots`).set(auth(teacherToken)).expect(200);
-    expect(mine.body.items.map((s: { id: string }) => s.id)).toEqual([slotA, slotC]);
+    expect(mine.body.items.map((s: { id: string }) => s.id).sort()).toEqual(
+      [slotA, slotC, own.body.id].sort(),
+    );
+    // Ca GV tự tạo lưu trữ luôn để các bước sau (buổi theo thứ) không đổi
+    await request(t.server)
+      .delete(`${API_PREFIX}/extra-slots/${own.body.id}`)
+      .set(auth(teacherToken))
+      .expect(204);
     await request(t.server).get(`${API_PREFIX}/extra-slots/${slotB}`).set(auth(teacherToken)).expect(403);
 
     // GV đặt giá mặc định ca mình; không đặt được cho ca người khác

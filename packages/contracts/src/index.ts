@@ -16,6 +16,7 @@ export * from './permissions.js';
 export * from './auth.js';
 export * from './classes.js';
 export * from './students.js';
+export * from './student-create.js';
 export * from './guardians.js';
 export * from './families.js';
 export * from './extra-lessons.js';

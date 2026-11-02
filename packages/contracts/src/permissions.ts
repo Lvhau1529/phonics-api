@@ -13,6 +13,7 @@ export const PermissionCode = z.enum([
   'class.changeStudentClass',
   'points.award',
   'points.revoke',
+  'students.create',
   'students.edit',
   'students.viewParentContact',
   'games.unlock',
@@ -43,6 +44,11 @@ export const PERMISSIONS: readonly PermissionDef[] = [
   { code: 'class.changeStudentClass', defaultRoles: ['ADMIN'], description: 'Chuyển học sinh sang lớp khác' },
   { code: 'points.award', defaultRoles: ['ADMIN', 'TEACHER'], description: 'Cộng điểm thưởng cho học sinh' },
   { code: 'points.revoke', defaultRoles: ['ADMIN'], description: 'Tạo bút toán âm / sửa điểm' },
+  {
+    code: 'students.create',
+    defaultRoles: ['ADMIN', 'TEACHER'],
+    description: 'Thêm học sinh chưa có tài khoản (GV: vào lớp / ca mình dạy)',
+  },
   { code: 'students.edit', defaultRoles: ['ADMIN', 'TEACHER'], description: 'Sửa tên, avatar học sinh' },
   {
     code: 'students.viewParentContact',
@@ -81,8 +87,8 @@ export const PERMISSIONS: readonly PermissionDef[] = [
   },
   {
     code: 'extra.manageSlots',
-    defaultRoles: ['ADMIN'],
-    description: 'Tạo / sửa / lưu trữ ca học thêm, gán GV',
+    defaultRoles: ['ADMIN', 'TEACHER'],
+    description: 'Tạo / sửa / lưu trữ ca học thêm, gán GV (GV: ca mình tạo / dạy)',
   },
   {
     code: 'extra.manageSchedule',

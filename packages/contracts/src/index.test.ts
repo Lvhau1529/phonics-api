@@ -11,6 +11,7 @@ import {
   CancelAttendanceSessionsBody,
   CreateExtraSlotBody,
   CreateSlotAssignmentBody,
+  CreateStudentsBody,
   DEFAULT_AVATAR,
   EventBatchBody,
   GameResultBody,
@@ -532,11 +533,49 @@ describe('học thêm', () => {
     expect(UpdateSlotAssignmentBody.safeParse({ effectiveTo: null }).success).toBe(true);
   });
 
-  it('quyền mặc định: GV xếp lịch + đặt giá, chỉ admin tạo ca', () => {
+  it('quyền mặc định: GV tạo ca (phạm vi ca mình), xếp lịch + đặt giá', () => {
     expect(ROLE_DEFAULT_PERMISSIONS.TEACHER).toEqual(
-      expect.arrayContaining(['extra.manageSchedule', 'extra.viewPricing', 'extra.managePricing']),
+      expect.arrayContaining([
+        'extra.manageSlots',
+        'extra.manageSchedule',
+        'extra.viewPricing',
+        'extra.managePricing',
+      ]),
     );
-    expect(ROLE_DEFAULT_PERMISSIONS.TEACHER).not.toContain('extra.manageSlots');
+  });
+});
+
+describe('thêm học sinh (CreateStudentsBody)', () => {
+  const slotId = '00000000-0000-4000-8000-000000000001';
+
+  it('một hoặc nhiều bé, phụ huynh chung tuỳ chọn', () => {
+    expect(CreateStudentsBody.safeParse({ students: [{ vietnameseName: 'Nguyễn An' }] }).success).toBe(true);
+    expect(CreateStudentsBody.safeParse({ students: [] }).success).toBe(false);
+    expect(
+      CreateStudentsBody.safeParse({
+        students: [
+          { vietnameseName: 'Nguyễn An', slotId, pricePerSession: 150_000 },
+          { vietnameseName: 'Nguyễn Bình', slotId, pricePerSession: 120_000 },
+        ],
+        effectiveFrom: '2026-11-02',
+        parent: { name: 'Chị Lan', phone: '0912345678' },
+      }).success,
+    ).toBe(true);
+  });
+
+  it('đơn giá riêng cần ca; hai bé trùng tên bị chặn', () => {
+    expect(
+      CreateStudentsBody.safeParse({ students: [{ vietnameseName: 'An', pricePerSession: 1 }] }).error
+        ?.issues[0]?.message,
+    ).toBe('priceNeedsSlot');
+    expect(
+      CreateStudentsBody.safeParse({ students: [{ vietnameseName: 'An' }, { vietnameseName: 'an' }] }).error
+        ?.issues[0]?.message,
+    ).toBe('duplicateChild');
+  });
+
+  it('quyền mặc định: GV được thêm học sinh', () => {
+    expect(ROLE_DEFAULT_PERMISSIONS.TEACHER).toContain('students.create');
   });
 });
 

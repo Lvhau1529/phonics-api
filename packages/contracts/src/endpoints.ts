@@ -118,6 +118,8 @@ export const ENDPOINTS = {
   },
   students: {
     list: '/students',
+    /** POST: tạo học sinh chưa có tài khoản (từ 1.10.0) */
+    create: '/students',
     detail: (id: string) => `/students/${id}`,
     moveClass: (id: string) => `/students/${id}/move-class`,
     resetPassword: (id: string) => `/students/${id}/reset-password`,

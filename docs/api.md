@@ -61,10 +61,10 @@ Tài khoản `PENDING` (phụ huynh chờ duyệt) chỉ gọi được `auth/me
 | --- | --- | --- | --- |
 | GET | `/extra-slots` | A, T | `ExtraSlotListQuery { includeArchived?, teacherId?, classId? }` → `ExtraSlotsResponse` (GV chỉ ca mình; `defaultPrice` cần perm:`extra.viewPricing`) |
 | GET | `/extra-slots/:id` | A, T | → `ExtraSlot` |
-| POST | `/extra-slots` | A (perm:`extra.manageSlots`) | `CreateExtraSlotBody` → `ExtraSlot` (201) |
-| PATCH | `/extra-slots/:id` | A (perm:`extra.manageSlots`) | `UpdateExtraSlotBody` → `ExtraSlot` (đổi giờ chỉ ảnh hưởng buổi chưa tạo) |
-| DELETE | `/extra-slots/:id` | A (perm:`extra.manageSlots`) | → 204 lưu trữ; lịch còn mở kết thúc từ hôm nay |
-| PUT | `/extra-slots/:id/teachers` | A (perm:`extra.manageSlots`) | `SetSlotTeachersBody` → `ExtraSlot` |
+| POST | `/extra-slots` | A, T (perm:`extra.manageSlots`) | `CreateExtraSlotBody` → `ExtraSlot` (201). GV tạo → tự phụ trách ca; `classId` phải là lớp mình dạy |
+| PATCH | `/extra-slots/:id` | A, T (perm:`extra.manageSlots`, ca mình) | `UpdateExtraSlotBody` → `ExtraSlot` (đổi giờ chỉ ảnh hưởng buổi chưa tạo) |
+| DELETE | `/extra-slots/:id` | A, T (perm:`extra.manageSlots`, ca mình) | → 204 lưu trữ; lịch còn mở kết thúc từ hôm nay |
+| PUT | `/extra-slots/:id/teachers` | A, T (perm:`extra.manageSlots`, ca mình) | `SetSlotTeachersBody` → `ExtraSlot`. GV phải còn trong danh sách (400 `keepSelfInSlot`) |
 | GET | `/extra-slots/:id/students` | A, T | `?date` → `SlotStudentsResponse` (học sinh học ca tại ngày + đơn giá áp dụng nếu có quyền xem giá) |
 | GET | `/extra-slots/:id/rates` | A, T (perm:`extra.viewPricing`) | → `ExtraRatesResponse` (lịch sử giá mặc định của ca) |
 | POST | `/extra-slots/:id/rates` | A, T (perm:`extra.managePricing`) | `CreateSlotRateBody` → `ExtraRate` (201) |
@@ -92,8 +92,8 @@ Tài khoản `PENDING` (phụ huynh chờ duyệt) chỉ gọi được `auth/me
 | GET | `/attendance/sessions/:id` | A, T | → `AttendanceSessionDetail` (`unitPrice` cần perm:`extra.viewPricing`) |
 | PUT | `/attendance/sessions/:id/records` | A, T (perm:`attendance.confirm`) | `UpdateAttendanceRecordsBody` → detail. Học sinh chưa có → thêm MANUAL; `charged` / `unitPrice` chỉ A. 409 `ATTENDANCE_SESSION_CANCELLED` |
 | POST | `/attendance/sessions/:id/confirm` | A, T (perm:`attendance.confirm`) | `{}` → detail (đã xác nhận → ghi lại người / lúc) |
-| POST | `/attendance/sessions` | A (perm:`extra.manageSlots`) | `CreateAttendanceSessionBody` → detail (201) — buổi bù |
-| POST | `/attendance/sessions/cancel` | A (perm:`extra.manageSlots`) | `CancelAttendanceSessionsBody { sessionIds \| date, reason }` → `{ cancelled }` |
+| POST | `/attendance/sessions` | A, T (perm:`extra.manageSlots`) | `CreateAttendanceSessionBody` → detail (201) — buổi bù (GV phải có trong `teacherIds`) |
+| POST | `/attendance/sessions/cancel` | A, T (perm:`extra.manageSlots`) | `CancelAttendanceSessionsBody { sessionIds \| date, reason }` → `{ cancelled }` (GV: chỉ buổi / ca mình phụ trách) |
 | GET | `/attendance/public/digests/:token` | pub | → `AttendanceDigestView` (link mail 21:00; 404 `ATTENDANCE_TOKEN_INVALID`, 410 `ATTENDANCE_TOKEN_EXPIRED`) |
 | POST | `/attendance/public/digests/:token/confirm` | pub | `{ sessionIds }` → `ConfirmDigestResponse` (chỉ buổi trong mail, còn PENDING, danh sách chưa đổi) |
 | POST | `/students/:id/slot-assignments/apply` | A, T (perm:`extra.manageSchedule`) | `{ sessionIds }` → `{ updated }` — áp lịch vào buổi đã xác nhận (`affectedSessions`) |
@@ -168,6 +168,7 @@ bộ, buổi CONFIRMED trả trong `affectedSessions` / `affectedRecords` để 
 | Method | Path | Ai | Request → Response |
 | --- | --- | --- | --- |
 | GET | `/students` | A, T | `StudentListQuery` → `Paginated<StudentSummary>` (`q` tìm không dấu theo tên tiếng Việt / tiếng Anh hoặc email; `sort=vietnameseName:asc` = theo tên rồi họ tên) |
+| POST | `/students` | A, T perm:`students.create` | `CreateStudentsBody { students[], effectiveFrom?, parent? }` → `CreateStudentsResponse { items: StudentDetail[], affectedSessions }` (201). Học sinh MANAGED, ACTIVE, không email; mỗi bé tuỳ chọn `classId` / `slotId` / `pricePerSession` (cần `slotId` + perm:`extra.managePricing`). GV: mỗi bé phải vào lớp hoặc ca mình dạy (400 `placementRequired`). `parent` = phụ huynh nhận học phí chung (trùng email phụ huynh có sẵn → gắn vào đó) |
 | GET | `/students/:id` | A, T | → `StudentDetail` (`parent` chỉ A / perm:`students.viewParentContact`) |
 | PATCH | `/students/:id` | A; T perm:`students.edit` (chỉ tên, avatar) | `UpdateStudentBody` → `StudentDetail` (`vietnameseName`, `englishName` — `null` xoá; `displayName` hiển thị = tên tiếng Anh ?? tên tiếng Việt) |
 | POST | `/students/:id/move-class` | A, T perm:`class.changeStudentClass` | `MoveClassBody` → `StudentDetail` |

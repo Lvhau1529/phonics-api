@@ -116,6 +116,7 @@ export const vi = {
   notTeacherIds: 'Có id không phải giáo viên',
   notTeacherId: (p: { id: string }) => `${p.id} không phải giáo viên`,
   studentAlreadyInClass: 'Học sinh đang ở lớp này rồi',
+  placementRequired: 'Chọn lớp hoặc ca học thêm bạn dạy cho học sinh',
   gameLocked: 'Game đang bị giáo viên khoá',
 
   // Bài giao / bài làm / nhận xét
@@ -140,6 +141,8 @@ export const vi = {
   // Học thêm
   extraSlotNotFound: 'Không tìm thấy ca học thêm',
   extraSlotArchived: 'Ca học thêm đã lưu trữ',
+  keepSelfInSlot: 'Bạn phải còn trong danh sách giáo viên của ca',
+  keepSelfInSession: 'Bạn phải là giáo viên phụ trách buổi bù',
   slotAssignmentNotFound: 'Không tìm thấy dòng lịch học',
   sameSlot: 'Học sinh đang ở ca này rồi',
   moveDateOutOfRange: 'Ngày chuyển phải nằm trong thời gian học sinh đang học ca cũ (sau ngày bắt đầu)',

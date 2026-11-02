@@ -1,4 +1,5 @@
 import {
+  CreateStudentsBody,
   GameResultListQuery,
   MoveClassBody,
   PointsListQuery,
@@ -9,6 +10,7 @@ import {
 import { createZodDto } from 'nestjs-zod';
 
 export class StudentListQueryDto extends createZodDto(StudentListQuery) {}
+export class CreateStudentsDto extends createZodDto(CreateStudentsBody) {}
 export class UpdateStudentDto extends createZodDto(UpdateStudentBody) {}
 export class MoveClassDto extends createZodDto(MoveClassBody) {}
 export class ResetPasswordDto extends createZodDto(ResetPasswordBody) {}

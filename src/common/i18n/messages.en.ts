@@ -104,6 +104,7 @@ export const en: Messages = {
   notTeacherIds: 'Some ids are not teachers',
   notTeacherId: (p) => `${p.id} is not a teacher`,
   studentAlreadyInClass: 'The student is already in this class',
+  placementRequired: 'Choose a class or extra-lesson slot you teach for the student',
   gameLocked: 'Game is locked by your teacher',
 
   dueAfterOpen: 'The due date must be after the open time',
@@ -124,6 +125,8 @@ export const en: Messages = {
 
   extraSlotNotFound: 'Extra-lesson slot not found',
   extraSlotArchived: 'The extra-lesson slot is archived',
+  keepSelfInSlot: 'You must stay in the slot’s teacher list',
+  keepSelfInSession: 'You must be one of the make-up session’s teachers',
   slotAssignmentNotFound: 'Schedule entry not found',
   sameSlot: 'The student is already in this slot',
   moveDateOutOfRange: 'The move date must fall within the current slot period (after its start date)',

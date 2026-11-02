@@ -56,6 +56,15 @@ export class StudentRepository {
     });
   }
 
+  /** Học sinh mới (user + profile) — trả id */
+  async create(tx: Tx, data: Prisma.UserCreateInput): Promise<string> {
+    return (await tx.user.create({ data, select: { id: true } })).id;
+  }
+
+  async createMembership(tx: Tx, studentId: string, classId: string, at: Date): Promise<void> {
+    await tx.classMembership.create({ data: { studentId, classId, joinedAt: at } });
+  }
+
   /** Đóng membership đang mở và mở membership mới (trong transaction) */
   async moveMembership(tx: Tx, studentId: string, classId: string, at: Date): Promise<void> {
     await tx.classMembership.updateMany({ where: { studentId, leftAt: null }, data: { leftAt: at } });

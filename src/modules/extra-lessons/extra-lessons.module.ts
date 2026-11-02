@@ -13,6 +13,7 @@ import { AttendanceDigestService } from '@/modules/extra-lessons/services/attend
 import { AttendanceReaderService } from '@/modules/extra-lessons/services/attendance-reader.service';
 import { AttendanceWriterService } from '@/modules/extra-lessons/services/attendance-writer.service';
 import { ExtraAccessService } from '@/modules/extra-lessons/services/extra-access.service';
+import { ExtraEnrollmentService } from '@/modules/extra-lessons/services/extra-enrollment.service';
 import { ExtraRateService } from '@/modules/extra-lessons/services/extra-rate.service';
 import { ExtraSlotReaderService } from '@/modules/extra-lessons/services/extra-slot-reader.service';
 import { ExtraSlotWriterService } from '@/modules/extra-lessons/services/extra-slot-writer.service';
@@ -49,6 +50,8 @@ import { MailModule } from '@/modules/mail/mail.module';
     AttendanceWriterService,
     AttendanceDigestService,
     ExtraLessonsScheduler,
+    ExtraEnrollmentService,
   ],
+  exports: [ExtraEnrollmentService],
 })
 export class ExtraLessonsModule {}
