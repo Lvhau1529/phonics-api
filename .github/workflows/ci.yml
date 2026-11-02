@@ -52,8 +52,12 @@ jobs:
           set -eu
           cd "$APP_DIR"
           git fetch --prune origin main
+          caddy_before=$(sha256sum Caddyfile)
           git reset --hard origin/main
           docker compose up -d --build --remove-orphans
+          # Caddyfile mount dạng file: `up -d` không tạo lại caddy khi chỉ file đổi (và git ghi file mới → mount cũ
+          # vẫn trỏ bản cũ) → restart để mount lại + nạp cấu hình mới
+          if [ "$caddy_before" != "$(sha256sum Caddyfile)" ]; then docker compose restart caddy; fi
           docker image prune -f
           # Chờ API khởi động (migrate + start) tối đa ~150 giây; /api/health/db kiểm tra luôn kết nối DB (một lần sau deploy)
           for i in $(seq 1 30); do
