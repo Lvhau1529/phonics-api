@@ -97,6 +97,7 @@ export class AttendanceRepository {
       },
       select: {
         id: true,
+        kind: true,
         startTime: true,
         endTime: true,
         teachers: { select: { teacherId: true } },

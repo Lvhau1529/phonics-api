@@ -157,6 +157,7 @@ export class AttendanceWriterService {
         endTime: body.endTime,
         ...sessionTimes(body.date, body.startTime, body.endTime, this.time.timeZone),
         teacherIds: [...new Set(body.teacherIds)],
+        kind: body.kind,
         note: body.note ?? null,
       }),
     );
@@ -220,6 +221,7 @@ export class AttendanceWriterService {
         endTime: slot.endTime,
         ...sessionTimes(date, slot.startTime, slot.endTime, this.time.timeZone),
         teacherIds: slot.teachers.map((t) => t.teacherId),
+        kind: slot.kind,
         status: 'CANCELLED',
         cancelReason: reason,
       });

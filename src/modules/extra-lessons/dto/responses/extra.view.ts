@@ -28,6 +28,7 @@ export function toSlotRef(row: AssignmentRow['slot']): ExtraSlotRef {
   return {
     id: row.id,
     name: row.name,
+    kind: row.kind,
     weekday: row.weekday,
     startTime: row.startTime,
     endTime: row.endTime,
@@ -120,6 +121,7 @@ export function toSessionSummary(
   return {
     id: row.id,
     slot: row.slot ? toSlotRef(row.slot) : null,
+    kind: row.kind,
     date: row.date,
     startTime: row.startTime,
     endTime: row.endTime,

@@ -142,6 +142,8 @@ export const ENDPOINTS = {
     attendance: (id: string) => `/students/${id}/attendance`,
     /** GET: học phí theo tháng (từ 1.13.0) */
     tuition: (id: string) => `/students/${id}/tuition`,
+    /** GET: phiếu báo học phí một tháng (PDF, gộp các bé cùng phụ huynh nhận học phí) — từ 1.17.0 */
+    tuitionStatement: (id: string) => `/students/${id}/tuition-statement.pdf`,
   },
   extraRates: {
     detail: (id: string) => `/extra-rates/${id}`,
@@ -194,6 +196,8 @@ export const ENDPOINTS = {
     permissionGroups: '/admin/permission-groups',
     permissionGroup: (id: string) => `/admin/permission-groups/${id}`,
     audit: '/admin/audit',
+    /** GET / PUT ADMIN: cài đặt phiếu học phí (từ 1.17.0) */
+    tuitionSettings: '/admin/settings/tuition',
     games: '/admin/games',
     game: (id: string) => `/admin/games/${id}`,
   },

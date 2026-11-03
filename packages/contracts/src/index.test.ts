@@ -26,6 +26,7 @@ import {
   UpdateExtraRateBody,
   CreateStudentRateBody,
   TuitionQuery,
+  UpdateTuitionSettings,
   monthSpan,
   UpdateExtraSlotBody,
   UpdateProfileBody,
@@ -544,6 +545,18 @@ describe('học thêm', () => {
     expect(TuitionQuery.safeParse({ from: '2024-01', to: '2026-01' }).success).toBe(false);
     expect(TuitionQuery.safeParse({ from: '2026-13', to: '2026-12' }).success).toBe(false);
     expect(monthSpan('2025-11', '2026-02')).toBe(4);
+  });
+
+  it('cài đặt học phí: mọi trường tuỳ chọn, BIN 6 số, hạn đóng 1-28, bật cột ca', () => {
+    expect(UpdateTuitionSettings.safeParse({ showSlot: true }).success).toBe(true);
+    expect(UpdateTuitionSettings.safeParse({}).success).toBe(true);
+    expect(UpdateTuitionSettings.safeParse({ accountNo: '0123456789', dueDay: 10 }).success).toBe(true);
+    expect(UpdateTuitionSettings.safeParse({ bankBin: '97043' }).error?.issues[0]?.message).toBe(
+      'bankBinFormat',
+    );
+    expect(UpdateTuitionSettings.safeParse({ accountNo: '01-23' }).success).toBe(false);
+    expect(UpdateTuitionSettings.safeParse({ dueDay: 31 }).success).toBe(false);
+    expect(UpdateTuitionSettings.safeParse({ orgName: 'x', extra: 1 }).success).toBe(false);
   });
 
   it('lịch: ngày kết thúc phải sau ngày bắt đầu; null = học tiếp', () => {

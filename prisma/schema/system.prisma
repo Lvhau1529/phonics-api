@@ -45,3 +45,13 @@ model AuditLog {
   @@index([action, createdAt])
   @@map("audit_logs")
 }
+
+/// Cài đặt hệ thống dạng khoá → JSON; `value` validate bằng schema contracts khi đọc / ghi (vd 'tuition.statement')
+model AppSetting {
+  key         String   @id
+  value       Json
+  updatedById String?  @map("updated_by_id") @db.Uuid
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("app_settings")
+}

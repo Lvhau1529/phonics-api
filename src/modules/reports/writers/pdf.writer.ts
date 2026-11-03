@@ -1,17 +1,6 @@
-import path from 'node:path';
-import pdfmake from 'pdfmake';
-import robotoFonts from 'pdfmake/fonts/Roboto';
 import { type TableCell, type TDocumentDefinitions } from 'pdfmake/interfaces';
+import { renderPdf } from '@/infrastructure/pdf/pdfmake';
 import { type RankingRow, type ReportMeta } from '@/modules/reports/writers/xlsx.writer';
-
-/**
- * pdfmake 0.3 (Node): instance toàn cục, font đọc từ file .ttf đi kèm gói (Roboto có đủ dấu tiếng Việt).
- * Khoá truy cập file / URL: chỉ cho đọc trong thư mục font của pdfmake.
- */
-const FONT_DIR = path.resolve(path.dirname(robotoFonts.Roboto.normal));
-pdfmake.addFonts(robotoFonts);
-pdfmake.setLocalAccessPolicy((file) => path.resolve(file).startsWith(FONT_DIR));
-pdfmake.setUrlAccessPolicy(() => false);
 
 const COLORS = { title: '#4C1D95', muted: '#6B7280', header: '#EDE9FE', zebra: '#F9FAFB' } as const;
 
@@ -74,7 +63,6 @@ export function rankingDocument(meta: ReportMeta, rows: readonly RankingRow[]): 
   };
 }
 
-/** Sinh PDF thành Buffer (pdfmake gom stream của pdfkit) */
-export async function buildRankingPdf(meta: ReportMeta, rows: readonly RankingRow[]): Promise<Buffer> {
-  return pdfmake.createPdf(rankingDocument(meta, rows)).getBuffer();
+export function buildRankingPdf(meta: ReportMeta, rows: readonly RankingRow[]): Promise<Buffer> {
+  return renderPdf(rankingDocument(meta, rows));
 }

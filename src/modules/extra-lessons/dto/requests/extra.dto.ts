@@ -5,6 +5,7 @@ import {
   ConfirmDigestBody,
   ResendDigestBody,
   TuitionQuery,
+  TuitionStatementQuery,
   CreateAttendanceSessionBody,
   CreateExtraSlotBody,
   CreateSlotAssignmentBody,
@@ -42,3 +43,4 @@ export class ApplyToSessionsDto extends createZodDto(ApplyToSessionsBody) {}
 export class StudentAttendanceQueryDto extends createZodDto(StudentAttendanceQuery) {}
 export class TuitionQueryDto extends createZodDto(TuitionQuery) {}
 export class ResendDigestDto extends createZodDto(ResendDigestBody) {}
+export class TuitionStatementQueryDto extends createZodDto(TuitionStatementQuery) {}
