@@ -1,7 +1,7 @@
 # Toàn bộ backend trên một VPS (ADR 0024): Postgres + API + Caddy (HTTPS tự động) + backup hằng ngày. Từ gốc repo:
 #   cp .env.example .env.production          # biến của API: secret, admin, CORS… (DB / media / URL do compose đặt)
 #   printf 'API_DOMAIN=api.example.vn\nPOSTGRES_PASSWORD=%s\n' "$(openssl rand -hex 24)" > .env
-#   docker compose up -d --build              # build tại chỗ (hoặc: docker compose pull && docker compose up -d)
+#   docker compose pull api && docker compose up -d   # ảnh CI đẩy lên GHCR (hoặc `up -d --build`: build tại chỗ, tốn RAM)
 #   docker compose exec api node_modules/.bin/prisma db seed   # lần đầu: admin + catalog game
 # Biến của compose (file .env cạnh file này): API_DOMAIN, POSTGRES_PASSWORD (chỉ [0-9a-zA-Z], nằm trong URL kết nối)
 # bắt buộc; tuỳ chọn BACKUP_KEEP_DAYS (7), TAG (latest), GHCR_OWNER (chữ thường).

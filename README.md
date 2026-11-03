@@ -184,17 +184,23 @@ Sau đó đặt `VITE_API_URL=https://api.example.vn` cho game / admin trên Ver
   docker compose start api
   ```
 - Đổi biến trong `.env.production` / `.env` → `docker compose up -d --force-recreate` (`restart` không đọc lại env).
-- Deploy tự động (job `deploy` trong `.github/workflows/ci.yml`): push vào `main` → CI qua → SSH vào VPS, `git reset
-  --hard origin/main`, `docker compose up -d --build`, chờ `/api/health/db`. Cấu hình ở GitHub repo > Settings > Secrets
-  and variables > Actions: variable `VPS_HOST` (bật job), tuỳ chọn `VPS_USER` (`root`), `VPS_PORT` (`22`),
+- Deploy tự động (`.github/workflows/ci.yml`): push vào `main` → CI qua → job `image` build ảnh trên runner GitHub
+  (cache layer qua GitHub Actions cache) và đẩy lên GHCR với tag `<commit>` + `latest` → job `deploy` SSH vào VPS,
+  `git reset --hard origin/main` (lấy compose / Caddyfile / backup.sh), đăng nhập GHCR tạm bằng `GITHUB_TOKEN` của job,
+  `docker compose pull api` + `up -d --no-build` với `TAG=<commit>`, chờ `/api/health/db`. **VPS không build ảnh**
+  (1 GB RAM đang chạy Postgres + API → build bị nghẽn / treo). Cấu hình ở GitHub repo > Settings > Secrets and
+  variables > Actions: variable `VPS_HOST` (bật job deploy), tuỳ chọn `VPS_USER` (`root`), `VPS_PORT` (`22`),
   `VPS_APP_DIR` (`/opt/phonics-api`); secret `VPS_SSH_KEY` = private key có public key trong `authorized_keys` của VPS.
   VPS cần clone sẵn repo (đọc được `origin`, vd deploy key) cùng `.env.production` và `.env`.
+- Rollback: trên VPS `TAG=<commit cũ> docker compose up -d --no-build api` (ảnh trong 7 ngày gần nhất còn sẵn trên
+  VPS; cũ hơn thì `docker login ghcr.io` rồi `TAG=<commit> docker compose pull api` trước). Lưu ý: migration DB không tự
+  lùi theo.
 - Entrypoint (`docker-entrypoint.sh`): `prisma migrate deploy` (DIRECT_URL) rồi `node dist/main.js`.
   Schema engine của Prisma được tải sẵn lúc build; runtime chạy user `node`, `HEALTHCHECK` gọi `/api/health`
   (không chạm DB).
-- `docker-compose.yml`: ảnh `ghcr.io/${GHCR_OWNER}/phonics-api:${TAG}` (mặc định `lvhau1529` / `latest`),
-  có `build` để dựng tại chỗ, `env_file: .env.production` + `environment` ghi đè DB / media / `API_PUBLIC_URL` từ
-  `.env` của compose, `restart: unless-stopped`, log json-file 5 × 10 MB. `api` chờ `db` healthy mới chạy.
+- `docker-compose.yml`: ảnh `ghcr.io/${GHCR_OWNER}/phonics-api:${TAG}` (mặc định `lvhau1529` / `latest`, CI đẩy
+  lên), vẫn có `build` để dựng tại chỗ khi cần (`up -d --build` — tốn RAM, chỉ dùng khi khẩn cấp),
+  `env_file: .env.production` + `environment` ghi đè DB / media / `API_PUBLIC_URL` từ `.env` của compose, `restart: unless-stopped`, log json-file 5 × 10 MB. `api` chờ `db` healthy mới chạy.
 - Seed trên production (chỉ admin + catalog; demo luôn bị bỏ qua vì `NODE_ENV=production`): `nest build` biên dịch
   `src/database/seeds/` thành `dist/database/seeds/`; `prisma.config.ts` chọn lệnh seed theo `NODE_ENV` (production →
   `node dist/database/seeds/seed.js`, còn lại → `tsx src/database/seeds/seed.ts`). Chạy trong container đang chạy (đọc biến từ `.env.production`):
