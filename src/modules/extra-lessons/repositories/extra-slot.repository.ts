@@ -108,7 +108,37 @@ export class ExtraSlotRepository {
     });
   }
 
-  /** Lưu trữ ca: các dòng lịch còn mở kết thúc tại `date` (dòng chưa bắt đầu thì bỏ hẳn) */
+  /** Huỷ buổi chưa xác nhận của ca từ ngày `from` — trả số buổi đã huỷ */
+  async cancelPendingFrom(tx: Tx, slotId: string, from: string, reason: string): Promise<number> {
+    const { count } = await tx.attendanceSession.updateMany({
+      where: { slotId, date: { gte: from }, status: 'PENDING' },
+      data: { status: 'CANCELLED', cancelReason: reason },
+    });
+    return count;
+  }
+
+  /** Ngày đã huỷ sẵn từ `from` của từng ca (để tính buổi kế tiếp) */
+  async cancelledDates(slotIds: readonly string[], from: string): Promise<Map<string, Set<string>>> {
+    const out = new Map<string, Set<string>>();
+    if (!slotIds.length) return out;
+    const rows = await this.prisma.attendanceSession.findMany({
+      where: { slotId: { in: [...slotIds] }, date: { gte: from }, status: 'CANCELLED' },
+      select: { slotId: true, date: true },
+    });
+    for (const r of rows)
+      if (r.slotId) (out.get(r.slotId) ?? out.set(r.slotId, new Set()).get(r.slotId)!).add(r.date);
+    return out;
+  }
+
+  /** Ca tới ngày ngừng (`endsOn` ≤ `today`) mà chưa chuyển sang đã ngừng */
+  endedSlots(today: string): Promise<{ id: string; endsOn: string | null }[]> {
+    return this.prisma.extraSlot.findMany({
+      where: { archivedAt: null, endsOn: { lte: today } },
+      select: { id: true, endsOn: true },
+    });
+  }
+
+  /** Ngừng ca: các dòng lịch còn mở kết thúc tại `date` (dòng chưa bắt đầu thì bỏ hẳn) */
   async closeAssignments(tx: Tx, slotId: string, date: string): Promise<number> {
     await tx.studentSlotAssignment.deleteMany({ where: { slotId, effectiveFrom: { gte: date } } });
     const { count } = await tx.studentSlotAssignment.updateMany({

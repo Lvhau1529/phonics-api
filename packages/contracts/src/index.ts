@@ -37,4 +37,5 @@ export * from './submissions.js';
 export * from './assignments.js';
 export * from './comments.js';
 export * from './worksheet-stats.js';
+export * from './account-delete.js';
 export * from './endpoints.js';

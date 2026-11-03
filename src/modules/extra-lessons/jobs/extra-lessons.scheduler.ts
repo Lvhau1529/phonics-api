@@ -3,6 +3,7 @@ import { Injectable, Logger, type OnApplicationBootstrap, type OnApplicationShut
 import { EXTRA_LESSONS } from '@/config/constants';
 import { TimeService } from '@/core/time/time.service';
 import { AttendanceRepository } from '@/modules/extra-lessons/repositories/attendance.repository';
+import { ExtraSlotRepository } from '@/modules/extra-lessons/repositories/extra-slot.repository';
 import { AttendanceDigestService } from '@/modules/extra-lessons/services/attendance-digest.service';
 import { SessionSyncService } from '@/modules/extra-lessons/services/session-sync.service';
 import { hasPassed, nextDailyAt } from '@/modules/extra-lessons/utils/session-time';
@@ -25,6 +26,7 @@ export class ExtraLessonsScheduler implements OnApplicationBootstrap, OnApplicat
 
   constructor(
     private readonly repo: AttendanceRepository,
+    private readonly slots: ExtraSlotRepository,
     private readonly sessions: SessionSyncService,
     private readonly digests: AttendanceDigestService,
     private readonly time: TimeService,
@@ -44,11 +46,23 @@ export class ExtraLessonsScheduler implements OnApplicationBootstrap, OnApplicat
     return this.run(++this.seq);
   }
 
-  /** Tạo buổi còn thiếu + (sau 21:00) gửi mail của hôm nay */
+  /** Ca tới ngày ngừng → đã ngừng; tạo buổi còn thiếu + (sau 21:00) gửi mail của hôm nay */
   async tick(now = new Date()): Promise<void> {
+    await this.archiveEnded(this.time.toIsoDate(now));
     await this.sessions.ensureSessions(now);
     if (hasPassed(now, this.time.toIsoDate(now), EXTRA_LESSONS.digestTime, this.time.timeZone)) {
       await this.digests.sendDigests(now);
+    }
+  }
+
+  /** Dòng lịch / buổi chờ đã được đóng lúc đặt ngày ngừng; đóng lại lần nữa cho dòng thêm sau đó */
+  private async archiveEnded(today: string): Promise<void> {
+    for (const slot of await this.slots.endedSlots(today)) {
+      await this.slots.transaction(async (tx) => {
+        await this.slots.closeAssignments(tx, slot.id, slot.endsOn ?? today);
+        await this.slots.update(tx, slot.id, { archivedAt: new Date() });
+      });
+      this.logger.log(`Ca ${slot.id} đã tới ngày ngừng`);
     }
   }
 

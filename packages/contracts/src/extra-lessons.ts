@@ -31,6 +31,11 @@ export const ExtraSlotRef = z.object({
   weekday: Weekday,
   startTime: TimeOfDay,
   endTime: TimeOfDay,
+  /** Ngày đầu tiên có buổi (null = ngay từ lúc tạo ca) */
+  startsOn: IsoDate.nullable(),
+  /** Ngừng ca từ ngày này — ngày này trở đi không còn buổi (null = chưa định ngày ngừng) */
+  endsOn: IsoDate.nullable(),
+  /** Ca đã ngừng (tới `endsOn` hoặc bấm ngừng ngay) — ẩn khỏi danh sách mặc định */
   archivedAt: IsoDateTime.nullable(),
 });
 export type ExtraSlotRef = z.infer<typeof ExtraSlotRef>;
@@ -56,6 +61,8 @@ export const ExtraSlot = ExtraSlotRef.extend({
   studentCount: z.int().min(0),
   /** Giá mặc định đang áp dụng — null khi chưa đặt hoặc người xem không có quyền extra.viewPricing */
   defaultPrice: PricePerSession.nullable(),
+  /** Ngày có buổi kế tiếp (từ hôm nay, bỏ qua ngày đã huỷ trước) — null khi ca đã / sắp ngừng không còn buổi */
+  nextSessionDate: IsoDate.nullable(),
   createdAt: IsoDateTime,
   updatedAt: IsoDateTime,
 });
@@ -79,11 +86,18 @@ const slotFields = {
   room: z.string().trim().max(40),
   capacity: z.int().min(1).max(200),
   classId: Id,
+  startsOn: IsoDate,
+  endsOn: IsoDate,
 };
 
-function endAfterStart(b: { startTime?: string; endTime?: string }, ctx: z.RefinementCtx): void {
+function endAfterStart(
+  b: { startTime?: string; endTime?: string; startsOn?: string | null; endsOn?: string | null },
+  ctx: z.RefinementCtx,
+): void {
   if (b.startTime && b.endTime && b.endTime <= b.startTime)
     addValidationIssue(ctx, ['endTime'], 'endAfterStart');
+  if (b.startsOn && b.endsOn && b.endsOn <= b.startsOn)
+    addValidationIssue(ctx, ['endsOn'], 'slotEndsAfterStart');
 }
 
 export const CreateExtraSlotBody = z
@@ -92,6 +106,8 @@ export const CreateExtraSlotBody = z
     room: slotFields.room.optional(),
     capacity: slotFields.capacity.optional(),
     classId: slotFields.classId.optional(),
+    startsOn: slotFields.startsOn.optional(),
+    endsOn: slotFields.endsOn.optional(),
     teacherIds: z.array(Id).max(5).optional(),
   })
   .superRefine(endAfterStart);
@@ -100,6 +116,8 @@ export type CreateExtraSlotBody = z.infer<typeof CreateExtraSlotBody>;
 /**
  * `null` = xoá giá trị. Sửa một trong hai giờ thì gửi cả hai; giờ mới áp cho cả buổi đã tạo từ ngày `timeFrom`
  * (mặc định hôm nay, mọi trạng thái — giờ không ảnh hưởng tiền). Đổi thứ không dời buổi đã tạo.
+ * Đặt `endsOn`: học sinh đang học rời ca từ ngày đó, buổi chưa xác nhận từ ngày đó bị huỷ; `endsOn` ≤ hôm nay = ngừng
+ * ngay. `endsOn: null` chỉ bỏ ngày ngừng (học sinh đã cho rời ca không tự quay lại).
  */
 export const UpdateExtraSlotBody = z
   .strictObject({
@@ -107,6 +125,8 @@ export const UpdateExtraSlotBody = z
     room: slotFields.room.nullable(),
     capacity: slotFields.capacity.nullable(),
     classId: slotFields.classId.nullable(),
+    startsOn: slotFields.startsOn.nullable(),
+    endsOn: slotFields.endsOn.nullable(),
     timeFrom: IsoDate,
   })
   .partial()

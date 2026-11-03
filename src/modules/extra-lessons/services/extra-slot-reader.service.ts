@@ -17,6 +17,7 @@ import { ExtraAccessService } from '@/modules/extra-lessons/services/extra-acces
 import { type SlotRow } from '@/modules/extra-lessons/types/extra.types';
 import { resolveRate } from '@/modules/extra-lessons/utils/rate';
 import { isActiveOn } from '@/modules/extra-lessons/utils/schedule';
+import { nextSessionDate } from '@/modules/extra-lessons/utils/session-time';
 
 /** Đọc ca học thêm: ADMIN mọi ca, GV ca mình dạy. Đơn giá chỉ hiện khi có extra.viewPricing. */
 @Injectable()
@@ -69,19 +70,21 @@ export class ExtraSlotReaderService {
     return row;
   }
 
-  /** Số học sinh hôm nay + giá mặc định đang áp dụng (một truy vấn cho cả danh sách) */
+  /** Số học sinh hôm nay + giá mặc định đang áp dụng + buổi kế tiếp (một truy vấn cho cả danh sách) */
   async toViews(user: AuthUser, rows: readonly SlotRow[]): Promise<ExtraSlot[]> {
     const today = this.today();
     const ids = rows.map((r) => r.id);
-    const [counts, rates] = await Promise.all([
+    const [counts, cancelled, rates] = await Promise.all([
       this.repo.countStudentsOn(ids, today),
+      this.repo.cancelledDates(ids, today),
       this.access.has(user, 'extra.viewPricing').then((ok) => (ok ? this.schedule.ratesFor([], ids) : null)),
     ]);
     return rows.map((row) => {
       const price = rates?.find(
         (r) => r.slotId === row.id && isActiveOn({ from: r.effectiveFrom, to: r.effectiveTo }, today),
       );
-      return toExtraSlot(row, counts.get(row.id) ?? 0, price?.pricePerSession ?? null);
+      const next = row.archivedAt ? null : nextSessionDate(row, today, cancelled.get(row.id));
+      return toExtraSlot(row, counts.get(row.id) ?? 0, price?.pricePerSession ?? null, next);
     });
   }
 

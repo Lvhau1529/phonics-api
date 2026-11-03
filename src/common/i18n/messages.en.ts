@@ -21,6 +21,7 @@ export const en: Messages = {
   CLASS_NOT_JOINABLE: 'This class is not accepting new students',
   NOT_FOUND: 'Not found',
   CONFLICT: 'Duplicate data',
+  ACCOUNT_NOT_DELETABLE: 'This account has data that must be kept and cannot be deleted — disable it instead',
   UNKNOWN_GAME: 'Unknown game',
   RESULT_IMPLAUSIBLE: 'Invalid result',
   PLAYED_AT_OUT_OF_RANGE: 'Invalid play time',
@@ -145,4 +146,7 @@ export const en: Messages = {
   removeManualOnly:
     'Only manually added students can be removed — mark scheduled students absent or fix their schedule',
   sessionAlreadyConfirmed: 'The session was already confirmed by someone else',
+  slotEndsAfterStart: 'The stop date must be after the start date',
+  slotEndInPast: 'The stop date must be after today',
+  slotEndedReason: 'The extra class slot has stopped',
 };

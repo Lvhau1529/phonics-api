@@ -6,8 +6,11 @@ import {
   type UpdateExtraSlotBody,
 } from '@phonics/contracts';
 import { AppError, notFound } from '@/common/errors/app-error';
+import { DEFAULT_LOCALE } from '@/common/i18n/locale';
+import { translate } from '@/common/i18n/translate';
 import { AccessService } from '@/core/access/access.service';
 import { TimeService } from '@/core/time/time.service';
+import { type Tx } from '@/database/types';
 import { AuditService } from '@/modules/audit/services/audit.service';
 import { type AuthUser } from '@/modules/auth/types/auth.types';
 import { ExtraSlotRepository } from '@/modules/extra-lessons/repositories/extra-slot.repository';
@@ -37,6 +40,8 @@ export class ExtraSlotWriterService {
     const teacherIds = this.withSelf(actor, requested);
     await this.assertRefs(data.classId, teacherIds);
     if (data.classId) await this.access.assertClassAccess(actor, data.classId);
+    if (data.endsOn && data.endsOn <= this.reader.today())
+      throw new AppError('VALIDATION_ERROR', 400, { fieldErrors: { endsOn: ['slotEndInPast'] } });
     const row = await this.repo.transaction(async (tx) => {
       const slot = await this.repo.create(tx, data);
       await this.repo.setTeachers(tx, slot.id, teacherIds);
@@ -66,9 +71,16 @@ export class ExtraSlotWriterService {
     const end = body.endTime ?? current.endTime;
     if (end <= start)
       throw new AppError('VALIDATION_ERROR', 400, { fieldErrors: { endTime: ['endAfterStart'] } });
-    const retimed = await this.repo.transaction(async (tx) => {
+    const startsOn = body.startsOn === undefined ? current.startsOn : body.startsOn;
+    const endsOn = body.endsOn === undefined ? current.endsOn : body.endsOn;
+    if (startsOn && endsOn && endsOn <= startsOn)
+      throw new AppError('VALIDATION_ERROR', 400, { fieldErrors: { endsOn: ['slotEndsAfterStart'] } });
+    const { retimed, ended } = await this.repo.transaction(async (tx) => {
       await this.repo.update(tx, id, body);
-      if (body.startTime === undefined || (start === current.startTime && end === current.endTime)) return 0;
+      const ended =
+        body.endsOn && body.endsOn !== current.endsOn ? await this.endFrom(tx, id, body.endsOn) : null;
+      if (body.startTime === undefined || (start === current.startTime && end === current.endTime))
+        return { retimed: 0, ended };
       const sessions = await this.repo.sessionsFrom(tx, id, timeFrom ?? this.reader.today());
       for (const s of sessions) {
         await this.repo.updateSessionTime(tx, s.id, {
@@ -77,7 +89,7 @@ export class ExtraSlotWriterService {
           ...sessionTimes(s.date, start, end, this.time.timeZone),
         });
       }
-      return sessions.length;
+      return { retimed: sessions.length, ended };
     });
     await this.audit.record(
       actor,
@@ -85,26 +97,41 @@ export class ExtraSlotWriterService {
       'ExtraSlot',
       id,
       Object.fromEntries(Object.keys(body).map((k) => [k, current[k as keyof typeof current]])),
-      retimed ? { ...body, timeFrom, retimedSessions: retimed } : body,
+      { ...body, ...(retimed && { timeFrom, retimedSessions: retimed }), ...ended },
     );
-    if (body.weekday !== undefined) await this.scheduler.reschedule();
+    if (body.weekday !== undefined || body.startsOn !== undefined || body.endsOn !== undefined)
+      await this.scheduler.reschedule();
     return this.reader.detail(actor, id);
   }
 
-  /** Lưu trữ: học sinh đang học ca kết thúc từ hôm nay; buổi đã điểm danh giữ nguyên */
+  /** Ngừng ca ngay hôm nay (= `endsOn` hôm nay): học sinh rời ca, buổi chưa xác nhận hôm nay bị huỷ */
   async archive(actor: AuthUser, id: string): Promise<void> {
     const current = await this.reader.find(id);
     await this.extraAccess.assertSlotAccess(actor, id);
     if (current.archivedAt) return;
     const today = this.reader.today();
-    const closed = await this.repo.transaction(async (tx) => {
-      await this.repo.update(tx, id, { archivedAt: new Date() });
-      return this.repo.closeAssignments(tx, id, today);
+    const ended = await this.repo.transaction(async (tx) => {
+      await this.repo.update(tx, id, { endsOn: today });
+      return this.endFrom(tx, id, today);
     });
-    await this.audit.record(actor, 'extraSlot.archive', 'ExtraSlot', id, null, {
-      closedAssignments: closed,
-      today,
-    });
+    await this.audit.record(actor, 'extraSlot.archive', 'ExtraSlot', id, null, { ...ended, today });
+    await this.scheduler.reschedule();
+  }
+
+  /**
+   * Ngừng ca từ ngày `endsOn`: dòng lịch học sinh kết thúc tại ngày đó, buổi chưa xác nhận từ ngày đó bị huỷ (buổi đã
+   * xác nhận + học phí giữ nguyên). Ngày đã tới → ca chuyển sang đã ngừng ngay; chưa tới → 00:05 ngày đó tự chuyển.
+   */
+  private async endFrom(tx: Tx, id: string, endsOn: string) {
+    const closedAssignments = await this.repo.closeAssignments(tx, id, endsOn);
+    const cancelledSessions = await this.repo.cancelPendingFrom(
+      tx,
+      id,
+      endsOn,
+      translate(DEFAULT_LOCALE, 'slotEndedReason'),
+    );
+    if (endsOn <= this.reader.today()) await this.repo.update(tx, id, { archivedAt: new Date() });
+    return { closedAssignments, cancelledSessions };
   }
 
   async setTeachers(actor: AuthUser, id: string, body: SetSlotTeachersBody): Promise<ExtraSlot> {

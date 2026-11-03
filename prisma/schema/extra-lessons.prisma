@@ -15,6 +15,11 @@ model ExtraSlot {
   capacity   Int?
   /// Lớp chính tham khảo (để lọc), không bắt buộc
   classId    String?   @map("class_id") @db.Uuid
+  /// 'YYYY-MM-DD' ngày đầu tiên có buổi; null = ngay từ lúc tạo ca
+  startsOn   String?   @map("starts_on")
+  /// 'YYYY-MM-DD' ngừng ca từ ngày này (không còn buổi); tới ngày → 00:05 tự đặt archived_at
+  endsOn     String?   @map("ends_on")
+  /// Ca đã ngừng (ẩn khỏi danh sách mặc định); dữ liệu cũ giữ nguyên
   archivedAt DateTime? @map("archived_at")
   createdAt  DateTime  @default(now()) @map("created_at")
   updatedAt  DateTime  @updatedAt @map("updated_at")

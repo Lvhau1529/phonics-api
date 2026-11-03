@@ -25,6 +25,8 @@ const codeMessages = {
   CLASS_NOT_JOINABLE: 'Lớp này không nhận học sinh mới',
   NOT_FOUND: 'Không tìm thấy',
   CONFLICT: 'Dữ liệu bị trùng',
+  ACCOUNT_NOT_DELETABLE:
+    'Tài khoản đã có dữ liệu cần giữ nên không xoá được — hãy khoá tài khoản thay vì xoá',
   UNKNOWN_GAME: 'Game không tồn tại',
   RESULT_IMPLAUSIBLE: 'Kết quả không hợp lệ',
   PLAYED_AT_OUT_OF_RANGE: 'Thời điểm chơi không hợp lệ',
@@ -160,6 +162,9 @@ export const vi = {
   billingFieldsAdminOnly: 'Chỉ admin sửa được đơn giá / tính phí từng buổi',
   removeManualOnly: 'Chỉ bỏ được học sinh thêm tay — học sinh theo lịch thì đánh vắng hoặc sửa lịch',
   sessionAlreadyConfirmed: 'Buổi đã được người khác xác nhận',
+  slotEndsAfterStart: 'Ngày ngừng ca phải sau ngày bắt đầu',
+  slotEndInPast: 'Ngày ngừng ca phải sau hôm nay',
+  slotEndedReason: 'Ca học thêm đã ngừng',
 };
 
 export type Messages = typeof vi;

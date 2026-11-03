@@ -76,6 +76,9 @@ const vi = {
   monthFormat: 'Tháng dạng YYYY-MM',
   monthRange: 'Khoảng tháng không hợp lệ (từ ≤ đến, tối đa 24 tháng)',
   priceNeedsSlot: 'Đơn giá riêng cần chọn ca học thêm',
+  slotEndsAfterStart: 'Ngày ngừng ca phải sau ngày bắt đầu',
+  cancelRange: 'Khoảng ngày nghỉ không hợp lệ (từ ≤ đến, tối đa 62 ngày)',
+  slotsNeedDate: 'Chọn ca chỉ dùng khi huỷ theo ngày',
 };
 
 export type ValidationCatalog = typeof vi;
@@ -145,6 +148,9 @@ const en: ValidationCatalog = {
   monthFormat: 'Month must look like YYYY-MM',
   monthRange: 'Invalid month range (from ≤ to, at most 24 months)',
   priceNeedsSlot: 'Choose an extra class slot to set a price',
+  slotEndsAfterStart: 'The stop date must be after the start date',
+  cancelRange: 'Invalid day-off range (from ≤ to, at most 62 days)',
+  slotsNeedDate: 'Choosing slots only works when cancelling by date',
 };
 
 export const VALIDATION_LOCALES = ['vi', 'en'] as const;

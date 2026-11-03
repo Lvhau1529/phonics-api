@@ -115,3 +115,69 @@ describe('ExtraSlotWriterService (đổi giờ)', () => {
     expect(repo.sessionsFrom).not.toHaveBeenCalled();
   });
 });
+
+describe('ExtraSlotWriterService (ngừng ca)', () => {
+  const admin: AuthUser = { id: 'a1', role: 'ADMIN', status: 'ACTIVE', tokenVersion: 0 };
+
+  it('đặt ngày ngừng trong tương lai: học sinh rời ca + huỷ buổi chờ từ ngày đó, chưa chuyển đã ngừng', async () => {
+    const { repo, service } = setup();
+    repo.closeAssignments.mockResolvedValue(3);
+    repo.cancelPendingFrom.mockResolvedValue(0);
+
+    await service.update(admin, 'slot1', { endsOn: '2026-12-01' });
+
+    expect(repo.closeAssignments).toHaveBeenCalledWith({}, 'slot1', '2026-12-01');
+    expect(repo.cancelPendingFrom).toHaveBeenCalledWith({}, 'slot1', '2026-12-01', expect.any(String));
+    expect(repo.update).not.toHaveBeenCalledWith({}, 'slot1', { archivedAt: expect.any(Date) });
+  });
+
+  it('ngày ngừng đã tới → chuyển đã ngừng ngay', async () => {
+    const { repo, service } = setup();
+    await service.update(admin, 'slot1', { endsOn: '2026-11-02' });
+    expect(repo.update).toHaveBeenCalledWith({}, 'slot1', { archivedAt: expect.any(Date) });
+  });
+
+  it('bỏ ngày ngừng (null) không đụng lịch học sinh', async () => {
+    const { repo, reader, service } = setup();
+    reader.find.mockResolvedValue({
+      id: 'slot1',
+      archivedAt: null,
+      teachers: [],
+      startTime: '18:00',
+      endTime: '19:30',
+      endsOn: '2026-12-01',
+    } as never);
+    await service.update(admin, 'slot1', { endsOn: null });
+    expect(repo.closeAssignments).not.toHaveBeenCalled();
+  });
+
+  it('ngày ngừng phải sau ngày bắt đầu (so với giá trị đang lưu)', async () => {
+    const { reader, service } = setup();
+    reader.find.mockResolvedValue({
+      id: 'slot1',
+      archivedAt: null,
+      teachers: [],
+      startTime: '18:00',
+      endTime: '19:30',
+      startsOn: '2026-12-10',
+    } as never);
+    await expect(service.update(admin, 'slot1', { endsOn: '2026-12-01' })).rejects.toMatchObject({
+      code: 'VALIDATION_ERROR',
+    });
+  });
+
+  it('tạo ca với ngày ngừng không sau hôm nay → lỗi', async () => {
+    const { service } = setup();
+    await expect(service.create(admin, { ...body, endsOn: '2026-11-02' })).rejects.toMatchObject({
+      code: 'VALIDATION_ERROR',
+    });
+  });
+
+  it('ngừng ngay (archive) = ngày ngừng hôm nay', async () => {
+    const { repo, service } = setup();
+    await service.archive(admin, 'slot1');
+    expect(repo.update).toHaveBeenCalledWith({}, 'slot1', { endsOn: '2026-11-02' });
+    expect(repo.closeAssignments).toHaveBeenCalledWith({}, 'slot1', '2026-11-02');
+    expect(repo.update).toHaveBeenCalledWith({}, 'slot1', { archivedAt: expect.any(Date) });
+  });
+});

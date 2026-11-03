@@ -23,6 +23,8 @@ export const ErrorCode = z.enum([
   'CLASS_NOT_JOINABLE',
   'NOT_FOUND',
   'CONFLICT',
+  /** Xoá tài khoản đã có dữ liệu cần giữ (details.blockers) — khoá tài khoản thay vì xoá */
+  'ACCOUNT_NOT_DELETABLE',
   'UNKNOWN_GAME',
   'RESULT_IMPLAUSIBLE',
   'PLAYED_AT_OUT_OF_RANGE',
