@@ -8,7 +8,8 @@
     "node": ">=24.22.1"
   },
   "scripts": {
-    "build": "pnpm run build:contracts && pnpm run prisma:generate && nest build",
+    "build": "pnpm run build:prod && tsc -p tsconfig.json --noEmit",
+    "build:prod": "pnpm run build:contracts && pnpm run prisma:generate && nest build",
     "dev": "pnpm run build:contracts && nest start --watch",
     "start:dev": "pnpm run build:contracts && nest start --watch",
     "start": "node dist/main.js",
