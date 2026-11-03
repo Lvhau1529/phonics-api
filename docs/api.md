@@ -79,7 +79,7 @@ Tài khoản `PENDING` (phụ huynh chờ duyệt) chỉ gọi được `auth/me
 | DELETE | `/students/:id/slot-assignments/:aid` | A, T (perm:`extra.manageSchedule`, ca mình) | → `DeleteSlotAssignmentResponse { affectedSessions }` (xoá hẳn dòng thêm nhầm; buổi chưa xác nhận tự bỏ học sinh) |
 | POST | `/students/:id/slot-assignments/:aid/move` | A, T (perm:`extra.manageSchedule`, cả hai ca) | `MoveSlotAssignmentBody { slotId, from }` → `SlotAssignment` mới (201) |
 | GET | `/students/:id/rates` | A, T (perm:`extra.viewPricing`) | → `ExtraRatesResponse` (giá riêng, cả lịch sử) |
-| POST | `/students/:id/rates` | A, T (perm:`extra.managePricing`) | `CreateStudentRateBody` → `ExtraRate` (201). GV: 403 `RATE_SCOPE_FORBIDDEN` nếu học sinh học ca của GV khác |
+| POST | `/students/:id/rates` | A, T (perm:`extra.managePricing`) | `CreateStudentRateBody` → `ExtraRate` (201). `effectiveTo?` (1.16.0) = ngày hết ưu đãi, sau đó về giá chung / giá ca. GV: 403 `RATE_SCOPE_FORBIDDEN` nếu học sinh học ca của GV khác |
 
 Đơn giá mới từ ngày D: dòng cùng phạm vi đang phủ D đóng tại D; dòng bắt đầu từ D trở đi bị thay thế
 (`effectiveTo = effectiveFrom`). Giải đơn giá: (HS, ca) → (HS) → (ca) → 0đ `NONE` (`resolveRate`, §4.1 thiết kế).
@@ -100,7 +100,7 @@ Tài khoản `PENDING` (phụ huynh chờ duyệt) chỉ gọi được `auth/me
 | GET | `/attendance/public/digests/:token` | pub | → `AttendanceDigestView` (link mail 21:00; 404 `ATTENDANCE_TOKEN_INVALID`, 410 `ATTENDANCE_TOKEN_EXPIRED`) |
 | POST | `/attendance/public/digests/:token/confirm` | pub | `{ sessionIds }` → `ConfirmDigestResponse` (chỉ buổi trong mail, còn PENDING, danh sách chưa đổi) |
 | POST | `/students/:id/slot-assignments/apply` | A, T (perm:`extra.manageSchedule`) | `{ sessionIds }` → `{ updated }` — áp lịch vào buổi đã xác nhận (`affectedSessions`) |
-| PATCH | `/extra-rates/:id` | A, T (perm:`extra.managePricing`, cùng phạm vi như đặt giá) | `UpdateExtraRateBody { pricePerSession?, note? }` → `ExtraRate` kèm `affectedRecords`. 409 nếu dòng đã bị thay thế từ đầu |
+| PATCH | `/extra-rates/:id` | A, T (perm:`extra.managePricing`, cùng phạm vi như đặt giá) | `UpdateExtraRateBody { pricePerSession?, note?, effectiveTo? }` → `ExtraRate` kèm `affectedRecords`. `effectiveTo` (1.16.0, chỉ giá riêng học sinh): kết thúc ưu đãi từ ngày đó, `null` = bỏ hạn; 409 nếu đè lên dòng cùng phạm vi sau. 409 nếu dòng đã bị thay thế từ đầu |
 | POST | `/extra-rates/:id/apply` | A, T (perm:`extra.managePricing`) | `{ sessionIds }` → `{ updated }` — áp giá vào buổi đã xác nhận (`affectedRecords`) |
 | GET | `/students/:id/attendance` | A, T | `?month=YYYY-MM` → `StudentAttendanceResponse` |
 | GET | `/students/:id/tuition` | A, T (perm:`extra.viewPricing`, phạm vi học sinh) | `?from=YYYY-MM&to=YYYY-MM` → `StudentTuitionResponse` (học phí tạm tính theo tháng) |

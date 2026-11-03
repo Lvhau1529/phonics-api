@@ -164,6 +164,10 @@ export const vi = {
   sessionAlreadyConfirmed: 'Buổi đã được người khác xác nhận',
   slotEndsAfterStart: 'Ngày ngừng ca phải sau ngày bắt đầu',
   slotEndInPast: 'Ngày ngừng ca phải sau hôm nay',
+  rateEndStudentOnly: 'Chỉ giá riêng của học sinh mới đặt được ngày kết thúc',
+  rateEndBeforeStart: 'Ngày kết thúc không được trước ngày bắt đầu',
+  rateEndOverlap: (p: { date: string }) =>
+    `Đã có giá khác từ ${p.date}, ngày kết thúc không được sau ngày đó`,
   slotEndedReason: 'Ca học thêm đã ngừng',
 };
 

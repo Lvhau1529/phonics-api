@@ -69,17 +69,19 @@ export class ExtraRateService {
     actor: AuthUser,
     studentId: string | null,
     slotId: string | null,
-    body: CreateSlotRateBody,
+    body: CreateSlotRateBody & { effectiveTo?: string },
   ): Promise<ExtraRate> {
+    const effectiveTo = body.effectiveTo ?? null;
     const { row, changes } = await this.repo.transaction(async (tx) => {
       const sameScope = await this.repo.lockScope(tx, studentId, slotId);
-      const plan = planRateInsert(sameScope, body.effectiveFrom);
+      const plan = planRateInsert(sameScope, body.effectiveFrom, effectiveTo);
       await this.repo.setRateEnds(tx, plan);
       const created = await this.repo.createRate(tx, {
         studentId,
         slotId,
         pricePerSession: body.pricePerSession,
         effectiveFrom: body.effectiveFrom,
+        effectiveTo,
         note: body.note ?? null,
         createdById: actor.id,
       });
@@ -96,6 +98,7 @@ export class ExtraRateService {
         slotId,
         pricePerSession: body.pricePerSession,
         effectiveFrom: body.effectiveFrom,
+        effectiveTo,
         closed: changes,
       },
     );
@@ -115,8 +118,15 @@ export class ExtraRateService {
     if (rate.effectiveTo === rate.effectiveFrom) {
       throw new AppError('CONFLICT', 409, { message: 'extraRateSuperseded' });
     }
+    if (body.effectiveTo !== undefined && !rate.studentId) {
+      throw new AppError('VALIDATION_ERROR', 400, { fieldErrors: { effectiveTo: ['rateEndStudentOnly'] } });
+    }
+    if (body.effectiveTo != null && body.effectiveTo < rate.effectiveFrom) {
+      throw new AppError('VALIDATION_ERROR', 400, { fieldErrors: { effectiveTo: ['rateEndBeforeStart'] } });
+    }
     const row = await this.repo.transaction(async (tx) => {
-      await this.repo.lockScope(tx, rate.studentId, rate.slotId);
+      const sameScope = await this.repo.lockScope(tx, rate.studentId, rate.slotId);
+      if (body.effectiveTo !== undefined) assertNoOverlap(sameScope, rate, body.effectiveTo);
       return this.repo.updateRate(tx, rate.id, body);
     });
     await this.audit.record(
@@ -124,7 +134,7 @@ export class ExtraRateService {
       'extraRate.update',
       'ExtraRate',
       rateId,
-      { pricePerSession: rate.pricePerSession, note: rate.note },
+      { pricePerSession: rate.pricePerSession, note: rate.note, effectiveTo: rate.effectiveTo },
       body,
     );
     const affectedRecords = await this.sync.repriceForRate(row);
@@ -161,5 +171,22 @@ export class ExtraRateService {
   private async assertStudent(user: AuthUser, studentId: string): Promise<void> {
     if (!(await this.repo.findStudent(studentId))) throw notFound('studentNotFound');
     await this.access.assertStudentAccess(user, studentId);
+  }
+}
+
+/** Kéo dài / bỏ hạn không được đè lên dòng cùng phạm vi bắt đầu sau (dòng bị thay thế từ đầu bỏ qua) */
+function assertNoOverlap(
+  sameScope: readonly { id: string; effectiveFrom: string; effectiveTo: string | null }[],
+  rate: { id: string; effectiveFrom: string },
+  to: string | null,
+): void {
+  const next = sameScope
+    .filter(
+      (r) => r.id !== rate.id && r.effectiveFrom > rate.effectiveFrom && r.effectiveTo !== r.effectiveFrom,
+    )
+    .map((r) => r.effectiveFrom)
+    .sort()[0];
+  if (next !== undefined && (to === null || to > next)) {
+    throw new AppError('CONFLICT', 409, { message: ['rateEndOverlap', { date: next }] });
   }
 }
