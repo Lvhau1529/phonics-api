@@ -132,6 +132,7 @@ export class SessionSyncService {
           endTime: slot.endTime,
           ...sessionTimes(date, slot.startTime, slot.endTime, this.time.timeZone),
           teacherIds: slot.teachers.map((t) => t.teacherId),
+          kind: slot.kind,
           presentCount: records.length,
           records: { createMany: { data: records } },
         }),

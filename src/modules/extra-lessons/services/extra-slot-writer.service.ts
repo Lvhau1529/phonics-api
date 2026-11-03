@@ -54,8 +54,8 @@ export class ExtraSlotWriterService {
   }
 
   /**
-   * Đổi giờ: áp cho cả buổi đã tạo từ `timeFrom` (mặc định hôm nay, kể cả buổi đã xác nhận — giờ không ảnh hưởng
-   * tiền). Đổi thứ chỉ ảnh hưởng buổi chưa tạo.
+   * Đổi giờ / loại ca: áp cho cả buổi đã tạo từ `timeFrom` (mặc định hôm nay, kể cả buổi đã xác nhận — không ảnh
+   * hưởng tiền). Đổi thứ chỉ ảnh hưởng buổi chưa tạo.
    */
   async update(actor: AuthUser, id: string, input: UpdateExtraSlotBody): Promise<ExtraSlot> {
     const { timeFrom, ...body } = input;
@@ -75,12 +75,16 @@ export class ExtraSlotWriterService {
     const endsOn = body.endsOn === undefined ? current.endsOn : body.endsOn;
     if (startsOn && endsOn && endsOn <= startsOn)
       throw new AppError('VALIDATION_ERROR', 400, { fieldErrors: { endsOn: ['slotEndsAfterStart'] } });
-    const { retimed, ended } = await this.repo.transaction(async (tx) => {
+    const { retimed, rekinded, ended } = await this.repo.transaction(async (tx) => {
       await this.repo.update(tx, id, body);
       const ended =
         body.endsOn && body.endsOn !== current.endsOn ? await this.endFrom(tx, id, body.endsOn) : null;
+      const rekinded =
+        body.kind && body.kind !== current.kind
+          ? await this.repo.updateSessionKind(tx, id, timeFrom ?? this.reader.today(), body.kind)
+          : 0;
       if (body.startTime === undefined || (start === current.startTime && end === current.endTime))
-        return { retimed: 0, ended };
+        return { retimed: 0, rekinded, ended };
       const sessions = await this.repo.sessionsFrom(tx, id, timeFrom ?? this.reader.today());
       for (const s of sessions) {
         await this.repo.updateSessionTime(tx, s.id, {
@@ -89,7 +93,7 @@ export class ExtraSlotWriterService {
           ...sessionTimes(s.date, start, end, this.time.timeZone),
         });
       }
-      return { retimed: sessions.length, ended };
+      return { retimed: sessions.length, rekinded, ended };
     });
     await this.audit.record(
       actor,
@@ -97,7 +101,12 @@ export class ExtraSlotWriterService {
       'ExtraSlot',
       id,
       Object.fromEntries(Object.keys(body).map((k) => [k, current[k as keyof typeof current]])),
-      { ...body, ...(retimed && { timeFrom, retimedSessions: retimed }), ...ended },
+      {
+        ...body,
+        ...(retimed && { timeFrom, retimedSessions: retimed }),
+        ...(rekinded && { timeFrom, rekindedSessions: rekinded }),
+        ...ended,
+      },
     );
     if (body.weekday !== undefined || body.startsOn !== undefined || body.endsOn !== undefined)
       await this.scheduler.reschedule();

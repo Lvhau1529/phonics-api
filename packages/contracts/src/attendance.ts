@@ -7,6 +7,7 @@ import { addValidationIssue, ValidationMessage } from './common/validation-messa
 import {
   AffectedRecordRef,
   AffectedSessionRef,
+  ExtraSlotKind,
   ExtraSlotRef,
   PricePerSession,
   TimeOfDay,
@@ -61,6 +62,8 @@ export const AttendanceSessionSummary = z.object({
   id: Id,
   /** null = buổi bù tạo tay */
   slot: ExtraSlotRef.nullable(),
+  /** Chép từ ca lúc tạo; buổi bù chọn tay (từ 1.17.0) */
+  kind: ExtraSlotKind,
   date: IsoDate,
   startTime: TimeOfDay,
   endTime: TimeOfDay,
@@ -134,6 +137,8 @@ export const CreateAttendanceSessionBody = z
     startTime: TimeOfDay,
     endTime: TimeOfDay,
     teacherIds: z.array(Id).min(1).max(5),
+    /** Mặc định học thêm */
+    kind: ExtraSlotKind.optional(),
     note: z.string().trim().max(500).optional(),
   })
   .superRefine((b, ctx) => {

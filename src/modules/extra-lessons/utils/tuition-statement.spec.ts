@@ -6,12 +6,16 @@ import {
   renderTransferContent,
   type StatementRecordRow,
   statementDueDate,
+  statementSections,
 } from '@/modules/extra-lessons/utils/tuition-statement';
 
 const record = (
   studentId: string,
   date: string,
-  over: Partial<Omit<StatementRecordRow, 'session'>> & { status?: 'PENDING' | 'CONFIRMED' } = {},
+  over: Partial<Omit<StatementRecordRow, 'session'>> & {
+    status?: 'PENDING' | 'CONFIRMED';
+    kind?: 'EXTRA_CLASS' | 'TUTORING';
+  } = {},
 ): StatementRecordRow => ({
   studentId,
   mark: 'PRESENT',
@@ -23,6 +27,7 @@ const record = (
     startTime: '18:00',
     endTime: '19:30',
     status: over.status ?? 'CONFIRMED',
+    kind: over.kind ?? 'EXTRA_CLASS',
     slot: { name: 'Ca T3' },
   },
 });
@@ -79,5 +84,29 @@ describe('tuition-statement', () => {
     expect(statement.hasPending).toBe(true);
     expect(statement.transferContent).toBe('HP T10 2026 KHANG RUBY');
     expect(statement.dueDate).toBe('2026-11-05');
+  });
+
+  it('statementSections: tách học thêm / kèm cuối buổi; kèm chỉ giữ buổi có học hoặc vẫn tính phí', () => {
+    const { students } = buildStatement({
+      month: '2026-10',
+      recipient: null,
+      students: [{ id: 's1', vietnameseName: 'Trần Minh Khang', englishName: null }],
+      records: [
+        record('s1', '2026-10-07', { kind: 'TUTORING' }),
+        record('s1', '2026-10-06'),
+        record('s1', '2026-10-14', { kind: 'TUTORING', mark: 'EXCUSED', charged: false }),
+        record('s1', '2026-10-21', { kind: 'TUTORING', mark: 'ABSENT', charged: true }),
+        record('s1', '2026-10-13', { mark: 'ABSENT', charged: false }),
+      ],
+      settings: EMPTY_TUITION_SETTINGS,
+      generatedAt: '',
+    });
+    const [st] = students;
+    expect(st?.sections.map((x) => [x.kind, x.lines.map((l) => l.date), x.total])).toEqual([
+      ['EXTRA_CLASS', ['2026-10-06', '2026-10-13'], 150_000],
+      ['TUTORING', ['2026-10-07', '2026-10-21'], 300_000],
+    ]);
+    expect(st?.total).toBe(450_000);
+    expect(statementSections([])).toEqual([]);
   });
 });

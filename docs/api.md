@@ -105,7 +105,7 @@ Tài khoản `PENDING` (phụ huynh chờ duyệt) chỉ gọi được `auth/me
 | POST | `/extra-rates/:id/apply` | A, T (perm:`extra.managePricing`) | `{ sessionIds }` → `{ updated }` — áp giá vào buổi đã xác nhận (`affectedRecords`) |
 | GET | `/students/:id/attendance` | A, T | `?month=YYYY-MM` → `StudentAttendanceResponse` |
 | GET | `/students/:id/tuition` | A, T (perm:`extra.viewPricing`, phạm vi học sinh) | `?from=YYYY-MM&to=YYYY-MM` → `StudentTuitionResponse` (học phí tạm tính theo tháng) |
-| GET | `/students/:id/tuition-statement.pdf` | A, T (perm:`extra.viewPricing` + `reports.export`, phạm vi học sinh) | `?month=YYYY-MM` → PDF phiếu báo học phí gửi phụ huynh: gộp các bé cùng phụ huynh nhận học phí (GV chỉ thấy bé trong phạm vi), từng buổi + tổng, thông tin chuyển khoản + VietQR theo cài đặt (trường trống không in) |
+| GET | `/students/:id/tuition-statement.pdf` | A, T (perm:`extra.viewPricing` + `reports.export`, phạm vi học sinh) | `?month=YYYY-MM` → PDF phiếu báo học phí gửi phụ huynh: gộp các bé cùng phụ huynh nhận học phí (GV chỉ thấy bé trong phạm vi), mỗi loại ca một bảng (kèm cuối buổi `TUTORING`: chỉ buổi có học, không cột điểm danh), thông tin chuyển khoản + VietQR theo cài đặt (trường trống không in) |
 
 Hẹn giờ (`ExtraLessonsScheduler`, theo APP_TIMEZONE): **00:05** tạo buổi của ngày cho mọi ca (học sinh theo lịch, mặc
 định có mặt, chốt đơn giá; idempotent theo (ca, ngày), tạo bù `catchUpDays` ngày khi API tắt qua mốc); **21:00** mỗi

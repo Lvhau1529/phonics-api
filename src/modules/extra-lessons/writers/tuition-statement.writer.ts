@@ -1,9 +1,10 @@
-import { type AttendanceMark } from '@phonics/contracts';
+import { type AttendanceMark, type ExtraSlotKind } from '@phonics/contracts';
 import { type Column, type Content, type TableCell, type TDocumentDefinitions } from 'pdfmake/interfaces';
 import { dayjs } from '@/core/time/dayjs';
 import { renderPdf } from '@/infrastructure/pdf/pdfmake';
 import {
   type StatementLine,
+  type StatementSection,
   type StatementStudent,
   type TuitionStatement,
 } from '@/modules/extra-lessons/utils/tuition-statement';
@@ -11,7 +12,8 @@ import { vietQrPayload } from '@/modules/extra-lessons/utils/vietqr';
 
 /**
  * Phiếu báo học phí (A4, tiếng Việt — gửi phụ huynh). Mọi phần lấy từ cài đặt chỉ in khi đã điền: trường bỏ trống
- * không hiện, cột "Ca học" chỉ khi bật `showSlot`; cả khối chuyển khoản ẩn khi không có trường nào; mã VietQR cần đủ mã BIN + số tài khoản.
+ * không hiện, cột "Ca học" chỉ khi bật `showSlot`; mỗi loại ca một bảng (kèm cuối buổi: chỉ buổi có học, không cột
+ * điểm danh); cả khối chuyển khoản ẩn khi không có trường nào; mã VietQR cần đủ mã BIN + số tài khoản.
  */
 
 const COLORS = {
@@ -78,8 +80,11 @@ interface LineColumn {
   cell: (l: StatementLine) => { text: string; color?: string; italics?: boolean };
 }
 
-/** Cột "Ca học" chỉ khi bật `showSlot`; cột cuối luôn là "Thành tiền" */
-function lineColumns(showSlot: boolean): LineColumn[] {
+/**
+ * Cột "Ca học" chỉ khi bật `showSlot`; kèm cuối buổi không có cột "Điểm danh" (chỉ in buổi có học); cột cuối luôn là
+ * "Thành tiền"
+ */
+function lineColumns(showSlot: boolean, kind: ExtraSlotKind): LineColumn[] {
   const columns: (LineColumn | false)[] = [
     {
       title: 'Ngày',
@@ -102,7 +107,7 @@ function lineColumns(showSlot: boolean): LineColumn[] {
       align: 'center',
       cell: (l) => ({ text: `${l.startTime}–${l.endTime}` }),
     },
-    {
+    kind === 'EXTRA_CLASS' && {
       title: 'Điểm danh',
       width: 70,
       align: 'center',
@@ -122,29 +127,46 @@ function lineColumns(showSlot: boolean): LineColumn[] {
   return columns.filter((c): c is LineColumn => !!c);
 }
 
-function studentBlock(st: StatementStudent, showSlot: boolean): Content[] {
-  const name = st.englishName ? `${st.vietnameseName} (${st.englishName})` : st.vietnameseName;
-  const columns = lineColumns(showSlot);
+const SECTION_TITLE: Record<ExtraSlotKind, string> = { EXTRA_CLASS: 'Học thêm', TUTORING: 'Kèm cuối buổi' };
+
+const pad = (count: number): TableCell[] => Array.from({ length: count }, () => ({}));
+
+function sectionTable(section: StatementSection | null, showSlot: boolean): Content {
+  const columns = lineColumns(showSlot, section?.kind ?? 'EXTRA_CLASS');
   const n = columns.length;
-  const pad = (count: number): TableCell[] => Array.from({ length: count }, () => ({}));
+  const lines = section?.lines ?? [];
   const body: TableCell[][] = [
     columns.map((c) => ({ text: c.title, style: 'th', alignment: c.align })),
-    ...st.lines.map((l) => columns.map((c): TableCell => ({ ...c.cell(l), alignment: c.align }))),
+    ...lines.map((l) => columns.map((c): TableCell => ({ ...c.cell(l), alignment: c.align }))),
   ];
-  if (!st.lines.length)
+  if (!lines.length)
     body.push([
       { text: 'Không có buổi học thêm trong tháng', colSpan: n, alignment: 'center', color: COLORS.muted },
       ...pad(n - 1),
     ]);
+  const count =
+    section?.kind === 'TUTORING'
+      ? `Cộng: ${lines.length} buổi`
+      : `Cộng: ${section?.chargedCount ?? 0} buổi tính phí / ${lines.length} buổi`;
   body.push([
-    { text: `Cộng: ${st.chargedCount} buổi tính phí / ${st.lines.length} buổi`, colSpan: n - 1, bold: true },
+    { text: count, colSpan: n - 1, bold: true },
     ...pad(n - 2),
-    { text: formatVnd(st.total), alignment: 'right', bold: true },
+    { text: formatVnd(section?.total ?? 0), alignment: 'right', bold: true },
   ]);
-  return [
-    { text: `Học sinh: ${name}`, style: 'student' },
-    { table: { headerRows: 1, widths: columns.map((c) => c.width), body }, layout: tableLayout },
-  ];
+  return { table: { headerRows: 1, widths: columns.map((c) => c.width), body }, layout: tableLayout };
+}
+
+/** Mỗi loại ca một bảng; có cả hai loại thì thêm tiêu đề nhỏ cho từng bảng */
+function studentBlock(st: StatementStudent, showSlot: boolean): Content[] {
+  const name = st.englishName ? `${st.vietnameseName} (${st.englishName})` : st.vietnameseName;
+  const titled = st.sections.length > 1;
+  const tables: Content[] = st.sections.length
+    ? st.sections.flatMap((section) => [
+        ...(titled ? [{ text: SECTION_TITLE[section.kind], style: 'sectionTitle' } as Content] : []),
+        sectionTable(section, showSlot),
+      ])
+    : [sectionTable(null, showSlot)];
+  return [{ text: `Học sinh: ${name}`, style: 'student' }, ...tables];
 }
 
 function summary(s: TuitionStatement): Content {
@@ -230,6 +252,7 @@ export function tuitionStatementDocument(s: TuitionStatement): TDocumentDefiniti
       org: { fontSize: 13, bold: true, color: COLORS.title },
       title: { fontSize: 16, bold: true, alignment: 'center', margin: [0, 14, 0, 12] },
       student: { fontSize: 11, bold: true, margin: [0, 10, 0, 4] },
+      sectionTitle: { fontSize: 10, bold: true, color: COLORS.muted, margin: [0, 4, 0, 3] },
       section: { fontSize: 11, bold: true, color: COLORS.title, margin: [0, 16, 0, 6] },
       muted: { fontSize: 9, color: COLORS.muted },
       th: { bold: true, fillColor: COLORS.header },

@@ -1,5 +1,10 @@
 /** Dựng dữ liệu phiếu báo học phí một tháng (gộp các bé cùng phụ huynh nhận học phí) — hàm thuần */
-import { type AttendanceMark, type AttendanceSessionStatus, type TuitionSettings } from '@phonics/contracts';
+import {
+  type AttendanceMark,
+  type AttendanceSessionStatus,
+  type ExtraSlotKind,
+  type TuitionSettings,
+} from '@phonics/contracts';
 import { dayjs, ISO_DATE } from '@/core/time/dayjs';
 
 /** Nội dung chuyển khoản tối đa (app ngân hàng thường cắt / từ chối chuỗi dài) */
@@ -15,6 +20,7 @@ export interface StatementRecordRow {
     startTime: string;
     endTime: string;
     status: AttendanceSessionStatus;
+    kind: ExtraSlotKind;
     slot: { name: string } | null;
   };
 }
@@ -26,6 +32,7 @@ export interface StatementStudentRow {
 }
 
 export interface StatementLine {
+  kind: ExtraSlotKind;
   date: string;
   slotName: string | null;
   startTime: string;
@@ -39,10 +46,44 @@ export interface StatementLine {
   pending: boolean;
 }
 
-export interface StatementStudent extends StatementStudentRow {
+/** Một bảng trên phiếu: các buổi cùng loại ca của một bé */
+export interface StatementSection {
+  kind: ExtraSlotKind;
+  /** Dòng in ra — kèm cuối buổi chỉ gồm buổi có học (hoặc vẫn tính phí) */
   lines: StatementLine[];
   chargedCount: number;
   total: number;
+}
+
+export interface StatementStudent extends StatementStudentRow {
+  /** Mọi buổi (không gồm buổi huỷ), kể cả dòng không in */
+  lines: StatementLine[];
+  /** Theo thứ tự học thêm → kèm cuối buổi; bỏ loại không có dòng nào để in */
+  sections: StatementSection[];
+  chargedCount: number;
+  total: number;
+}
+
+const SECTION_ORDER: readonly ExtraSlotKind[] = ['EXTRA_CLASS', 'TUTORING'];
+
+/** Kèm cuối buổi chỉ báo buổi có học; buổi vắng mà vẫn tính phí (ghi đè) vẫn in để khớp tổng tiền */
+export function visibleLine(l: StatementLine): boolean {
+  return l.kind !== 'TUTORING' || l.mark === 'PRESENT' || l.charged;
+}
+
+export function statementSections(lines: readonly StatementLine[]): StatementSection[] {
+  return SECTION_ORDER.flatMap((kind) => {
+    const shown = lines.filter((l) => l.kind === kind && visibleLine(l));
+    if (!shown.length) return [];
+    return [
+      {
+        kind,
+        lines: shown,
+        chargedCount: shown.filter((l) => l.charged).length,
+        total: shown.reduce((sum, l) => sum + l.amount, 0),
+      },
+    ];
+  });
 }
 
 export interface TuitionStatement {
@@ -115,6 +156,7 @@ export function buildStatement(input: {
     const lines = input.records
       .filter((r) => r.studentId === s.id)
       .map((r): StatementLine => ({
+        kind: r.session.kind,
         date: r.session.date,
         slotName: r.session.slot?.name ?? null,
         startTime: r.session.startTime,
@@ -129,6 +171,7 @@ export function buildStatement(input: {
     return {
       ...s,
       lines,
+      sections: statementSections(lines),
       chargedCount: lines.filter((l) => l.charged).length,
       total: lines.reduce((sum, l) => sum + l.amount, 0),
     };

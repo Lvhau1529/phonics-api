@@ -3,6 +3,7 @@ import { type Prisma } from '@/generated/prisma/client';
 export const slotRefSelect = {
   id: true,
   name: true,
+  kind: true,
   weekday: true,
   startTime: true,
   endTime: true,

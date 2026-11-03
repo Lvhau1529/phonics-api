@@ -24,10 +24,19 @@ export const PricePerSession = z.int().min(0).max(10_000_000);
 
 export const SlotName = z.string().trim().min(1).max(80);
 
+/**
+ * Loại ca: `EXTRA_CLASS` học thêm (lớp riêng), `TUTORING` kèm cuối buổi (GV kèm sau giờ học chính). Điểm danh như
+ * nhau; phiếu học phí của kèm cuối buổi chỉ liệt kê buổi có học, không cột điểm danh.
+ */
+export const ExtraSlotKind = z.enum(['EXTRA_CLASS', 'TUTORING']);
+export type ExtraSlotKind = z.infer<typeof ExtraSlotKind>;
+
 /** Ca rút gọn (lịch của học sinh, chọn ca) */
 export const ExtraSlotRef = z.object({
   id: Id,
   name: SlotName,
+  /** Từ 1.17.0 */
+  kind: ExtraSlotKind,
   weekday: Weekday,
   startTime: TimeOfDay,
   endTime: TimeOfDay,
@@ -80,6 +89,7 @@ export type ExtraSlotsResponse = z.infer<typeof ExtraSlotsResponse>;
 
 const slotFields = {
   name: SlotName,
+  kind: ExtraSlotKind,
   weekday: Weekday,
   startTime: TimeOfDay,
   endTime: TimeOfDay,
@@ -103,6 +113,7 @@ function endAfterStart(
 export const CreateExtraSlotBody = z
   .strictObject({
     ...slotFields,
+    kind: slotFields.kind.optional(),
     room: slotFields.room.optional(),
     capacity: slotFields.capacity.optional(),
     classId: slotFields.classId.optional(),
@@ -114,8 +125,8 @@ export const CreateExtraSlotBody = z
 export type CreateExtraSlotBody = z.infer<typeof CreateExtraSlotBody>;
 
 /**
- * `null` = xoá giá trị. Sửa một trong hai giờ thì gửi cả hai; giờ mới áp cho cả buổi đã tạo từ ngày `timeFrom`
- * (mặc định hôm nay, mọi trạng thái — giờ không ảnh hưởng tiền). Đổi thứ không dời buổi đã tạo.
+ * `null` = xoá giá trị. Sửa một trong hai giờ thì gửi cả hai; giờ mới (và loại ca mới) áp cho cả buổi đã tạo từ ngày
+ * `timeFrom` (mặc định hôm nay, mọi trạng thái — không ảnh hưởng tiền). Đổi thứ không dời buổi đã tạo.
  * Đặt `endsOn`: học sinh đang học rời ca từ ngày đó, buổi chưa xác nhận từ ngày đó bị huỷ; `endsOn` ≤ hôm nay = ngừng
  * ngay. `endsOn: null` chỉ bỏ ngày ngừng (học sinh đã cho rời ca không tự quay lại).
  */
