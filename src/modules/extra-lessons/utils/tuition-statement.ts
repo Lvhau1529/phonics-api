@@ -21,7 +21,8 @@ export interface StatementRecordRow {
     endTime: string;
     status: AttendanceSessionStatus;
     kind: ExtraSlotKind;
-    slot: { name: string } | null;
+    /** Thông tin ca hiện tại — phiếu luôn in theo ca đã sửa mới nhất */
+    slot: { name: string; kind: ExtraSlotKind; startTime: string; endTime: string } | null;
   };
 }
 
@@ -155,12 +156,14 @@ export function buildStatement(input: {
   const students = input.students.map((s): StatementStudent => {
     const lines = input.records
       .filter((r) => r.studentId === s.id)
+      // Buổi theo ca: tên / loại / giờ lấy từ ca hiện tại (sửa ca là phiếu đổi theo, kể cả buổi đã xác nhận); buổi bù
+      // dùng thông tin của chính buổi. Tiền luôn theo đơn giá đã chốt trên bản ghi.
       .map((r): StatementLine => ({
-        kind: r.session.kind,
+        kind: r.session.slot?.kind ?? r.session.kind,
         date: r.session.date,
         slotName: r.session.slot?.name ?? null,
-        startTime: r.session.startTime,
-        endTime: r.session.endTime,
+        startTime: r.session.slot?.startTime ?? r.session.startTime,
+        endTime: r.session.slot?.endTime ?? r.session.endTime,
         mark: r.mark,
         charged: r.charged,
         unitPrice: r.unitPrice,

@@ -28,7 +28,7 @@ const record = (
     endTime: '19:30',
     status: over.status ?? 'CONFIRMED',
     kind: over.kind ?? 'EXTRA_CLASS',
-    slot: { name: 'Ca T3' },
+    slot: { name: 'Ca T3', kind: over.kind ?? 'EXTRA_CLASS', startTime: '18:00', endTime: '19:30' },
   },
 });
 
@@ -108,5 +108,35 @@ describe('tuition-statement', () => {
     ]);
     expect(st?.total).toBe(450_000);
     expect(statementSections([])).toEqual([]);
+  });
+
+  it('buổi theo ca in theo thông tin ca hiện tại (đã sửa), tiền vẫn theo đơn giá đã chốt; buổi bù giữ của buổi', () => {
+    const old = record('s1', '2026-10-06', { unitPrice: 120_000 });
+    const makeup = record('s1', '2026-10-08');
+    const { students } = buildStatement({
+      month: '2026-10',
+      recipient: null,
+      students: [{ id: 's1', vietnameseName: 'Trần Minh Khang', englishName: null }],
+      records: [
+        {
+          ...old,
+          session: {
+            ...old.session,
+            startTime: '17:00',
+            endTime: '18:00',
+            kind: 'EXTRA_CLASS',
+            slot: { name: 'Kèm T2', kind: 'TUTORING', startTime: '19:30', endTime: '20:00' },
+          },
+        },
+        { ...makeup, session: { ...makeup.session, startTime: '08:00', endTime: '09:00', slot: null } },
+      ],
+      settings: EMPTY_TUITION_SETTINGS,
+      generatedAt: '',
+    });
+    const lines = students[0]?.lines ?? [];
+    expect(lines.map((l) => [l.date, l.kind, l.slotName, l.startTime, l.amount])).toEqual([
+      ['2026-10-06', 'TUTORING', 'Kèm T2', '19:30', 120_000],
+      ['2026-10-08', 'EXTRA_CLASS', null, '08:00', 150_000],
+    ]);
   });
 });

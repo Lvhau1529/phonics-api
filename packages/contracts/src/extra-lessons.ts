@@ -127,8 +127,8 @@ export const CreateExtraSlotBody = z
 export type CreateExtraSlotBody = z.infer<typeof CreateExtraSlotBody>;
 
 /**
- * `null` = xoá giá trị. Sửa một trong hai giờ thì gửi cả hai; giờ mới (và loại ca mới) áp cho cả buổi đã tạo từ ngày
- * `timeFrom` (mặc định hôm nay, mọi trạng thái — không ảnh hưởng tiền). Đổi thứ không dời buổi đã tạo.
+ * `null` = xoá giá trị. Sửa một trong hai giờ thì gửi cả hai; giờ mới áp cho cả buổi đã tạo từ ngày `timeFrom`
+ * (mặc định hôm nay, mọi trạng thái — không ảnh hưởng tiền). Loại ca mới áp cho mọi buổi đã tạo của ca. Đổi thứ không dời buổi đã tạo.
  * Đặt `endsOn`: học sinh đang học rời ca từ ngày đó, buổi chưa xác nhận từ ngày đó bị huỷ; `endsOn` ≤ hôm nay = ngừng
  * ngay. `endsOn: null` chỉ bỏ ngày ngừng (học sinh đã cho rời ca không tự quay lại).
  */

@@ -54,8 +54,8 @@ export class ExtraSlotWriterService {
   }
 
   /**
-   * Đổi giờ / loại ca: áp cho cả buổi đã tạo từ `timeFrom` (mặc định hôm nay, kể cả buổi đã xác nhận — không ảnh
-   * hưởng tiền). Đổi thứ chỉ ảnh hưởng buổi chưa tạo.
+   * Đổi giờ: áp cho cả buổi đã tạo từ `timeFrom` (mặc định hôm nay, kể cả buổi đã xác nhận — giờ không ảnh hưởng
+   * tiền). Đổi loại ca: áp cho mọi buổi đã tạo của ca. Đổi thứ chỉ ảnh hưởng buổi chưa tạo.
    */
   async update(actor: AuthUser, id: string, input: UpdateExtraSlotBody): Promise<ExtraSlot> {
     const { timeFrom, ...body } = input;
@@ -80,9 +80,7 @@ export class ExtraSlotWriterService {
       const ended =
         body.endsOn && body.endsOn !== current.endsOn ? await this.endFrom(tx, id, body.endsOn) : null;
       const rekinded =
-        body.kind && body.kind !== current.kind
-          ? await this.repo.updateSessionKind(tx, id, timeFrom ?? this.reader.today(), body.kind)
-          : 0;
+        body.kind && body.kind !== current.kind ? await this.repo.updateSessionKind(tx, id, body.kind) : 0;
       if (body.startTime === undefined || (start === current.startTime && end === current.endTime))
         return { retimed: 0, rekinded, ended };
       const sessions = await this.repo.sessionsFrom(tx, id, timeFrom ?? this.reader.today());
@@ -104,7 +102,7 @@ export class ExtraSlotWriterService {
       {
         ...body,
         ...(retimed && { timeFrom, retimedSessions: retimed }),
-        ...(rekinded && { timeFrom, rekindedSessions: rekinded }),
+        ...(rekinded && { rekindedSessions: rekinded }),
         ...ended,
       },
     );

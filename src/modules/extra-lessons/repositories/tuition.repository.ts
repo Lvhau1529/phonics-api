@@ -152,7 +152,7 @@ export class TuitionRepository {
             endTime: true,
             status: true,
             kind: true,
-            slot: { select: { name: true } },
+            slot: { select: { name: true, kind: true, startTime: true, endTime: true } },
           },
         },
       },
