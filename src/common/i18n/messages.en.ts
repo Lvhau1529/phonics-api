@@ -146,4 +146,7 @@ export const en: Messages = {
   removeManualOnly:
     'Only manually added students can be removed — mark scheduled students absent or fix their schedule',
   sessionAlreadyConfirmed: 'The session was already confirmed by someone else',
+  slotEndsAfterStart: 'The stop date must be after the start date',
+  slotEndInPast: 'The stop date must be after today',
+  slotEndedReason: 'The extra class slot has stopped',
 };

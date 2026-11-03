@@ -16,9 +16,10 @@ import { ExtraSlotRepository } from '@/modules/extra-lessons/repositories/extra-
 import { AttendanceReaderService } from '@/modules/extra-lessons/services/attendance-reader.service';
 import { ExtraAccessService } from '@/modules/extra-lessons/services/extra-access.service';
 import { type SessionDetailRow } from '@/modules/extra-lessons/types/extra.types';
+import { type Tx } from '@/database/types';
 import { resolveRate } from '@/modules/extra-lessons/utils/rate';
 import { chargedAfter } from '@/modules/extra-lessons/utils/roster';
-import { isoWeekdayOf, sessionTimes } from '@/modules/extra-lessons/utils/session-time';
+import { datesBetween, sessionTimes } from '@/modules/extra-lessons/utils/session-time';
 
 /**
  * Điểm danh trong app (quyền attendance.confirm, GV buổi mình), xác nhận buổi, buổi bù và huỷ buổi (extra.manageSlots).
@@ -177,26 +178,8 @@ export class AttendanceWriterService {
       if (body.sessionIds) {
         ids.push(...(await this.repo.findCancellable(body.sessionIds, own)).map((s) => s.id));
       } else if (body.date) {
-        const date = body.date;
-        ids.push(...(await this.repo.findByDate(date, own)).map((s) => s.id));
-        const end = this.time.afterIsoDate(date);
-        const slots = await this.repo.slotsOnWeekday(isoWeekdayOf(date), end, own);
-        const existing = await this.repo.existingSlotDates(
-          slots.map((s) => s.id),
-          [date],
-        );
-        for (const slot of slots.filter((s) => !existing.has(`${s.id}:${date}`))) {
-          const created = await this.repo.createSession(tx, {
-            slotId: slot.id,
-            date,
-            startTime: slot.startTime,
-            endTime: slot.endTime,
-            ...sessionTimes(date, slot.startTime, slot.endTime, this.time.timeZone),
-            teacherIds: slot.teachers.map((t) => t.teacherId),
-            status: 'CANCELLED',
-            cancelReason: body.reason,
-          });
-          ids.push(created.id);
+        for (const date of datesBetween(body.date, body.dateTo ?? body.date)) {
+          ids.push(...(await this.cancelDay(tx, date, body.reason, own, body.slotIds)));
         }
       }
       await this.repo.cancel(tx, ids, body.reason);
@@ -204,8 +187,45 @@ export class AttendanceWriterService {
     await this.audit.record(actor, 'attendance.cancelSession', 'AttendanceSession', body.date ?? null, null, {
       sessionIds: ids,
       reason: body.reason,
+      ...(body.dateTo && { dateTo: body.dateTo }),
+      ...(body.slotIds && { slotIds: body.slotIds }),
     });
     return { cancelled: ids };
+  }
+
+  /**
+   * Huỷ một ngày nghỉ: buổi đã có (chưa huỷ) trả id để huỷ; ca có lịch hôm đó mà chưa có buổi thì tạo sẵn buổi huỷ
+   * (00:05 thấy đã có buổi nên không tạo lại). `slotIds`: chỉ các ca này.
+   */
+  private async cancelDay(
+    tx: Tx,
+    date: string,
+    reason: string,
+    teacherId: string | undefined,
+    slotIds: readonly string[] | undefined,
+  ): Promise<string[]> {
+    const ids = (await this.repo.findByDate(date, teacherId, slotIds)).map((s) => s.id);
+    const slots = (await this.repo.slotsOn(date, this.time.afterIsoDate(date), teacherId)).filter(
+      (s) => !slotIds || slotIds.includes(s.id),
+    );
+    const existing = await this.repo.existingSlotDates(
+      slots.map((s) => s.id),
+      [date],
+    );
+    for (const slot of slots.filter((s) => !existing.has(`${s.id}:${date}`))) {
+      const created = await this.repo.createSession(tx, {
+        slotId: slot.id,
+        date,
+        startTime: slot.startTime,
+        endTime: slot.endTime,
+        ...sessionTimes(date, slot.startTime, slot.endTime, this.time.timeZone),
+        teacherIds: slot.teachers.map((t) => t.teacherId),
+        status: 'CANCELLED',
+        cancelReason: reason,
+      });
+      ids.push(created.id);
+    }
+    return ids;
   }
 
   // ---- helpers ----

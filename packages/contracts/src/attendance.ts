@@ -142,15 +142,30 @@ export const CreateAttendanceSessionBody = z
 export type CreateAttendanceSessionBody = z.infer<typeof CreateAttendanceSessionBody>;
 
 /** Huỷ hàng loạt (nghỉ lễ): theo danh sách buổi hoặc cả một ngày (buổi chưa tạo thì tạo luôn ở trạng thái huỷ) */
+/** Số ngày trong [from, to] (cả hai đầu), ngày `YYYY-MM-DD` */
+export function dayCount(from: string, to: string): number {
+  return Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86_400_000) + 1;
+}
+
 export const CancelAttendanceSessionsBody = z
   .strictObject({
     sessionIds: z.array(Id).min(1).max(100).optional(),
+    /** Huỷ cả ngày `date` (buổi chưa tạo cũng được tạo sẵn ở trạng thái huỷ) — nghỉ lễ */
     date: IsoDate.optional(),
+    /** Nghỉ nhiều ngày: từ `date` đến `dateTo` (gồm cả hai đầu, tối đa 62 ngày) */
+    dateTo: IsoDate.optional(),
+    /** Chỉ huỷ các ca này (bỏ trống = mọi ca); dùng cùng `date` */
+    slotIds: z.array(Id).min(1).max(50).optional(),
     reason: z.string().trim().min(1).max(200),
   })
   .refine((b) => !!b.sessionIds !== !!b.date, {
     message: ValidationMessage.sessionsOrDate,
     path: ['sessionIds'],
+  })
+  .superRefine((b, ctx) => {
+    if ((b.dateTo || b.slotIds) && !b.date) addValidationIssue(ctx, ['slotIds'], 'slotsNeedDate');
+    if (b.date && b.dateTo && (b.dateTo < b.date || dayCount(b.date, b.dateTo) > 62))
+      addValidationIssue(ctx, ['dateTo'], 'cancelRange');
   });
 export type CancelAttendanceSessionsBody = z.infer<typeof CancelAttendanceSessionsBody>;
 
@@ -274,7 +289,7 @@ export const TuitionOverview = z.object({
   topStudents: z.array(TuitionByStudent),
   /** Buổi còn chờ xác nhận trong khoảng */
   pendingSessions: z.int(),
-  /** Bản ghi tính phí đơn giá 0 (thiếu giá) */
+  /** Bản ghi tính phí chưa có đơn giá (0đ, không có dòng giá). Giá 0đ đã đặt = miễn phí, không tính vào đây */
   zeroPriceRecords: z.int(),
 });
 export type TuitionOverview = z.infer<typeof TuitionOverview>;

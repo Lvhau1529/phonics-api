@@ -6,6 +6,8 @@ export const slotRefSelect = {
   weekday: true,
   startTime: true,
   endTime: true,
+  startsOn: true,
+  endsOn: true,
   archivedAt: true,
 } satisfies Prisma.ExtraSlotSelect;
 

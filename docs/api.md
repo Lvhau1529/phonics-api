@@ -62,8 +62,8 @@ Tài khoản `PENDING` (phụ huynh chờ duyệt) chỉ gọi được `auth/me
 | GET | `/extra-slots` | A, T | `ExtraSlotListQuery { includeArchived?, teacherId?, classId? }` → `ExtraSlotsResponse` (GV chỉ ca mình; `defaultPrice` cần perm:`extra.viewPricing`) |
 | GET | `/extra-slots/:id` | A, T | → `ExtraSlot` |
 | POST | `/extra-slots` | A, T (perm:`extra.manageSlots`) | `CreateExtraSlotBody` → `ExtraSlot` (201). GV tạo → tự phụ trách ca; `classId` phải là lớp mình dạy |
-| PATCH | `/extra-slots/:id` | A, T (perm:`extra.manageSlots`, ca mình) | `UpdateExtraSlotBody` → `ExtraSlot` (đổi giờ áp cho buổi đã tạo từ `timeFrom`, mặc định hôm nay, mọi trạng thái; đổi thứ không dời buổi đã tạo) |
-| DELETE | `/extra-slots/:id` | A, T (perm:`extra.manageSlots`, ca mình) | → 204 lưu trữ; lịch còn mở kết thúc từ hôm nay |
+| PATCH | `/extra-slots/:id` | A, T (perm:`extra.manageSlots`, ca mình) | `UpdateExtraSlotBody` → `ExtraSlot` (đổi giờ áp cho buổi đã tạo từ `timeFrom`, mặc định hôm nay, mọi trạng thái; đổi thứ không dời buổi đã tạo; `endsOn` = ngừng ca từ ngày đó: lịch học sinh kết thúc, buổi chờ từ ngày đó bị huỷ, tới ngày thì ca chuyển đã ngừng; `startsOn` = ngày đầu có buổi) |
+| DELETE | `/extra-slots/:id` | A, T (perm:`extra.manageSlots`, ca mình) | → 204 ngừng ca ngay (= `endsOn` hôm nay); lịch còn mở kết thúc từ hôm nay, buổi chờ hôm nay bị huỷ |
 | PUT | `/extra-slots/:id/teachers` | A, T (perm:`extra.manageSlots`, ca mình) | `SetSlotTeachersBody` → `ExtraSlot`. GV phải còn trong danh sách (400 `keepSelfInSlot`) |
 | GET | `/extra-slots/:id/students` | A, T | `?date` → `SlotStudentsResponse` (học sinh học ca tại ngày + đơn giá áp dụng nếu có quyền xem giá) |
 | GET | `/extra-slots/:id/rates` | A, T (perm:`extra.viewPricing`) | → `ExtraRatesResponse` (lịch sử giá mặc định của ca) |
@@ -96,7 +96,7 @@ Tài khoản `PENDING` (phụ huynh chờ duyệt) chỉ gọi được `auth/me
 | POST | `/attendance/sessions/resend-digest` | A | `ResendDigestBody { sessionIds }` → `ResendDigestResponse` (mỗi GV của các buổi còn PENDING một mail `teacher.digest` mới, token mới — link cũ vẫn dùng được; không tính vào số lần nhắc tự động; GV thiếu email → `noEmail`) |
 | GET | `/attendance/tuition` | A | `?from=YYYY-MM&to=YYYY-MM` (≤ 24 tháng) → `TuitionOverview` (tạm tính từ điểm danh: theo tháng, theo ca, top 10 học sinh, buổi còn chờ xác nhận, bản ghi tính phí giá 0; không gồm buổi huỷ) |
 | POST | `/attendance/sessions` | A, T (perm:`extra.manageSlots`) | `CreateAttendanceSessionBody` → detail (201) — buổi bù (GV phải có trong `teacherIds`) |
-| POST | `/attendance/sessions/cancel` | A, T (perm:`extra.manageSlots`) | `CancelAttendanceSessionsBody { sessionIds \| date, reason }` → `{ cancelled }` (GV: chỉ buổi / ca mình phụ trách) |
+| POST | `/attendance/sessions/cancel` | A, T (perm:`extra.manageSlots`) | `CancelAttendanceSessionsBody { sessionIds \| date + dateTo? + slotIds?, reason }` → `{ cancelled }` (nghỉ nhiều ngày tối đa 62 ngày, ca chưa có buổi được tạo sẵn buổi huỷ; GV: chỉ buổi / ca mình phụ trách) |
 | GET | `/attendance/public/digests/:token` | pub | → `AttendanceDigestView` (link mail 21:00; 404 `ATTENDANCE_TOKEN_INVALID`, 410 `ATTENDANCE_TOKEN_EXPIRED`) |
 | POST | `/attendance/public/digests/:token/confirm` | pub | `{ sessionIds }` → `ConfirmDigestResponse` (chỉ buổi trong mail, còn PENDING, danh sách chưa đổi) |
 | POST | `/students/:id/slot-assignments/apply` | A, T (perm:`extra.manageSchedule`) | `{ sessionIds }` → `{ updated }` — áp lịch vào buổi đã xác nhận (`affectedSessions`) |

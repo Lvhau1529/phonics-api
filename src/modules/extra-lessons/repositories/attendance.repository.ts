@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '@/database/prisma.service';
 import { type Tx } from '@/database/types';
 import { type Prisma } from '@/generated/prisma/client';
+import { isoWeekdayOf } from '@/modules/extra-lessons/utils/session-time';
 import {
   sessionDetailInclude,
   type SessionDetailRow,
@@ -78,13 +79,19 @@ export class AttendanceRepository {
 
   // ---------- Tạo buổi (00:05) ----------
 
-  /** Ca còn hoạt động dạy vào thứ `weekday`, tạo trước cuối ngày đó */
-  /** `teacherId`: chỉ ca GV đó dạy */
-  slotsOnWeekday(weekday: number, createdBefore: Date, teacherId?: string) {
+  /**
+   * Ca có buổi vào ngày `date`: đúng thứ, trong [startsOn, endsOn), tạo trước cuối ngày đó, chưa ngừng.
+   * `teacherId`: chỉ ca GV đó dạy
+   */
+  slotsOn(date: string, createdBefore: Date, teacherId?: string) {
     return this.prisma.extraSlot.findMany({
       where: {
-        weekday,
+        weekday: isoWeekdayOf(date),
         archivedAt: null,
+        AND: [
+          { OR: [{ startsOn: null }, { startsOn: { lte: date } }] },
+          { OR: [{ endsOn: null }, { endsOn: { gt: date } }] },
+        ],
         createdAt: { lt: createdBefore },
         teachers: teacherId ? { some: { teacherId } } : undefined,
       },
@@ -221,9 +228,14 @@ export class AttendanceRepository {
     });
   }
 
-  findByDate(date: string, teacherId?: string) {
+  findByDate(date: string, teacherId?: string, slotIds?: readonly string[]) {
     return this.prisma.attendanceSession.findMany({
-      where: { date, status: { not: 'CANCELLED' }, teacherIds: teacherId ? { has: teacherId } : undefined },
+      where: {
+        date,
+        status: { not: 'CANCELLED' },
+        teacherIds: teacherId ? { has: teacherId } : undefined,
+        slotId: slotIds ? { in: [...slotIds] } : undefined,
+      },
       select: { id: true },
     });
   }

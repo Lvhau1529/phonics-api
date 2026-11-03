@@ -514,6 +514,10 @@ describe('học thêm', () => {
   it('ca: giờ HH:mm, kết thúc sau bắt đầu; sửa giờ phải gửi cả hai', () => {
     const body = { name: 'Phonics T3', weekday: 2, startTime: '18:00', endTime: '19:30' };
     expect(CreateExtraSlotBody.safeParse(body).success).toBe(true);
+    expect(
+      CreateExtraSlotBody.safeParse({ ...body, startsOn: '2026-12-01', endsOn: '2026-12-01' }).error
+        ?.issues[0]?.message,
+    ).toBe('slotEndsAfterStart');
     expect(CreateExtraSlotBody.safeParse({ ...body, startTime: '8:00' }).error?.issues[0]?.message).toBe(
       'timeFormat',
     );
@@ -618,7 +622,17 @@ describe('điểm danh', () => {
       CancelAttendanceSessionsBody.safeParse({ sessionIds: [id], date: '2026-09-02', reason: 'Lễ' }).error
         ?.issues[0]?.message,
     ).toBe('sessionsOrDate');
-    expect(CancelAttendanceSessionsBody.safeParse({ reason: 'Lễ' }).success).toBe(false);
+    expect(CancelAttendanceSessionsBody.safeParse({ reason: 'Lễ' }).success).toBe(false); // Nghỉ nhiều ngày: from ≤ to, tối đa 62 ngày; chọn ca chỉ khi huỷ theo ngày
+    const tet = { date: '2027-02-04', dateTo: '2027-02-12', reason: 'Tết' };
+    expect(CancelAttendanceSessionsBody.safeParse({ ...tet, slotIds: [id] }).success).toBe(true);
+    expect(
+      CancelAttendanceSessionsBody.safeParse({ ...tet, dateTo: '2027-02-01' }).error?.issues[0]?.message,
+    ).toBe('cancelRange');
+    expect(CancelAttendanceSessionsBody.safeParse({ ...tet, dateTo: '2027-04-08' }).success).toBe(false);
+    expect(
+      CancelAttendanceSessionsBody.safeParse({ sessionIds: [id], slotIds: [id], reason: 'x' }).error
+        ?.issues[0]?.message,
+    ).toBe('slotsNeedDate');
   });
 
   it('sửa điểm danh: cần ít nhất một thay đổi, không trùng học sinh', () => {

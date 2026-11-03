@@ -31,11 +31,18 @@ export function toSlotRef(row: AssignmentRow['slot']): ExtraSlotRef {
     weekday: row.weekday,
     startTime: row.startTime,
     endTime: row.endTime,
+    startsOn: row.startsOn,
+    endsOn: row.endsOn,
     archivedAt: row.archivedAt?.toISOString() ?? null,
   };
 }
 
-export function toExtraSlot(row: SlotRow, studentCount: number, defaultPrice: number | null): ExtraSlot {
+export function toExtraSlot(
+  row: SlotRow,
+  studentCount: number,
+  defaultPrice: number | null,
+  nextSessionDate: string | null,
+): ExtraSlot {
   return {
     ...toSlotRef(row),
     room: row.room,
@@ -44,6 +51,7 @@ export function toExtraSlot(row: SlotRow, studentCount: number, defaultPrice: nu
     teachers: row.teachers.map(({ teacher }) => toTeacherRef(teacher)),
     studentCount,
     defaultPrice,
+    nextSessionDate,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };

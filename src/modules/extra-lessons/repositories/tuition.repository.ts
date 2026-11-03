@@ -80,13 +80,14 @@ export class TuitionRepository {
       LIMIT ${limit}`;
   }
 
+  /** `zeroPriceRecords`: lượt tính phí chưa có dòng giá nào (thiếu giá) — đặt giá 0đ là miễn phí, không cảnh báo */
   async warnings(scope: TuitionScope): Promise<{ pendingSessions: number; zeroPriceRecords: number }> {
     const [row] = await this.prisma.$queryRaw<[{ pendingSessions: number; zeroPriceRecords: number }]>`
       SELECT
         (SELECT COUNT(*) FROM attendance_sessions s
           WHERE s.status = 'PENDING' AND s.date >= ${scope.from} AND s.date < ${scope.to})::int AS "pendingSessions",
         (SELECT COUNT(*) FROM attendance_records r JOIN attendance_sessions s ON s.id = r.session_id
-          ${this.where(scope)} AND r.charged AND r.unit_price = 0)::int AS "zeroPriceRecords"`;
+          ${this.where(scope)} AND r.charged AND r.unit_price = 0 AND r.rate_id IS NULL)::int AS "zeroPriceRecords"`;
     return row;
   }
 }

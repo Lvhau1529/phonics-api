@@ -8,12 +8,7 @@ import { AttendanceRepository } from '@/modules/extra-lessons/repositories/atten
 import { ExtraScheduleRepository } from '@/modules/extra-lessons/repositories/extra-schedule.repository';
 import { resolveRate } from '@/modules/extra-lessons/utils/rate';
 import { expectedInSession, rosterChange } from '@/modules/extra-lessons/utils/roster';
-import {
-  hasPassed,
-  isoWeekdayOf,
-  recentDates,
-  sessionTimes,
-} from '@/modules/extra-lessons/utils/session-time';
+import { hasPassed, recentDates, sessionTimes } from '@/modules/extra-lessons/utils/session-time';
 
 /** Đơn giá mới (vừa tạo) dùng để tính lại bản ghi điểm danh */
 export interface RateScope {
@@ -49,7 +44,7 @@ export class SessionSyncService {
       if (!hasPassed(now, date, EXTRA_LESSONS.sessionTime, this.time.timeZone)) continue;
       // Ca tạo sau ngày đó không có buổi của ngày đó
       const endOfDate = dayjs.tz(date, this.time.timeZone).add(1, 'day').toDate();
-      const slots = await this.repo.slotsOnWeekday(isoWeekdayOf(date), endOfDate);
+      const slots = await this.repo.slotsOn(date, endOfDate);
       const existing = await this.repo.existingSlotDates(
         slots.map((s) => s.id),
         [date],
@@ -110,10 +105,12 @@ export class SessionSyncService {
   // ---- tạo buổi ----
 
   private async createSlotSession(
-    slot: Awaited<ReturnType<AttendanceRepository['slotsOnWeekday']>>[number],
+    slot: Awaited<ReturnType<AttendanceRepository['slotsOn']>>[number],
     date: string,
   ): Promise<boolean> {
     const studentIds = await this.repo.rosterOf(slot.id, date);
+    // Ca không còn học sinh nào hôm đó: không tạo buổi trống (cần thì GV tạo buổi bù)
+    if (studentIds.length === 0) return false;
     const rates = await this.schedule.ratesFor(studentIds, [slot.id]);
     const records = studentIds.map((studentId) => {
       const rate = resolveRate(rates, studentId, slot.id, date);

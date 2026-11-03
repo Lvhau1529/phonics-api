@@ -162,6 +162,9 @@ export const vi = {
   billingFieldsAdminOnly: 'Chỉ admin sửa được đơn giá / tính phí từng buổi',
   removeManualOnly: 'Chỉ bỏ được học sinh thêm tay — học sinh theo lịch thì đánh vắng hoặc sửa lịch',
   sessionAlreadyConfirmed: 'Buổi đã được người khác xác nhận',
+  slotEndsAfterStart: 'Ngày ngừng ca phải sau ngày bắt đầu',
+  slotEndInPast: 'Ngày ngừng ca phải sau hôm nay',
+  slotEndedReason: 'Ca học thêm đã ngừng',
 };
 
 export type Messages = typeof vi;
