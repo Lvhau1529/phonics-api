@@ -65,7 +65,7 @@ export class ExtraSlotRepository {
 
   /** Số id là giáo viên (để kiểm tra danh sách GV gửi lên) */
   countTeachers(ids: readonly string[]): Promise<number> {
-    return this.prisma.user.count({ where: { id: { in: [...ids] }, role: 'TEACHER' } });
+    return this.prisma.user.count({ where: { id: { in: [...ids] }, role: 'TEACHER', deletedAt: null } });
   }
 
   findClass(id: string) {

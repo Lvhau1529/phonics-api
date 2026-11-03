@@ -20,11 +20,11 @@ export class GuardianRepository {
   }
 
   findById(id: string, db: Db = this.prisma): Promise<GuardianRow | null> {
-    return db.guardian.findUnique({ where: { id }, include: guardianInclude });
+    return db.guardian.findFirst({ where: { id, deletedAt: null }, include: guardianInclude });
   }
 
   findByUserId(userId: string, db: Db = this.prisma): Promise<GuardianRow | null> {
-    return db.guardian.findUnique({ where: { userId }, include: guardianInclude });
+    return db.guardian.findFirst({ where: { userId, deletedAt: null }, include: guardianInclude });
   }
 
   findPage(
@@ -68,7 +68,10 @@ export class GuardianRepository {
   }
 
   async isStudent(id: string): Promise<boolean> {
-    return !!(await this.prisma.user.findFirst({ where: { id, role: 'STUDENT' }, select: { id: true } }));
+    return !!(await this.prisma.user.findFirst({
+      where: { id, role: 'STUDENT', deletedAt: null },
+      select: { id: true },
+    }));
   }
 
   /** Phụ huynh của một học sinh (người nhận học phí trước) */
@@ -81,7 +84,7 @@ export class GuardianRepository {
   }
 
   countGuardians(ids: readonly string[]): Promise<number> {
-    return this.prisma.guardian.count({ where: { id: { in: [...ids] } } });
+    return this.prisma.guardian.count({ where: { id: { in: [...ids] }, deletedAt: null } });
   }
 
   /** Thay toàn bộ liên kết của học sinh */
@@ -118,7 +121,7 @@ export class GuardianRepository {
   /** Học sinh theo id (kiểm tra role ở service) — thông tin đăng nhập để chuyển sang tài khoản gia đình */
   findStudentAccounts(ids: readonly string[], db: Db = this.prisma) {
     return db.user.findMany({
-      where: { id: { in: [...ids] }, role: 'STUDENT' },
+      where: { id: { in: [...ids] }, role: 'STUDENT', deletedAt: null },
       select: {
         id: true,
         email: true,

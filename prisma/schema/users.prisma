@@ -29,25 +29,30 @@ enum AuthProvider {
 
 /// Tài khoản chung cho admin / giáo viên / học sinh
 model User {
-  id            String       @id @default(uuid()) @db.Uuid
+  id              String       @id @default(uuid()) @db.Uuid
   /// Lưu chữ thường, đã trim. null với học sinh MANAGED (Postgres cho phép nhiều null trong unique)
-  email         String?      @unique
-  emailVerified Boolean      @default(false) @map("email_verified")
+  email           String?      @unique
+  emailVerified   Boolean      @default(false) @map("email_verified")
   /// null với tài khoản chỉ đăng nhập Google
-  passwordHash  String?      @map("password_hash")
-  googleSub     String?      @unique @map("google_sub")
-  provider      AuthProvider @default(LOCAL)
-  role          Role
-  status        UserStatus   @default(ACTIVE)
-  loginMode     LoginMode    @default(OWN) @map("login_mode")
-  displayName   String       @map("display_name")
+  passwordHash    String?      @map("password_hash")
+  googleSub       String?      @unique @map("google_sub")
+  provider        AuthProvider @default(LOCAL)
+  role            Role
+  status          UserStatus   @default(ACTIVE)
+  loginMode       LoginMode    @default(OWN) @map("login_mode")
+  displayName     String       @map("display_name")
   /// Key avatar preset (contracts AVATARS)
-  avatarKey     String       @default("pip") @map("avatar_key")
+  avatarKey       String       @default("pip") @map("avatar_key")
   /// Tăng để vô hiệu mọi access token đang có
-  tokenVersion  Int          @default(0) @map("token_version")
-  lastLoginAt   DateTime?    @map("last_login_at")
-  createdAt     DateTime     @default(now()) @map("created_at")
-  updatedAt     DateTime     @updatedAt @map("updated_at")
+  tokenVersion    Int          @default(0) @map("token_version")
+  lastLoginAt     DateTime?    @map("last_login_at")
+  createdAt       DateTime     @default(now()) @map("created_at")
+  updatedAt       DateTime     @updatedAt @map("updated_at")
+  /// Xoá mềm (admin xoá tài khoản tạo nhầm): ẩn khỏi hệ thống, dữ liệu giữ nguyên
+  deletedAt       DateTime?    @map("deleted_at")
+  deletedById     String?      @map("deleted_by_id") @db.Uuid
+  /// Email / googleSub gốc (cột chính đặt null để dùng lại được) + liên kết đã gỡ — để khôi phục khi cần
+  deletedSnapshot Json?        @map("deleted_snapshot")
 
   studentProfile    StudentProfile?
   teachingClasses   ClassTeacher[]
@@ -78,6 +83,7 @@ model User {
   attendanceDigests AttendanceDigest[]
 
   @@index([role, status])
+  @@index([role, deletedAt])
   @@map("users")
 }
 

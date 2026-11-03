@@ -193,7 +193,7 @@ export class FamilyRepository {
 
   guardiansMatching(where: Prisma.GuardianWhereInput) {
     return this.prisma.guardian.findMany({
-      where,
+      where: { ...where, deletedAt: null },
       take: 5,
       select: {
         id: true,

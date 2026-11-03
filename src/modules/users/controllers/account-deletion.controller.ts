@@ -7,8 +7,8 @@ import { type AuthUser } from '@/modules/auth/types/auth.types';
 import { AccountDeletionService } from '@/modules/users/services/account-deletion.service';
 
 /**
- * Xoá hẳn tài khoản tạo nhầm — chỉ admin. Đường dẫn nằm cạnh tài nguyên tương ứng (students / admin/teachers /
- * guardians); `delete-preview` cho biết dữ liệu mất theo và lý do chặn trước khi xoá.
+ * Xoá (mềm) tài khoản tạo nhầm — chỉ admin. Đường dẫn nằm cạnh tài nguyên tương ứng (students / admin/teachers /
+ * guardians); `delete-preview` cho biết liên kết sẽ gỡ (lớp, ca, phụ huynh). Dữ liệu giữ nguyên trong DB.
  */
 @ApiTags('admin')
 @ApiBearerAuth()

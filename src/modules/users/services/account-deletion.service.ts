@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { type DeleteBlocker, type DeleteImpactKey, type DeletePreview } from '@phonics/contracts';
-import { AppError, notFound } from '@/common/errors/app-error';
+import { notFound } from '@/common/errors/app-error';
+import { TimeService } from '@/core/time/time.service';
 import { AuditService } from '@/modules/audit/services/audit.service';
 import { type AuthUser } from '@/modules/auth/types/auth.types';
 import { AccountDeletionRepository } from '@/modules/users/repositories/account-deletion.repository';
@@ -18,49 +19,79 @@ export function toPreview(impact: Impact, blockers: DeleteBlocker[]): DeletePrev
   };
 }
 
-const notDeletable = (blockers: DeleteBlocker[]) =>
-  new AppError('ACCOUNT_NOT_DELETABLE', 409, { details: { blockers } });
-
 /**
- * Xoá hẳn học sinh / giáo viên / phụ huynh tạo nhầm (chỉ admin). Dữ liệu phụ thuộc xoá theo FK (cascade); dữ liệu
- * cần giữ (học phí đã xác nhận, nội dung GV soạn, media) thì chặn — admin khoá tài khoản thay vì xoá.
+ * Xoá mềm học sinh / giáo viên / phụ huynh tạo nhầm (chỉ admin): đánh dấu `deletedAt`, khoá đăng nhập, ẩn khỏi
+ * danh sách, gỡ liên kết đang hiệu lực. Điểm, bài làm, điểm danh, học phí, nội dung GV soạn giữ nguyên trong DB;
+ * email gốc + liên kết đã gỡ lưu ở `deletedSnapshot` (và audit) để khôi phục khi cần.
  */
 @Injectable()
 export class AccountDeletionService {
   constructor(
     private readonly repo: AccountDeletionRepository,
     private readonly audit: AuditService,
+    private readonly time: TimeService,
   ) {}
 
   async studentPreview(id: string): Promise<DeletePreview> {
     await this.assertRole(id, 'STUDENT', 'studentNotFound');
-    const { impact, confirmed } = await this.repo.studentCounts(id);
-    return toPreview(impact, confirmed > 0 ? ['confirmedAttendance'] : []);
+    const links = await this.repo.studentLinks(id, this.today());
+    return toPreview(
+      {
+        classes: links.memberships.length,
+        guardians: links.guardians.length,
+        slotAssignments: links.assignments.length,
+      },
+      [],
+    );
   }
 
   async deleteStudent(actor: AuthUser, id: string): Promise<void> {
     const user = await this.assertRole(id, 'STUDENT', 'studentNotFound');
-    const preview = await this.studentPreview(id);
-    if (!preview.canDelete) throw notDeletable(preview.blockers);
-    await this.repo.transaction((tx) => this.repo.deleteUser(tx, id));
-    await this.audit.record(actor, 'student.delete', 'User', id, { ...user, impact: preview.impact }, null);
+    const at = new Date();
+    const today = this.today();
+    const links = await this.repo.studentLinks(id, today);
+    const snapshot = { ...identity(user), ...links };
+    await this.repo.transaction(async (tx) => {
+      await this.repo.detachStudent(tx, id, at, today);
+      await this.repo.softDeleteUser(tx, id, { at, byId: actor.id, snapshot });
+    });
+    await this.audit.record(
+      actor,
+      'student.delete',
+      'User',
+      id,
+      { displayName: user.displayName, ...snapshot },
+      {
+        deletedAt: at.toISOString(),
+      },
+    );
   }
 
   async teacherPreview(id: string): Promise<DeletePreview> {
     await this.assertRole(id, 'TEACHER', 'teacherNotFound');
-    const { impact, authored, media } = await this.repo.teacherCounts(id);
-    const blockers: DeleteBlocker[] = [];
-    if (authored > 0) blockers.push('authoredContent');
-    if (media > 0) blockers.push('media');
-    return toPreview(impact, blockers);
+    const links = await this.repo.teacherLinks(id);
+    return toPreview({ classes: links.classIds.length, extraSlots: links.slotIds.length }, []);
   }
 
+  /** Câu hỏi / phiếu bài / bài giao / media GV soạn vẫn giữ (người tạo là tài khoản đã xoá) */
   async deleteTeacher(actor: AuthUser, id: string): Promise<void> {
     const user = await this.assertRole(id, 'TEACHER', 'teacherNotFound');
-    const preview = await this.teacherPreview(id);
-    if (!preview.canDelete) throw notDeletable(preview.blockers);
-    await this.repo.transaction((tx) => this.repo.deleteUser(tx, id));
-    await this.audit.record(actor, 'teacher.delete', 'User', id, { ...user, impact: preview.impact }, null);
+    const at = new Date();
+    const snapshot = { ...identity(user), ...(await this.repo.teacherLinks(id)) };
+    await this.repo.transaction(async (tx) => {
+      await this.repo.detachTeacher(tx, id);
+      await this.repo.softDeleteUser(tx, id, { at, byId: actor.id, snapshot });
+    });
+    await this.audit.record(
+      actor,
+      'teacher.delete',
+      'User',
+      id,
+      { displayName: user.displayName, ...snapshot },
+      {
+        deletedAt: at.toISOString(),
+      },
+    );
   }
 
   async guardianPreview(id: string): Promise<DeletePreview> {
@@ -68,34 +99,39 @@ export class AccountDeletionService {
     if (!guardian) throw notFound('guardianNotFound');
     return toPreview(
       {
-        children: await this.repo.countChildren(id),
+        children: (await this.repo.guardianLinks(id)).length,
         familyAccount: guardian.user?.role === 'PARENT' ? 1 : 0,
       },
       [],
     );
   }
 
-  /** Xoá phụ huynh + liên kết với bé + tài khoản gia đình (role PARENT); các bé giữ nguyên */
+  /** Xoá mềm phụ huynh + gỡ liên kết với bé + khoá tài khoản gia đình (role PARENT); các bé giữ nguyên */
   async deleteGuardian(actor: AuthUser, id: string): Promise<void> {
     const guardian = await this.repo.findGuardian(id);
     if (!guardian) throw notFound('guardianNotFound');
-    const preview = await this.guardianPreview(id);
-    const parentUserId = guardian.user?.role === 'PARENT' ? guardian.userId : null;
+    const at = new Date();
+    const parent =
+      guardian.user?.role === 'PARENT' && guardian.userId ? { id: guardian.userId, ...guardian.user } : null;
+    const snapshot = { email: guardian.email, students: await this.repo.guardianLinks(id) };
     await this.repo.transaction(async (tx) => {
-      await this.repo.deleteGuardian(tx, id);
-      if (!parentUserId) return;
-      await this.repo.revokeActorSessions(tx, parentUserId, new Date());
-      await this.repo.deleteUser(tx, parentUserId);
+      await this.repo.softDeleteGuardian(tx, id, { at, byId: actor.id, snapshot });
+      if (!parent) return;
+      await this.repo.revokeActorSessions(tx, parent.id, at);
+      await this.repo.softDeleteUser(tx, parent.id, { at, byId: actor.id, snapshot: identity(parent) });
     });
-    const { user: _user, ...before } = guardian;
     await this.audit.record(
       actor,
       'guardian.delete',
       'Guardian',
       id,
-      { ...before, impact: preview.impact },
-      null,
+      { fullName: guardian.fullName, phone: guardian.phone, userId: guardian.userId, ...snapshot },
+      { deletedAt: at.toISOString() },
     );
+  }
+
+  private today(): string {
+    return this.time.toIsoDate(new Date());
   }
 
   private async assertRole(
@@ -107,4 +143,9 @@ export class AccountDeletionService {
     if (!user || user.role !== role) throw notFound(missing);
     return user;
   }
+}
+
+/** Thông tin đăng nhập gốc (cột chính bị đặt null khi xoá) */
+function identity(user: { email: string | null; googleSub: string | null; status: string }) {
+  return { email: user.email, googleSub: user.googleSub, status: user.status };
 }

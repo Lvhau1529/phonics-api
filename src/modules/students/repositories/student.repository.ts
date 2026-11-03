@@ -13,9 +13,9 @@ export class StudentRepository {
     return this.prisma.$transaction(fn);
   }
 
-  /** Người dùng theo id (service kiểm tra role STUDENT) */
+  /** Người dùng theo id, bỏ tài khoản đã xoá (service kiểm tra role STUDENT) */
   findById(id: string): Promise<StudentRow | null> {
-    return this.prisma.user.findUnique({ where: { id }, include: studentInclude });
+    return this.prisma.user.findFirst({ where: { id, deletedAt: null }, include: studentInclude });
   }
 
   findPage(

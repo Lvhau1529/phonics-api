@@ -186,7 +186,7 @@ export class ClassesService {
     const unique = [...new Set(ids)];
     if (!unique.length) return unique;
     const rows = await this.prisma.user.findMany({
-      where: { id: { in: unique }, role: 'TEACHER' },
+      where: { id: { in: unique }, role: 'TEACHER', deletedAt: null },
       select: { id: true },
     });
     const found = new Set(rows.map((r) => r.id));

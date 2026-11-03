@@ -9,18 +9,22 @@ enum GuardianRelation {
 
 /// Phụ huynh. Có tài khoản gia đình = `userId` (user role PARENT)
 model Guardian {
-  id        String            @id @default(uuid()) @db.Uuid
-  fullName  String            @map("full_name")
+  id              String            @id @default(uuid()) @db.Uuid
+  fullName        String            @map("full_name")
   /// Chữ thường; unique khi khác null (partial index `guardians_email` thêm tay trong migration)
-  email     String?
+  email           String?
   /// E.164
-  phone     String?
-  userId    String?           @unique @map("user_id") @db.Uuid
-  note      String?
-  createdAt DateTime          @default(now()) @map("created_at")
-  updatedAt DateTime          @updatedAt @map("updated_at")
-  user      User?             @relation(fields: [userId], references: [id], onDelete: SetNull)
-  students  StudentGuardian[]
+  phone           String?
+  userId          String?           @unique @map("user_id") @db.Uuid
+  note            String?
+  createdAt       DateTime          @default(now()) @map("created_at")
+  updatedAt       DateTime          @updatedAt @map("updated_at")
+  /// Xoá mềm: ẩn khỏi danh sách; email gốc + liên kết với bé đã gỡ nằm trong `deletedSnapshot`
+  deletedAt       DateTime?         @map("deleted_at")
+  deletedById     String?           @map("deleted_by_id") @db.Uuid
+  deletedSnapshot Json?             @map("deleted_snapshot")
+  user            User?             @relation(fields: [userId], references: [id], onDelete: SetNull)
+  students        StudentGuardian[]
 
   @@index([phone])
   @@map("guardians")

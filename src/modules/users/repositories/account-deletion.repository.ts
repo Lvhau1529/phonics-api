@@ -1,8 +1,19 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '@/database/prisma.service';
 import { type Tx } from '@/database/types';
+import { type Prisma } from '@/generated/prisma/client';
 
-/** Đếm dữ liệu sẽ mất theo + xoá hẳn tài khoản (FK onDelete Cascade / SetNull lo phần còn lại) */
+/** Ai xoá + lúc nào + bản lưu để khôi phục */
+export interface SoftDeleteMark {
+  at: Date;
+  byId: string;
+  snapshot: Prisma.InputJsonValue;
+}
+
+/**
+ * Xoá mềm tài khoản: đánh dấu `deletedAt`, khoá đăng nhập, gỡ liên kết đang hiệu lực (lớp, ca, phụ huynh).
+ * Không xoá dữ liệu học tập / điểm danh / học phí — chỉ ẩn khỏi hệ thống.
+ */
 @Injectable()
 export class AccountDeletionRepository {
   constructor(private readonly prisma: PrismaService) {}
@@ -11,81 +22,130 @@ export class AccountDeletionRepository {
     return this.prisma.$transaction(fn);
   }
 
+  /** Chỉ tài khoản chưa xoá */
   findUser(id: string) {
-    return this.prisma.user.findUnique({
-      where: { id },
-      select: { id: true, role: true, email: true, displayName: true, status: true },
+    return this.prisma.user.findFirst({
+      where: { id, deletedAt: null },
+      select: { id: true, role: true, email: true, googleSub: true, displayName: true, status: true },
     });
   }
 
   findGuardian(id: string) {
-    return this.prisma.guardian.findUnique({
-      where: { id },
+    return this.prisma.guardian.findFirst({
+      where: { id, deletedAt: null },
       select: {
         id: true,
         fullName: true,
         email: true,
         phone: true,
         userId: true,
-        user: { select: { role: true } },
+        user: { select: { role: true, email: true, googleSub: true, status: true } },
       },
     });
   }
 
-  async studentCounts(studentId: string) {
-    const where = { studentId };
-    const [
-      classes,
-      guardians,
-      gameResults,
-      pointEntries,
-      submissions,
-      attendance,
-      slotAssignments,
-      confirmed,
-    ] = await Promise.all([
-      this.prisma.classMembership.count({ where }),
-      this.prisma.studentGuardian.count({ where }),
-      this.prisma.gameResult.count({ where }),
-      this.prisma.pointEntry.count({ where }),
-      this.prisma.submission.count({ where }),
-      this.prisma.attendanceRecord.count({ where }),
-      this.prisma.studentSlotAssignment.count({ where }),
-      this.prisma.attendanceRecord.count({ where: { studentId, session: { status: 'CONFIRMED' } } }),
+  /** Liên kết đang hiệu lực của học sinh — sẽ gỡ khi xoá (lưu vào snapshot) */
+  async studentLinks(studentId: string, today: string) {
+    const [memberships, guardians, assignments] = await Promise.all([
+      this.prisma.classMembership.findMany({
+        where: { studentId, leftAt: null },
+        select: { id: true, classId: true },
+      }),
+      this.prisma.studentGuardian.findMany({
+        where: { studentId },
+        select: {
+          guardianId: true,
+          relation: true,
+          isBillingContact: true,
+          receivesReports: true,
+          canAccess: true,
+        },
+      }),
+      this.prisma.studentSlotAssignment.findMany({
+        where: { studentId, OR: [{ effectiveTo: null }, { effectiveTo: { gt: today } }] },
+        select: { id: true, slotId: true, effectiveFrom: true, effectiveTo: true },
+      }),
     ]);
-    return {
-      impact: { classes, guardians, gameResults, pointEntries, submissions, attendance, slotAssignments },
-      confirmed,
-    };
+    return { memberships, guardians, assignments };
   }
 
-  async teacherCounts(teacherId: string) {
-    const [classes, extraSlots, comments, questions, worksheets, assignments, media] = await Promise.all([
-      this.prisma.classTeacher.count({ where: { teacherId } }),
-      this.prisma.extraSlotTeacher.count({ where: { teacherId } }),
-      this.prisma.comment.count({ where: { authorId: teacherId } }),
-      this.prisma.question.count({ where: { createdById: teacherId } }),
-      this.prisma.worksheet.count({ where: { createdById: teacherId } }),
-      this.prisma.assignment.count({ where: { assignedById: teacherId } }),
-      this.prisma.mediaAsset.count({ where: { ownerId: teacherId } }),
+  async teacherLinks(teacherId: string) {
+    const [classes, slots] = await Promise.all([
+      this.prisma.classTeacher.findMany({ where: { teacherId }, select: { classId: true } }),
+      this.prisma.extraSlotTeacher.findMany({ where: { teacherId }, select: { slotId: true } }),
     ]);
-    return {
-      impact: { classes, extraSlots, comments },
-      authored: questions + worksheets + assignments,
-      media,
-    };
+    return { classIds: classes.map((c) => c.classId), slotIds: slots.map((s) => s.slotId) };
   }
 
-  countChildren(guardianId: string): Promise<number> {
-    return this.prisma.studentGuardian.count({ where: { guardianId } });
+  guardianLinks(guardianId: string) {
+    return this.prisma.studentGuardian.findMany({
+      where: { guardianId },
+      select: {
+        studentId: true,
+        relation: true,
+        isBillingContact: true,
+        receivesReports: true,
+        canAccess: true,
+      },
+    });
   }
 
-  deleteUser(tx: Tx, id: string) {
-    return tx.user.delete({ where: { id } });
+  /** Học sinh rời lớp, ca học thêm kết thúc từ `today` (ca chưa bắt đầu → khoảng rỗng), gỡ phụ huynh */
+  async detachStudent(tx: Tx, studentId: string, at: Date, today: string): Promise<void> {
+    await tx.classMembership.updateMany({ where: { studentId, leftAt: null }, data: { leftAt: at } });
+    await tx.studentSlotAssignment.updateMany({
+      where: {
+        studentId,
+        effectiveFrom: { lt: today },
+        OR: [{ effectiveTo: null }, { effectiveTo: { gt: today } }],
+      },
+      data: { effectiveTo: today },
+    });
+    const future = await tx.studentSlotAssignment.findMany({
+      where: {
+        studentId,
+        effectiveFrom: { gte: today },
+        OR: [{ effectiveTo: null }, { effectiveTo: { gt: today } }],
+      },
+      select: { id: true, effectiveFrom: true },
+    });
+    for (const a of future) {
+      await tx.studentSlotAssignment.update({ where: { id: a.id }, data: { effectiveTo: a.effectiveFrom } });
+    }
+    await tx.studentGuardian.deleteMany({ where: { studentId } });
   }
 
-  deleteGuardian(tx: Tx, id: string) {
-    return tx.guardian.delete({ where: { id } });
+  async detachTeacher(tx: Tx, teacherId: string): Promise<void> {
+    await tx.classTeacher.deleteMany({ where: { teacherId } });
+    await tx.extraSlotTeacher.deleteMany({ where: { teacherId } });
+  }
+
+  /** Khoá + giải phóng email / Google (dùng lại được) + vô hiệu mọi phiên */
+  async softDeleteUser(tx: Tx, id: string, mark: SoftDeleteMark): Promise<void> {
+    await tx.user.update({
+      where: { id },
+      data: {
+        status: 'DISABLED',
+        email: null,
+        googleSub: null,
+        tokenVersion: { increment: 1 },
+        deletedAt: mark.at,
+        deletedById: mark.byId,
+        deletedSnapshot: mark.snapshot,
+      },
+    });
+    await tx.refreshToken.updateMany({
+      where: { userId: id, revokedAt: null },
+      data: { revokedAt: mark.at },
+    });
+  }
+
+  async softDeleteGuardian(tx: Tx, id: string, mark: SoftDeleteMark): Promise<void> {
+    await tx.studentGuardian.deleteMany({ where: { guardianId: id } });
+    await tx.guardian.update({
+      where: { id },
+      data: { email: null, deletedAt: mark.at, deletedById: mark.byId, deletedSnapshot: mark.snapshot },
+    });
   }
 
   /** Phiên hồ sơ bé do phụ huynh mở (`act`): thu hồi refresh token + vô hiệu access token của bé */

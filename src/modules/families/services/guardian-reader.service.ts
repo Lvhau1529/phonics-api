@@ -31,6 +31,7 @@ export class GuardianReaderService {
     const q = query.q;
     const digits = q?.replace(/\D/g, '');
     const where: Prisma.GuardianWhereInput = {
+      deletedAt: null,
       userId: query.hasAccount ? (query.hasAccount === 'true' ? { not: null } : null) : undefined,
       OR: q
         ? [
