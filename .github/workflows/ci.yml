@@ -110,6 +110,9 @@ jobs:
           docker logout ghcr.io > /dev/null
           docker image inspect "ghcr.io/$GHCR_OWNER/phonics-api:$TAG" > /dev/null 2>&1 \
             || { echo "Không kéo được ảnh ghcr.io/$GHCR_OWNER/phonics-api:$TAG" >&2; exit 1; }
+          # Gắn :latest cục bộ vào ảnh vừa kéo: lệnh compose chạy tay sau này (TAG mặc định latest) dùng đúng bản đang
+          # chạy, không tự kéo / build lại trên VPS
+          docker tag "ghcr.io/$GHCR_OWNER/phonics-api:$TAG" "ghcr.io/$GHCR_OWNER/phonics-api:latest"
           docker compose up -d --no-build --remove-orphans
           # Caddyfile mount dạng file: `up -d` không tạo lại caddy khi chỉ file đổi (và git ghi file mới → mount cũ
           # vẫn trỏ bản cũ) → restart để mount lại + nạp cấu hình mới
