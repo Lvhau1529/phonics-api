@@ -18,15 +18,16 @@ function linkable(over: Partial<LinkableUser> = {}): LinkableUser {
 }
 
 function selfRow(over: Record<string, unknown> = {}) {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return {
+  const row = {
     id: 'u1',
     email: 'lan@example.vn',
     loginMode: 'OWN',
     passwordHash: 'hash',
     googleSub: null,
     ...over,
-  } as any;
+  };
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return row as any;
 }
 
 describe('GoogleLinkService', () => {
