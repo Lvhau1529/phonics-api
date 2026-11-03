@@ -41,7 +41,10 @@ export class FamilyRegistrationService {
   async register(body: RegisterFamilyBody, meta: ClientMeta): Promise<AuthResult> {
     const credentials = await this.resolveCredentials(body.credentials);
     if (await this.repo.findUserByEmailOrGoogle(credentials.email, credentials.googleSub)) {
-      throw new AppError('EMAIL_TAKEN', 409, { fieldErrors: { email: ['EMAIL_TAKEN'] } });
+      throw new AppError('EMAIL_TAKEN', 409, {
+        message: 'emailTakenSignIn',
+        fieldErrors: { email: ['EMAIL_TAKEN'] },
+      });
     }
     await this.assertJoinable(body.children.map((c) => c.classId));
 

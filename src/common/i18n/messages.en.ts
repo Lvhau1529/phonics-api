@@ -16,6 +16,8 @@ export const en: Messages = {
   PROFILE_REQUIRED: 'Choose a class and a display name to create the account',
   GOOGLE_EMAIL_UNVERIFIED: 'Google email is not verified',
   GOOGLE_TOKEN_INVALID: 'Invalid Google token',
+  GOOGLE_ALREADY_LINKED: 'This Google account is already linked to another account',
+  LAST_LOGIN_METHOD: 'You cannot remove your only sign-in method — set a password first',
   CLASS_NOT_JOINABLE: 'This class is not accepting new students',
   NOT_FOUND: 'Not found',
   CONFLICT: 'Duplicate data',
@@ -78,6 +80,9 @@ export const en: Messages = {
 
   wrongCurrentPassword: 'Current password is incorrect',
   googleLoginDisabled: 'Google sign-in is not enabled',
+  accountLinkedToOtherGoogle: 'This account is already linked to a different Google account',
+  emailTakenSignIn: 'This email already has an account — sign in with your password or Google',
+  staffRequestCreated: 'Your teacher account request was sent and is waiting for an admin to approve it',
   teacherFieldsOnly: 'Teachers can only change the display name and avatar',
   systemGroupUndeletable: 'System permission groups cannot be deleted',
   adminPermissionsLocked: 'Admin permissions cannot be changed',

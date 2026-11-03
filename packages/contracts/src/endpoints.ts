@@ -18,6 +18,8 @@ export const ENDPOINTS = {
     register: '/auth/register',
     login: '/auth/login',
     google: '/auth/google',
+    /** POST: liên kết Google vào tài khoản đang đăng nhập; DELETE: gỡ (cần còn mật khẩu) */
+    googleLink: '/auth/google/link',
     refresh: '/auth/refresh',
     logout: '/auth/logout',
     me: '/auth/me',

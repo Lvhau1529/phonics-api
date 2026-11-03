@@ -51,12 +51,31 @@ export const GoogleProfile = z.strictObject({
 });
 export type GoogleProfile = z.infer<typeof GoogleProfile>;
 
+const GoogleIdToken = z.string().min(1).max(4096);
+
+/**
+ * App gọi đăng nhập Google — quyết định việc làm khi email chưa có tài khoản: `game` (mặc định) → 422
+ * PROFILE_REQUIRED (đăng ký gia đình); `admin` → tạo yêu cầu tài khoản giáo viên PENDING, trả 403 ACCOUNT_PENDING.
+ */
+export const GoogleApp = z.enum(['game', 'admin']);
+export type GoogleApp = z.infer<typeof GoogleApp>;
+
+/**
+ * Email trùng tài khoản có sẵn → liên kết Google vào tài khoản đó (không báo trùng email). Tài khoản chưa xác nhận
+ * email: mọi phiên cũ bị thu hồi; còn chờ duyệt / bị từ chối thì mật khẩu cũ cũng bị xoá (chống chiếm tài khoản).
+ */
 export const GoogleBody = z.strictObject({
   /** ID token từ Google Identity Services */
-  idToken: z.string().min(1).max(4096),
+  idToken: GoogleIdToken,
   profile: GoogleProfile.optional(),
+  /** Từ 1.14.0 */
+  app: GoogleApp.optional(),
 });
 export type GoogleBody = z.infer<typeof GoogleBody>;
+
+/** Liên kết Google vào tài khoản đang đăng nhập (`POST auth/google/link`) — từ 1.14.0 */
+export const LinkGoogleBody = z.strictObject({ idToken: GoogleIdToken });
+export type LinkGoogleBody = z.infer<typeof LinkGoogleBody>;
 
 export const RefreshBody = z.strictObject({
   /** Chỉ cần khi dùng body transport */

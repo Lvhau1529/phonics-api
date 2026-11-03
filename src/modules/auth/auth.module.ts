@@ -3,8 +3,10 @@ import { JwtModule } from '@nestjs/jwt';
 import { AUTH } from '@/config/constants';
 import { ENV } from '@/config/env.module';
 import { type Env } from '@/config/env.schema';
+import { AuditModule } from '@/modules/audit/audit.module';
 import { UsersModule } from '@/modules/users/users.module';
 import { AuthService } from '@/modules/auth/services/auth.service';
+import { GoogleLinkService } from '@/modules/auth/services/google-link.service';
 import { GoogleService } from '@/modules/auth/services/google.service';
 import { PasswordService } from '@/modules/auth/services/password.service';
 import { TokenService } from '@/modules/auth/services/token.service';
@@ -30,9 +32,10 @@ import { AuthController } from '@/modules/auth/controllers/auth.controller';
       }),
     }),
     UsersModule,
+    AuditModule,
   ],
   controllers: [AuthController],
-  providers: [AuthService, PasswordService, TokenService, GoogleService],
+  providers: [AuthService, PasswordService, TokenService, GoogleService, GoogleLinkService],
   exports: [JwtModule, AuthService, PasswordService, TokenService, GoogleService],
 })
 export class AuthModule {}

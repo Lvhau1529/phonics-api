@@ -14,12 +14,15 @@ import {
 import { AppError } from '@/common/errors/app-error';
 import { normalizePhone } from '@/common/utils/phone';
 import { nameColumns, profileNameData } from '@/common/utils/student-names';
+import { AUTH } from '@/config/constants';
 import { PrismaService } from '@/database/prisma.service';
 import { type Tx } from '@/database/types';
+import { AuditService } from '@/modules/audit/services/audit.service';
 import { PermissionsService } from '@/modules/permissions/services/permissions.service';
 import { UsersService } from '@/modules/users/services/users.service';
 import { type AuthResult, type AuthUser, type ClientMeta } from '@/modules/auth/types/auth.types';
-import { GoogleService } from '@/modules/auth/services/google.service';
+import { type GoogleIdentity, GoogleService } from '@/modules/auth/services/google.service';
+import { GoogleLinkService } from '@/modules/auth/services/google-link.service';
 import { PasswordService } from '@/modules/auth/services/password.service';
 import { type IssuedTokens, TokenService } from '@/modules/auth/services/token.service';
 
@@ -31,7 +34,9 @@ export class AuthService {
     private readonly passwords: PasswordService,
     private readonly tokens: TokenService,
     private readonly google: GoogleService,
+    private readonly googleLinks: GoogleLinkService,
     private readonly permissions: PermissionsService,
+    private readonly audit: AuditService,
   ) {}
 
   /**
@@ -66,27 +71,29 @@ export class AuthService {
   }
 
   /**
-   * Google: có user (theo googleSub, rồi email) → đăng nhập + liên kết; chưa có → 422 PROFILE_REQUIRED để client mở
-   * màn đăng ký (game mới: `auth/register-family` với Google). Client cũ gửi kèm `profile` → tạo học sinh PENDING
-   * như `register`.
+   * Google: có user theo googleSub → đăng nhập; có user trùng email → liên kết Google vào user đó rồi đăng nhập
+   * (`GoogleLinkService.linkByEmail`, không báo trùng email); chưa có:
+   *  - `app: 'admin'` → tạo yêu cầu tài khoản giáo viên PENDING, trả 403 ACCOUNT_PENDING (admin duyệt ở trang Giáo viên)
+   *  - game → 422 PROFILE_REQUIRED để client mở màn đăng ký (`auth/register-family` với Google). Client cũ gửi kèm
+   *    `profile` → tạo học sinh PENDING như `register`.
    */
   async googleSignIn(body: GoogleBody, meta: ClientMeta): Promise<AuthResult> {
     const identity = await this.google.verify(body.idToken);
-    const existing =
-      (await this.prisma.user.findUnique({ where: { googleSub: identity.sub } })) ??
-      (await this.prisma.user.findUnique({ where: { email: identity.email } }));
-
-    if (existing) {
-      this.assertCanSignIn(existing);
-      if (existing.googleSub !== identity.sub) {
-        await this.prisma.user.update({
-          where: { id: existing.id },
-          data: { googleSub: identity.sub, emailVerified: true },
-        });
-      }
-      return this.startSession(existing.id, meta);
+    const bySub = await this.prisma.user.findUnique({ where: { googleSub: identity.sub } });
+    if (bySub) {
+      this.assertCanSignIn(bySub);
+      return this.startSession(bySub.id, meta);
+    }
+    const byEmail = await this.prisma.user.findUnique({ where: { email: identity.email } });
+    if (byEmail) {
+      // Tài khoản bị khoá / từ chối: báo lỗi, không liên kết
+      if (byEmail.status === 'DISABLED' || byEmail.status === 'REJECTED') this.assertCanSignIn(byEmail);
+      await this.googleLinks.linkByEmail(byEmail, identity);
+      this.assertCanSignIn(byEmail);
+      return this.startSession(byEmail.id, meta);
     }
 
+    if (body.app === 'admin') return this.requestStaffAccount(identity);
     if (!body.profile) throw new AppError('PROFILE_REQUIRED', 422);
     const profile: GoogleProfile = body.profile;
     await this.prisma.$transaction((tx) =>
@@ -157,9 +164,37 @@ export class AuthService {
 
   // ---- helpers ----
 
+  /**
+   * Đăng nhập Google ở trang admin bằng email chưa có tài khoản → giáo viên PENDING (chưa có lớp), chờ admin duyệt.
+   * Giới hạn số yêu cầu đang chờ để chặn spam tạo tài khoản.
+   */
+  private async requestStaffAccount(identity: GoogleIdentity): Promise<never> {
+    const pending = await this.prisma.user.count({ where: { role: 'TEACHER', status: 'PENDING' } });
+    if (pending >= AUTH.maxPendingStaffRequests) throw new AppError('RATE_LIMITED', 429);
+    const displayName = (identity.name?.trim() || identity.email.split('@')[0]).slice(0, 30);
+    const user = await this.prisma.user.create({
+      data: {
+        email: identity.email,
+        googleSub: identity.sub,
+        emailVerified: true,
+        provider: 'GOOGLE',
+        role: 'TEACHER',
+        status: 'PENDING',
+        displayName,
+      },
+      select: { id: true },
+    });
+    await this.audit.record(null, 'teacher.request', 'User', user.id, null, { email: identity.email });
+    throw new AppError('ACCOUNT_PENDING', 403, { message: 'staffRequestCreated' });
+  }
+
   private async assertEmailFree(email: string): Promise<void> {
     const exists = await this.prisma.user.findUnique({ where: { email }, select: { id: true } });
-    if (exists) throw new AppError('EMAIL_TAKEN', 409, { fieldErrors: { email: ['EMAIL_TAKEN'] } });
+    if (exists)
+      throw new AppError('EMAIL_TAKEN', 409, {
+        message: 'emailTakenSignIn',
+        fieldErrors: { email: ['EMAIL_TAKEN'] },
+      });
   }
 
   /** Chặn đăng nhập theo trạng thái. PARENT chờ duyệt vẫn vào được (màn "đang chờ duyệt"); học sinh chờ duyệt thì không. */

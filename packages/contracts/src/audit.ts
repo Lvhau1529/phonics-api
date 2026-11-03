@@ -12,6 +12,10 @@ export const AuditAction = z.enum([
   'teacher.create',
   'teacher.update',
   'teacher.setClasses',
+  /** Tự xin tài khoản giáo viên bằng Google ở trang admin (actor null) */
+  'teacher.request',
+  'user.linkGoogle',
+  'user.unlinkGoogle',
   'class.create',
   'class.update',
   'class.setTeachers',

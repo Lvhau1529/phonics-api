@@ -1,4 +1,4 @@
-import { Body, Controller, Get, HttpCode, Inject, Post, Req, Res } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, Inject, Post, Req, Res } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import { type Request, type Response } from 'express';
@@ -12,12 +12,14 @@ import { type Env } from '@/config/env.schema';
 import {
   ChangePasswordDto,
   GoogleDto,
+  LinkGoogleDto,
   LoginDto,
   LogoutDto,
   RefreshDto,
   RegisterDto,
 } from '@/modules/auth/dto/requests/auth.dto';
 import { AuthService } from '@/modules/auth/services/auth.service';
+import { GoogleLinkService } from '@/modules/auth/services/google-link.service';
 import { type AuthResult, type AuthUser } from '@/modules/auth/types/auth.types';
 import {
   clearRefreshCookie,
@@ -32,6 +34,7 @@ const authThrottle = { default: { limit: THROTTLE.auth.limit, ttl: THROTTLE.auth
 export class AuthController {
   constructor(
     private readonly auth: AuthService,
+    private readonly googleLinks: GoogleLinkService,
     @Inject(ENV) private readonly env: Env,
   ) {}
 
@@ -99,6 +102,26 @@ export class AuthController {
   @Post('change-password')
   async changePassword(@CurrentUser() user: AuthUser, @Body() body: ChangePasswordDto): Promise<void> {
     await this.auth.changePassword(user, body);
+  }
+
+  /** Liên kết Google vào tài khoản đang đăng nhập → user (kèm `loginMethods`) */
+  @ApiBearerAuth()
+  @AllowPending()
+  @AllowParent()
+  @Throttle(authThrottle)
+  @HttpCode(200)
+  @Post('google/link')
+  linkGoogle(@CurrentUser() user: AuthUser, @Body() body: LinkGoogleDto) {
+    return this.googleLinks.link(user, body.idToken);
+  }
+
+  /** Gỡ Google (phải còn mật khẩu) → user */
+  @ApiBearerAuth()
+  @AllowPending()
+  @AllowParent()
+  @Delete('google/link')
+  unlinkGoogle(@CurrentUser() user: AuthUser) {
+    return this.googleLinks.unlink(user);
   }
 
   /** Trả refresh token theo transport client chọn (cookie hoặc body) */

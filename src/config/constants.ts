@@ -25,6 +25,8 @@ export const AUTH = {
   refreshCleanupAfterDays: 7,
   jwtIssuer: 'phonics-api',
   jwtAudience: 'phonics',
+  /** Đăng nhập Google ở admin bằng email lạ tạo giáo viên PENDING; quá số yêu cầu đang chờ này thì từ chối (chống spam) */
+  maxPendingStaffRequests: 50,
 } as const;
 
 export const THROTTLE = {

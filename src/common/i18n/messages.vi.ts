@@ -20,6 +20,8 @@ const codeMessages = {
   PROFILE_REQUIRED: 'Cần chọn lớp và tên hiển thị để tạo tài khoản',
   GOOGLE_EMAIL_UNVERIFIED: 'Email Google chưa được xác thực',
   GOOGLE_TOKEN_INVALID: 'Token Google không hợp lệ',
+  GOOGLE_ALREADY_LINKED: 'Tài khoản Google này đã liên kết với một tài khoản khác',
+  LAST_LOGIN_METHOD: 'Không thể gỡ cách đăng nhập duy nhất — hãy đặt mật khẩu trước',
   CLASS_NOT_JOINABLE: 'Lớp này không nhận học sinh mới',
   NOT_FOUND: 'Không tìm thấy',
   CONFLICT: 'Dữ liệu bị trùng',
@@ -88,6 +90,9 @@ export const vi = {
   // Tài khoản / quyền
   wrongCurrentPassword: 'Mật khẩu hiện tại không đúng',
   googleLoginDisabled: 'Đăng nhập Google chưa được bật',
+  accountLinkedToOtherGoogle: 'Tài khoản này đã liên kết với một tài khoản Google khác',
+  emailTakenSignIn: 'Email đã có tài khoản — hãy đăng nhập bằng mật khẩu hoặc Google',
+  staffRequestCreated: 'Đã gửi yêu cầu tài khoản giáo viên, chờ quản trị viên duyệt',
   teacherFieldsOnly: 'Giáo viên chỉ được sửa tên hiển thị và avatar',
   systemGroupUndeletable: 'Không xoá nhóm quyền hệ thống',
   adminPermissionsLocked: 'Không sửa quyền của admin',

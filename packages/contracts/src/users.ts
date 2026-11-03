@@ -18,6 +18,13 @@ export type LoginMode = z.infer<typeof LoginMode>;
 export const AuthProvider = z.enum(['LOCAL', 'GOOGLE']);
 export type AuthProvider = z.infer<typeof AuthProvider>;
 
+/** Cách đăng nhập đang dùng được của tài khoản (một tài khoản có thể có cả mật khẩu lẫn Google) — từ 1.14.0 */
+export const LoginMethods = z.object({
+  password: z.boolean(),
+  google: z.boolean(),
+});
+export type LoginMethods = z.infer<typeof LoginMethods>;
+
 /**
  * Avatar là bộ preset (không upload): key → ảnh có sẵn trong app game (platform/account/avatars.ts).
  * Thêm avatar = thêm vào AvatarKey + AVATARS + map ảnh ở client.
@@ -78,6 +85,7 @@ export const User = z.object({
   email: Email.nullable(),
   role: Role,
   status: UserStatus,
+  /** Cách tạo tài khoản; cách đăng nhập hiện có xem `loginMethods` */
   provider: AuthProvider,
   displayName: DisplayName,
   avatarKey: AvatarKey,
@@ -86,6 +94,8 @@ export const User = z.object({
   createdAt: IsoDateTime,
   /** Từ 1.7.0 */
   loginMode: LoginMode.optional(),
+  /** Từ 1.14.0 */
+  loginMethods: LoginMethods.optional(),
 });
 export type User = z.infer<typeof User>;
 

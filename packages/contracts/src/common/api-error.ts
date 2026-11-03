@@ -16,6 +16,10 @@ export const ErrorCode = z.enum([
   'PROFILE_REQUIRED',
   'GOOGLE_EMAIL_UNVERIFIED',
   'GOOGLE_TOKEN_INVALID',
+  /** Tài khoản Google đã gắn với tài khoản khác / tài khoản đã gắn Google khác */
+  'GOOGLE_ALREADY_LINKED',
+  /** Gỡ cách đăng nhập cuối cùng (vd gỡ Google khi chưa có mật khẩu) */
+  'LAST_LOGIN_METHOD',
   'CLASS_NOT_JOINABLE',
   'NOT_FOUND',
   'CONFLICT',
