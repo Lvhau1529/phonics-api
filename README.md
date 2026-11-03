@@ -114,7 +114,7 @@ pnpm dev                  # build contracts rồi nest start --watch
 - API: `http://localhost:3000/api/v1`, health `http://localhost:3000/api/health`, Swagger UI:
   `http://localhost:3000/api/docs` (JSON: `/api/docs-json`), tắt bằng `SWAGGER_ENABLED=false`.
 - Lệnh khác: `pnpm typecheck`, `pnpm lint`, `pnpm format`, `pnpm build` (contracts + prisma generate + nest build
-  bằng SWC, ra `dist/`), `pnpm start` (chạy `dist/main.js`), `pnpm prisma:studio`.
+  bằng SWC, ra `dist/`, rồi `tsc --noEmit`; Docker dùng `pnpm build:prod` — bỏ typecheck vì CI đã chạy), `pnpm start` (chạy `dist/main.js`), `pnpm prisma:studio`.
 - Mọi lỗi trả về envelope `ApiErrorBody` (`statusCode`, `code`, `message`, `details?`, `requestId`); mọi response có
   header `X-Request-Id` (giữ nguyên nếu client / proxy gửi lên) — trùng với `reqId` trong log.
 

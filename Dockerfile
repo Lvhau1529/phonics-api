@@ -24,7 +24,8 @@ RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
 # ---------- build: contracts → prisma generate + nest build (swc) → chỉ giữ dependency production ----------
 FROM deps AS build
 COPY . .
-RUN pnpm build
+# Không typecheck ở đây (CI đã chạy `pnpm build` có tsc): type checker trên VPS ít RAM treo nhiều giờ
+RUN pnpm build:prod
 RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
     pnpm install --frozen-lockfile --prod
 # Tải schema engine của Prisma (cần cho `migrate deploy`) ngay lúc build để runtime không phải tải về.

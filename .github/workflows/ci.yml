@@ -29,6 +29,8 @@ jobs:
     needs: check
     if: github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.VPS_HOST != ''
     runs-on: ubuntu-latest
+    # Bình thường ~8 phút; treo (VPS hết RAM, mất kết nối) thì báo lỗi thay vì chờ 6 giờ
+    timeout-minutes: 25
     concurrency:
       group: deploy-production
       cancel-in-progress: false
@@ -48,7 +50,7 @@ jobs:
           ssh-keyscan -p "$PORT" -H "$HOST" >> ~/.ssh/known_hosts
       - name: Deploy trên VPS
         run: |
-          ssh -i ~/.ssh/deploy_key -p "$PORT" "$SSH_USER@$HOST" APP_DIR="$APP_DIR" 'sh -s' <<'EOF'
+          ssh -i ~/.ssh/deploy_key -o ServerAliveInterval=30 -o ServerAliveCountMax=4 -p "$PORT" "$SSH_USER@$HOST" APP_DIR="$APP_DIR" 'sh -s' <<'EOF'
           set -eu
           cd "$APP_DIR"
           git fetch --prune origin main

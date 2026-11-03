@@ -10,7 +10,7 @@
         "stripLeadingPaths": true
       }
     },
-    "typeCheck": true,
+    "typeCheck": false,
     "deleteOutDir": true
   }
 }
