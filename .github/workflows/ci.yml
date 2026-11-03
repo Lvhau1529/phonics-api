@@ -22,15 +22,54 @@ jobs:
       - run: pnpm test
       - run: pnpm build
 
-  # Deploy lên VPS sau khi check qua, chỉ khi push vào main. Bật bằng cách đặt ở repo Settings > Secrets and variables
-  # > Actions: variable VPS_HOST (+ tuỳ chọn VPS_USER, VPS_PORT, VPS_APP_DIR) và secret VPS_SSH_KEY (private key).
-  # Chưa đặt VPS_HOST thì job bị bỏ qua. Trên VPS: kéo origin/main → build lại ảnh → chạy lại API + Caddy.
-  deploy:
+  # Build ảnh production trên runner GitHub (đủ RAM / CPU) rồi đẩy lên GHCR, chỉ khi push vào main. VPS không build
+  # nữa (1 GB RAM, đang chạy Postgres + API → build bị nghẽn / treo), chỉ kéo ảnh về. Tag: mã commit (deploy + rollback)
+  # và latest. Cache layer qua GitHub Actions cache → lần sau chỉ build lại phần đổi.
+  image:
     needs: check
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.VPS_HOST != ''
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
-    # Bình thường ~8 phút; treo (VPS hết RAM, mất kết nối) thì báo lỗi thay vì chờ 6 giờ
-    timeout-minutes: 25
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      owner: ${{ steps.name.outputs.owner }}
+    steps:
+      - uses: actions/checkout@v5
+      # Tên ảnh GHCR phải viết thường (owner Lvhau1529 → lvhau1529, khớp GHCR_OWNER mặc định của docker-compose.yml)
+      - id: name
+        run: echo "owner=${GITHUB_REPOSITORY_OWNER,,}" >> "$GITHUB_OUTPUT"
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: |
+            ghcr.io/${{ steps.name.outputs.owner }}/phonics-api:${{ github.sha }}
+            ghcr.io/${{ steps.name.outputs.owner }}/phonics-api:latest
+          # Gắn package với repo (quyền đọc theo repo, hiện trên trang repo)
+          labels: org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # Deploy lên VPS sau khi ảnh đã lên GHCR. Bật bằng cách đặt ở repo Settings > Secrets and variables > Actions:
+  # variable VPS_HOST (+ tuỳ chọn VPS_USER, VPS_PORT, VPS_APP_DIR) và secret VPS_SSH_KEY (private key).
+  # Chưa đặt VPS_HOST thì job bị bỏ qua. Trên VPS: kéo origin/main (compose, Caddyfile, backup.sh) → kéo ảnh
+  # TAG=<commit> → chạy lại API + Caddy. Không build trên VPS.
+  deploy:
+    needs: image
+    if: vars.VPS_HOST != ''
+    runs-on: ubuntu-latest
+    # Bình thường 1–2 phút (kéo ảnh + migrate); treo (mất kết nối, VPS nghẽn) thì báo lỗi thay vì chờ 6 giờ
+    timeout-minutes: 10
+    permissions:
+      packages: read
     concurrency:
       group: deploy-production
       cancel-in-progress: false
@@ -39,6 +78,8 @@ jobs:
       PORT: ${{ vars.VPS_PORT || '22' }}
       SSH_USER: ${{ vars.VPS_USER || 'root' }}
       APP_DIR: ${{ vars.VPS_APP_DIR || '/opt/phonics-api' }}
+      GHCR_OWNER: ${{ needs.image.outputs.owner }}
+      TAG: ${{ github.sha }}
     steps:
       - name: Cài SSH key
         env:
@@ -48,22 +89,36 @@ jobs:
           printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
           ssh-keyscan -p "$PORT" -H "$HOST" >> ~/.ssh/known_hosts
+      # GHCR_TOKEN = GITHUB_TOKEN của job (chỉ đọc package, hết hạn khi job xong): đăng nhập tạm để kéo được cả khi
+      # package private, logout ngay sau khi kéo. TAG / GHCR_OWNER từ môi trường ghi đè giá trị trong .env của compose.
       - name: Deploy trên VPS
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          ssh -i ~/.ssh/deploy_key -o ServerAliveInterval=30 -o ServerAliveCountMax=4 -p "$PORT" "$SSH_USER@$HOST" APP_DIR="$APP_DIR" 'sh -s' <<'EOF'
+          ssh -i ~/.ssh/deploy_key -o ServerAliveInterval=30 -o ServerAliveCountMax=4 -p "$PORT" "$SSH_USER@$HOST" \
+            APP_DIR="$APP_DIR" TAG="$TAG" GHCR_OWNER="$GHCR_OWNER" GHCR_USER="$GITHUB_ACTOR" GHCR_TOKEN="$GHCR_TOKEN" \
+            'sh -s' <<'EOF'
           set -eu
           cd "$APP_DIR"
+          export TAG GHCR_OWNER
           git fetch --prune origin main
           caddy_before=$(sha256sum Caddyfile)
           git reset --hard origin/main
-          docker compose up -d --build --remove-orphans
+          printf '%s' "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USER" --password-stdin > /dev/null
+          # Service api có cả `build` nên compose có thể chỉ cảnh báo khi kéo lỗi → tự kiểm tra ảnh đã có chưa
+          docker compose pull api || true
+          docker logout ghcr.io > /dev/null
+          docker image inspect "ghcr.io/$GHCR_OWNER/phonics-api:$TAG" > /dev/null 2>&1 \
+            || { echo "Không kéo được ảnh ghcr.io/$GHCR_OWNER/phonics-api:$TAG" >&2; exit 1; }
+          docker compose up -d --no-build --remove-orphans
           # Caddyfile mount dạng file: `up -d` không tạo lại caddy khi chỉ file đổi (và git ghi file mới → mount cũ
           # vẫn trỏ bản cũ) → restart để mount lại + nạp cấu hình mới
           if [ "$caddy_before" != "$(sha256sum Caddyfile)" ]; then docker compose restart caddy; fi
-          docker image prune -f
+          # Xoá ảnh không còn container nào dùng và cũ hơn 7 ngày (giữ ảnh gần đây để rollback nhanh)
+          docker image prune -af --filter until=168h > /dev/null
           # Chờ API khởi động (migrate + start) tối đa ~150 giây; /api/health/db kiểm tra luôn kết nối DB (một lần sau deploy)
           for i in $(seq 1 30); do
-            if curl -fsS http://127.0.0.1:3000/api/health/db > /dev/null; then echo "API healthy"; exit 0; fi
+            if curl -fsS http://127.0.0.1:3000/api/health/db > /dev/null; then echo "API healthy ($TAG)"; exit 0; fi
             sleep 5
           done
           echo "API không healthy sau deploy" >&2
