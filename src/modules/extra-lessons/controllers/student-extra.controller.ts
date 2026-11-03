@@ -9,8 +9,10 @@ import {
   Patch,
   Post,
   Query,
+  StreamableFile,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiProduces, ApiTags } from '@nestjs/swagger';
+import { REPORT_MIME } from '@phonics/contracts';
 import { CurrentUser } from '@/common/decorators/current-user.decorator';
 import { RequirePermission, Roles } from '@/common/decorators/roles.decorator';
 import { API_V1 } from '@/config/api-version';
@@ -22,13 +24,16 @@ import {
   MoveSlotAssignmentDto,
   StudentAttendanceQueryDto,
   TuitionQueryDto,
+  TuitionStatementQueryDto,
   UpdateSlotAssignmentDto,
 } from '@/modules/extra-lessons/dto/requests/extra.dto';
 import { AttendanceReaderService } from '@/modules/extra-lessons/services/attendance-reader.service';
 import { ExtraRateService } from '@/modules/extra-lessons/services/extra-rate.service';
 import { SlotAssignmentService } from '@/modules/extra-lessons/services/slot-assignment.service';
 import { StudentExtraReaderService } from '@/modules/extra-lessons/services/student-extra-reader.service';
+import { TuitionStatementService } from '@/modules/extra-lessons/services/tuition-statement.service';
 import { TuitionService } from '@/modules/extra-lessons/services/tuition.service';
+import { contentDisposition } from '@/modules/reports/utils/report-format';
 
 /** Học thêm của một học sinh: hồ sơ, lịch (extra.manageSchedule), giá riêng (extra.viewPricing / managePricing) */
 @ApiTags('students')
@@ -42,6 +47,7 @@ export class StudentExtraController {
     private readonly rates: ExtraRateService,
     private readonly attendance: AttendanceReaderService,
     private readonly tuitionService: TuitionService,
+    private readonly statements: TuitionStatementService,
   ) {}
 
   @Get(':id/extra')
@@ -124,6 +130,23 @@ export class StudentExtraController {
     @Query() query: TuitionQueryDto,
   ) {
     return this.tuitionService.student(user, id, query);
+  }
+
+  /** Phiếu báo học phí một tháng (PDF) — gộp các bé cùng phụ huynh nhận học phí */
+  @RequirePermission('extra.viewPricing', 'reports.export')
+  @ApiProduces(REPORT_MIME.pdf)
+  @Get(':id/tuition-statement.pdf')
+  async tuitionStatement(
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Query() query: TuitionStatementQueryDto,
+  ): Promise<StreamableFile> {
+    const file = await this.statements.pdf(user, id, query);
+    return new StreamableFile(file.buffer, {
+      type: file.mime,
+      disposition: contentDisposition(file.filename),
+      length: file.buffer.length,
+    });
   }
 
   @RequirePermission('extra.viewPricing')

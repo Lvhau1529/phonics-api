@@ -21,6 +21,7 @@ export * from './guardians.js';
 export * from './families.js';
 export * from './extra-lessons.js';
 export * from './attendance.js';
+export * from './billing.js';
 export * from './teachers.js';
 export * from './games.js';
 export * from './events.js';

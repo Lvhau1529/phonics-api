@@ -95,6 +95,7 @@ Tài khoản `PENDING` (phụ huynh chờ duyệt) chỉ gọi được `auth/me
 | POST | `/attendance/sessions/:id/confirm` | A, T (perm:`attendance.confirm`) | `{}` → detail (đã xác nhận → ghi lại người / lúc) |
 | POST | `/attendance/sessions/resend-digest` | A | `ResendDigestBody { sessionIds }` → `ResendDigestResponse` (mỗi GV của các buổi còn PENDING một mail `teacher.digest` mới, token mới — link cũ vẫn dùng được; không tính vào số lần nhắc tự động; GV thiếu email → `noEmail`) |
 | GET | `/attendance/tuition` | A | `?from=YYYY-MM&to=YYYY-MM` (≤ 24 tháng) → `TuitionOverview` (tạm tính từ điểm danh: theo tháng, theo ca, top 10 học sinh, buổi còn chờ xác nhận, bản ghi tính phí giá 0; không gồm buổi huỷ) |
+| GET / PUT | `/admin/settings/tuition` | A | Cài đặt phiếu học phí `TuitionSettings` / body `UpdateTuitionSettings` (PUT thay cả bản, trường không gửi = null = không in; audit `settings.updateTuition`) |
 | POST | `/attendance/sessions` | A, T (perm:`extra.manageSlots`) | `CreateAttendanceSessionBody` → detail (201) — buổi bù (GV phải có trong `teacherIds`) |
 | POST | `/attendance/sessions/cancel` | A, T (perm:`extra.manageSlots`) | `CancelAttendanceSessionsBody { sessionIds \| date + dateTo? + slotIds?, reason }` → `{ cancelled }` (nghỉ nhiều ngày tối đa 62 ngày, ca chưa có buổi được tạo sẵn buổi huỷ; GV: chỉ buổi / ca mình phụ trách) |
 | GET | `/attendance/public/digests/:token` | pub | → `AttendanceDigestView` (link mail 21:00; 404 `ATTENDANCE_TOKEN_INVALID`, 410 `ATTENDANCE_TOKEN_EXPIRED`) |
@@ -104,6 +105,7 @@ Tài khoản `PENDING` (phụ huynh chờ duyệt) chỉ gọi được `auth/me
 | POST | `/extra-rates/:id/apply` | A, T (perm:`extra.managePricing`) | `{ sessionIds }` → `{ updated }` — áp giá vào buổi đã xác nhận (`affectedRecords`) |
 | GET | `/students/:id/attendance` | A, T | `?month=YYYY-MM` → `StudentAttendanceResponse` |
 | GET | `/students/:id/tuition` | A, T (perm:`extra.viewPricing`, phạm vi học sinh) | `?from=YYYY-MM&to=YYYY-MM` → `StudentTuitionResponse` (học phí tạm tính theo tháng) |
+| GET | `/students/:id/tuition-statement.pdf` | A, T (perm:`extra.viewPricing` + `reports.export`, phạm vi học sinh) | `?month=YYYY-MM` → PDF phiếu báo học phí gửi phụ huynh: gộp các bé cùng phụ huynh nhận học phí (GV chỉ thấy bé trong phạm vi), từng buổi + tổng, thông tin chuyển khoản + VietQR theo cài đặt (trường trống không in) |
 
 Hẹn giờ (`ExtraLessonsScheduler`, theo APP_TIMEZONE): **00:05** tạo buổi của ngày cho mọi ca (học sinh theo lịch, mặc
 định có mặt, chốt đơn giá; idempotent theo (ca, ngày), tạo bù `catchUpDays` ngày khi API tắt qua mốc); **21:00** mỗi

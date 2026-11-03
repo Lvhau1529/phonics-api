@@ -73,6 +73,7 @@ export const AuditAction = z.enum([
   'attendance.cancelSession',
   'attendance.createSession',
   'attendance.resendDigest',
+  'settings.updateTuition',
 ]);
 export type AuditAction = z.infer<typeof AuditAction>;
 

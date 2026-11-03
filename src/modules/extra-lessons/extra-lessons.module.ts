@@ -22,15 +22,17 @@ import { ExtraSlotWriterService } from '@/modules/extra-lessons/services/extra-s
 import { SessionSyncService } from '@/modules/extra-lessons/services/session-sync.service';
 import { SlotAssignmentService } from '@/modules/extra-lessons/services/slot-assignment.service';
 import { StudentExtraReaderService } from '@/modules/extra-lessons/services/student-extra-reader.service';
+import { TuitionStatementService } from '@/modules/extra-lessons/services/tuition-statement.service';
 import { TuitionService } from '@/modules/extra-lessons/services/tuition.service';
 import { MailModule } from '@/modules/mail/mail.module';
+import { SettingsModule } from '@/modules/settings/settings.module';
 
 /**
  * Học thêm (docs/attendance-design.md §4–§6): ca định kỳ, lịch từng học sinh, đơn giá có lịch sử, buổi + điểm danh
- * (scheduler 00:05 tạo buổi / 21:00 mail GV, trang duyệt nhanh theo token).
+ * (scheduler 00:05 tạo buổi / 21:00 mail GV, trang duyệt nhanh theo token), học phí tạm tính + phiếu báo học phí PDF.
  */
 @Module({
-  imports: [AuditModule, MailModule],
+  imports: [AuditModule, MailModule, SettingsModule],
   controllers: [
     ExtraSlotsController,
     StudentExtraController,
@@ -57,6 +59,7 @@ import { MailModule } from '@/modules/mail/mail.module';
     ExtraEnrollmentService,
     TuitionRepository,
     TuitionService,
+    TuitionStatementService,
   ],
   exports: [ExtraEnrollmentService],
 })
