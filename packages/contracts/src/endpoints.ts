@@ -125,6 +125,7 @@ export const ENDPOINTS = {
     detail: (id: string) => `/students/${id}`,
     moveClass: (id: string) => `/students/${id}/move-class`,
     resetPassword: (id: string) => `/students/${id}/reset-password`,
+    deletePreview: (id: string) => `/students/${id}/delete-preview`,
     points: (id: string) => `/students/${id}/points`,
     pointsByGame: (id: string) => `/students/${id}/points/by-game`,
     gameResults: (id: string) => `/students/${id}/game-results`,
@@ -173,6 +174,7 @@ export const ENDPOINTS = {
     familyAccount: (id: string) => `/guardians/${id}/family-account`,
     convertPreview: (id: string) => `/guardians/${id}/convert-preview`,
     convert: (id: string) => `/guardians/${id}/convert`,
+    deletePreview: (id: string) => `/guardians/${id}/delete-preview`,
   },
   families: {
     pending: '/families/pending',
@@ -185,6 +187,7 @@ export const ENDPOINTS = {
     teachers: '/admin/teachers',
     teacher: (id: string) => `/admin/teachers/${id}`,
     teacherClasses: (id: string) => `/admin/teachers/${id}/classes`,
+    teacherDeletePreview: (id: string) => `/admin/teachers/${id}/delete-preview`,
     permissions: '/admin/permissions',
     userPermissions: (id: string) => `/admin/users/${id}/permissions`,
     userPermissionGroups: (id: string) => `/admin/users/${id}/permission-groups`,

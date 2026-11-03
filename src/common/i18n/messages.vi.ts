@@ -25,6 +25,8 @@ const codeMessages = {
   CLASS_NOT_JOINABLE: 'Lớp này không nhận học sinh mới',
   NOT_FOUND: 'Không tìm thấy',
   CONFLICT: 'Dữ liệu bị trùng',
+  ACCOUNT_NOT_DELETABLE:
+    'Tài khoản đã có dữ liệu cần giữ nên không xoá được — hãy khoá tài khoản thay vì xoá',
   UNKNOWN_GAME: 'Game không tồn tại',
   RESULT_IMPLAUSIBLE: 'Kết quả không hợp lệ',
   PLAYED_AT_OUT_OF_RANGE: 'Thời điểm chơi không hợp lệ',
