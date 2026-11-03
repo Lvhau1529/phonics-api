@@ -8,7 +8,7 @@ export const TUITION_SETTINGS_KEY = 'tuition.statement';
 
 export type TuitionSettingsValue = Omit<TuitionSettings, 'updatedAt'>;
 
-/** Chưa cài: mọi trường null = không in lên phiếu */
+/** Chưa cài: mọi trường null, không in cột ca = không in lên phiếu */
 export const EMPTY_TUITION_SETTINGS: TuitionSettingsValue = {
   orgName: null,
   orgAddress: null,
@@ -20,6 +20,7 @@ export const EMPTY_TUITION_SETTINGS: TuitionSettingsValue = {
   transferContent: null,
   dueDay: null,
   note: null,
+  showSlot: false,
 };
 
 // Đọc lỏng (không strict): giá trị lưu từ bản cũ thiếu / thừa trường vẫn dùng được

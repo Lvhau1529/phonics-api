@@ -43,7 +43,7 @@ export const BankAccountNo = z
   .regex(/^[0-9A-Za-z]{4,30}$/, ValidationMessage.bankAccountFormat);
 
 /**
- * Cài đặt phiếu học phí (một bản cho cả hệ thống). Trường null = **không in** lên phiếu; chưa cài = mọi trường null,
+ * Cài đặt phiếu học phí (một bản cho cả hệ thống). Trường null / `showSlot` false = **không in** lên phiếu; chưa cài = mọi trường null,
  * `updatedAt` null. Mã VietQR chỉ in khi có đủ `bankBin` + `accountNo`.
  */
 export const TuitionSettings = z.object({
@@ -60,6 +60,8 @@ export const TuitionSettings = z.object({
   dueDay: z.int().nullable(),
   /** Ghi chú cuối phiếu */
   note: z.string().nullable(),
+  /** In cột "Ca học" trong bảng buổi (mặc định không) */
+  showSlot: z.boolean(),
   updatedAt: IsoDateTime.nullable(),
 });
 export type TuitionSettings = z.infer<typeof TuitionSettings>;
@@ -76,6 +78,7 @@ export const UpdateTuitionSettings = z.strictObject({
   transferContent: z.string().trim().min(1).max(60).optional(),
   dueDay: z.int().min(1).max(28).optional(),
   note: z.string().trim().min(1).max(500).optional(),
+  showSlot: z.boolean().optional(),
 });
 export type UpdateTuitionSettings = z.infer<typeof UpdateTuitionSettings>;
 

@@ -3,6 +3,7 @@ import { type Column, type Content, type TableCell, type TDocumentDefinitions } 
 import { dayjs } from '@/core/time/dayjs';
 import { renderPdf } from '@/infrastructure/pdf/pdfmake';
 import {
+  type StatementLine,
   type StatementStudent,
   type TuitionStatement,
 } from '@/modules/extra-lessons/utils/tuition-statement';
@@ -10,7 +11,7 @@ import { vietQrPayload } from '@/modules/extra-lessons/utils/vietqr';
 
 /**
  * Phiếu báo học phí (A4, tiếng Việt — gửi phụ huynh). Mọi phần lấy từ cài đặt chỉ in khi đã điền: trường bỏ trống
- * không hiện; cả khối chuyển khoản ẩn khi không có trường nào; mã VietQR cần đủ mã BIN + số tài khoản.
+ * không hiện, cột "Ca học" chỉ khi bật `showSlot`; cả khối chuyển khoản ẩn khi không có trường nào; mã VietQR cần đủ mã BIN + số tài khoản.
  */
 
 const COLORS = {
@@ -69,53 +70,80 @@ function header(s: TuitionStatement): Content[] {
   ];
 }
 
-function studentBlock(st: StatementStudent): Content[] {
-  const name = st.englishName ? `${st.vietnameseName} (${st.englishName})` : st.vietnameseName;
-  const head: TableCell[] = ['Ngày', 'Ca học', 'Giờ', 'Điểm danh', 'Đơn giá', 'Thành tiền'].map(
-    (text, i) => ({
-      text,
-      style: 'th',
-      alignment: i >= 4 ? 'right' : i === 1 ? 'left' : 'center',
-    }),
-  );
-  const rows = st.lines.map((l): TableCell[] => {
-    const d = dayjs(l.date);
-    return [
-      { text: `${WEEKDAY[d.day()]} ${d.format('DD/MM')}${l.pending ? ' *' : ''}`, alignment: 'center' },
-      { text: l.slotName ?? 'Buổi bù' },
-      { text: `${l.startTime}–${l.endTime}`, alignment: 'center' },
-      {
-        text: MARK_LABEL[l.mark],
-        alignment: 'center',
-        color: l.mark === 'PRESENT' ? undefined : COLORS.muted,
+/** Một cột của bảng buổi: tiêu đề, độ rộng, nội dung ô */
+interface LineColumn {
+  title: string;
+  width: number | '*';
+  align: 'left' | 'center' | 'right';
+  cell: (l: StatementLine) => { text: string; color?: string; italics?: boolean };
+}
+
+/** Cột "Ca học" chỉ khi bật `showSlot`; cột cuối luôn là "Thành tiền" */
+function lineColumns(showSlot: boolean): LineColumn[] {
+  const columns: (LineColumn | false)[] = [
+    {
+      title: 'Ngày',
+      width: 62,
+      align: 'center',
+      cell: (l) => {
+        const d = dayjs(l.date);
+        return { text: `${WEEKDAY[d.day()]} ${d.format('DD/MM')}${l.pending ? ' *' : ''}` };
       },
-      { text: formatVnd(l.unitPrice), alignment: 'right' },
-      l.charged
-        ? { text: formatVnd(l.amount), alignment: 'right' }
-        : { text: 'Không tính', alignment: 'right', color: COLORS.muted, italics: true },
-    ];
-  });
-  const body: TableCell[][] = [head, ...rows];
-  if (!rows.length)
+    },
+    showSlot && {
+      title: 'Ca học',
+      width: '*',
+      align: 'left',
+      cell: (l) => ({ text: l.slotName ?? 'Buổi bù' }),
+    },
+    {
+      title: 'Giờ',
+      width: showSlot ? 66 : '*',
+      align: 'center',
+      cell: (l) => ({ text: `${l.startTime}–${l.endTime}` }),
+    },
+    {
+      title: 'Điểm danh',
+      width: 70,
+      align: 'center',
+      cell: (l) => ({ text: MARK_LABEL[l.mark], color: l.mark === 'PRESENT' ? undefined : COLORS.muted }),
+    },
+    { title: 'Đơn giá', width: 66, align: 'right', cell: (l) => ({ text: formatVnd(l.unitPrice) }) },
+    {
+      title: 'Thành tiền',
+      width: 74,
+      align: 'right',
+      cell: (l) =>
+        l.charged
+          ? { text: formatVnd(l.amount) }
+          : { text: 'Không tính', color: COLORS.muted, italics: true },
+    },
+  ];
+  return columns.filter((c): c is LineColumn => !!c);
+}
+
+function studentBlock(st: StatementStudent, showSlot: boolean): Content[] {
+  const name = st.englishName ? `${st.vietnameseName} (${st.englishName})` : st.vietnameseName;
+  const columns = lineColumns(showSlot);
+  const n = columns.length;
+  const pad = (count: number): TableCell[] => Array.from({ length: count }, () => ({}));
+  const body: TableCell[][] = [
+    columns.map((c) => ({ text: c.title, style: 'th', alignment: c.align })),
+    ...st.lines.map((l) => columns.map((c): TableCell => ({ ...c.cell(l), alignment: c.align }))),
+  ];
+  if (!st.lines.length)
     body.push([
-      { text: 'Không có buổi học thêm trong tháng', colSpan: 6, alignment: 'center', color: COLORS.muted },
-      {},
-      {},
-      {},
-      {},
-      {},
+      { text: 'Không có buổi học thêm trong tháng', colSpan: n, alignment: 'center', color: COLORS.muted },
+      ...pad(n - 1),
     ]);
   body.push([
-    { text: `Cộng: ${st.chargedCount} buổi tính phí / ${st.lines.length} buổi`, colSpan: 5, bold: true },
-    {},
-    {},
-    {},
-    {},
+    { text: `Cộng: ${st.chargedCount} buổi tính phí / ${st.lines.length} buổi`, colSpan: n - 1, bold: true },
+    ...pad(n - 2),
     { text: formatVnd(st.total), alignment: 'right', bold: true },
   ]);
   return [
     { text: `Học sinh: ${name}`, style: 'student' },
-    { table: { headerRows: 1, widths: [62, '*', 66, 70, 66, 74], body }, layout: tableLayout },
+    { table: { headerRows: 1, widths: columns.map((c) => c.width), body }, layout: tableLayout },
   ];
 }
 
@@ -208,7 +236,7 @@ export function tuitionStatementDocument(s: TuitionStatement): TDocumentDefiniti
     },
     content: [
       ...header(s),
-      ...s.students.flatMap(studentBlock),
+      ...s.students.flatMap((st) => studentBlock(st, s.settings.showSlot)),
       summary(s),
       ...(notes.length ? [{ stack: notes, margin: [0, 6, 0, 0] } as Content] : []),
       ...payment(s),

@@ -546,7 +546,8 @@ describe('học thêm', () => {
     expect(monthSpan('2025-11', '2026-02')).toBe(4);
   });
 
-  it('cài đặt học phí: mọi trường tuỳ chọn, BIN 6 số, hạn đóng 1-28', () => {
+  it('cài đặt học phí: mọi trường tuỳ chọn, BIN 6 số, hạn đóng 1-28, bật cột ca', () => {
+    expect(UpdateTuitionSettings.safeParse({ showSlot: true }).success).toBe(true);
     expect(UpdateTuitionSettings.safeParse({}).success).toBe(true);
     expect(UpdateTuitionSettings.safeParse({ accountNo: '0123456789', dueDay: 10 }).success).toBe(true);
     expect(UpdateTuitionSettings.safeParse({ bankBin: '97043' }).error?.issues[0]?.message).toBe(
