@@ -49,10 +49,10 @@ export class ExtraSlotRepository {
     });
   }
 
-  /** Đổi loại ca của các buổi đã tạo của ca từ ngày `from` → số buổi đổi */
-  async updateSessionKind(tx: Tx, slotId: string, from: string, kind: ExtraSlotKind): Promise<number> {
+  /** Đổi loại ca của mọi buổi đã tạo của ca (kể cả đã xác nhận — loại ca không ảnh hưởng tiền) → số buổi đổi */
+  async updateSessionKind(tx: Tx, slotId: string, kind: ExtraSlotKind): Promise<number> {
     const { count } = await tx.attendanceSession.updateMany({
-      where: { slotId, date: { gte: from }, kind: { not: kind } },
+      where: { slotId, kind: { not: kind } },
       data: { kind },
     });
     return count;

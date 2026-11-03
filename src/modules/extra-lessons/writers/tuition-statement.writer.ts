@@ -13,7 +13,7 @@ import { vietQrPayload } from '@/modules/extra-lessons/utils/vietqr';
 /**
  * Phiếu báo học phí (A4, tiếng Việt — gửi phụ huynh). Mọi phần lấy từ cài đặt chỉ in khi đã điền: trường bỏ trống
  * không hiện, cột "Ca học" chỉ khi bật `showSlot`; mỗi loại ca một bảng (kèm cuối buổi: chỉ buổi có học, không cột
- * điểm danh); cả khối chuyển khoản ẩn khi không có trường nào; mã VietQR cần đủ mã BIN + số tài khoản.
+ * giờ / điểm danh); cả khối chuyển khoản ẩn khi không có trường nào; mã VietQR cần đủ mã BIN + số tài khoản.
  */
 
 const COLORS = {
@@ -81,14 +81,15 @@ interface LineColumn {
 }
 
 /**
- * Cột "Ca học" chỉ khi bật `showSlot`; kèm cuối buổi không có cột "Điểm danh" (chỉ in buổi có học); cột cuối luôn là
- * "Thành tiền"
+ * Cột "Ca học" chỉ khi bật `showSlot`; kèm cuối buổi không có cột "Giờ" và "Điểm danh" (chỉ in buổi có học); cột
+ * cuối luôn là "Thành tiền"
  */
 function lineColumns(showSlot: boolean, kind: ExtraSlotKind): LineColumn[] {
   const columns: (LineColumn | false)[] = [
     {
       title: 'Ngày',
-      width: 62,
+      // Bảng không còn cột co giãn nào (kèm cuối buổi, không cột ca) → cột ngày giãn
+      width: !showSlot && kind === 'TUTORING' ? '*' : 62,
       align: 'center',
       cell: (l) => {
         const d = dayjs(l.date);
@@ -101,7 +102,7 @@ function lineColumns(showSlot: boolean, kind: ExtraSlotKind): LineColumn[] {
       align: 'left',
       cell: (l) => ({ text: l.slotName ?? 'Buổi bù' }),
     },
-    {
+    kind === 'EXTRA_CLASS' && {
       title: 'Giờ',
       width: showSlot ? 66 : '*',
       align: 'center',
