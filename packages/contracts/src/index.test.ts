@@ -24,6 +24,7 @@ import {
   SetStudentGuardiansBody,
   ROLE_DEFAULT_PERMISSIONS,
   UpdateExtraRateBody,
+  CreateStudentRateBody,
   TuitionQuery,
   UpdateTuitionSettings,
   monthSpan,
@@ -572,6 +573,13 @@ describe('học thêm', () => {
     expect(UpdateExtraRateBody.safeParse({ note: null }).success).toBe(true);
     expect(UpdateExtraRateBody.safeParse({}).error?.issues[0]?.message).toBe('atLeastOneField');
     expect(UpdateExtraRateBody.safeParse({ pricePerSession: -1 }).success).toBe(false);
+    expect(UpdateExtraRateBody.safeParse({ effectiveTo: '2026-11-03' }).success).toBe(true);
+    expect(UpdateExtraRateBody.safeParse({ effectiveTo: null }).success).toBe(true);
+    const base = { pricePerSession: 0, effectiveFrom: '2026-11-01' };
+    expect(CreateStudentRateBody.safeParse({ ...base, effectiveTo: '2026-12-01' }).success).toBe(true);
+    expect(
+      CreateStudentRateBody.safeParse({ ...base, effectiveTo: '2026-11-01' }).error?.issues[0]?.message,
+    ).toBe('rateEndsAfterStart');
     expect(UpdateExtraRateBody.safeParse({ effectiveFrom: '2026-10-01' }).success).toBe(false);
   });
 

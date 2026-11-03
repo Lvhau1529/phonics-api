@@ -29,22 +29,32 @@ export function resolveRate(
   ];
   for (const step of steps) {
     const row = rates.find((r) => step.match(r) && active(r));
-    if (row) return { pricePerSession: row.pricePerSession, source: step.source, rateId: row.id };
+    if (row) {
+      return {
+        pricePerSession: row.pricePerSession,
+        source: step.source,
+        rateId: row.id,
+        effectiveTo: row.effectiveTo,
+      };
+    }
   }
-  return { pricePerSession: 0, source: 'NONE', rateId: null };
+  return { pricePerSession: 0, source: 'NONE', rateId: null, effectiveTo: null };
 }
 
 /**
- * Thêm giá mới cùng phạm vi từ ngày `from`: dòng đang phủ ngày `from` bị đóng tại `from`; dòng bắt đầu từ `from` trở đi
- * bị thay thế (effective_to = effective_from → không còn ngày hiệu lực). Dòng mới luôn mở (effective_to null).
+ * Thêm giá mới cùng phạm vi từ ngày `from` (tới trước `to`, không có = mở): dòng đang phủ ngày `from` bị đóng tại `from`;
+ * dòng bắt đầu trong [from, to) bị thay thế (effective_to = effective_from → không còn ngày hiệu lực). Dòng bắt đầu từ
+ * `to` trở đi giữ nguyên. Hết `to` thì về mức giá kế tiếp (giá chung / giá ca), không mở lại dòng cũ.
  */
 export function planRateInsert(
   sameScope: readonly Pick<RateRow, 'id' | 'effectiveFrom' | 'effectiveTo'>[],
   from: string,
+  to: string | null = null,
 ): { id: string; effectiveTo: string }[] {
   const changes: { id: string; effectiveTo: string }[] = [];
   for (const row of sameScope) {
     if (row.effectiveTo !== null && row.effectiveTo <= from) continue; // kết thúc trước ngày mới
+    if (to !== null && row.effectiveFrom >= to) continue; // bắt đầu sau khi ưu đãi hết
     if (row.effectiveFrom >= from) {
       if (row.effectiveTo !== row.effectiveFrom) changes.push({ id: row.id, effectiveTo: row.effectiveFrom });
     } else {

@@ -148,5 +148,8 @@ export const en: Messages = {
   sessionAlreadyConfirmed: 'The session was already confirmed by someone else',
   slotEndsAfterStart: 'The stop date must be after the start date',
   slotEndInPast: 'The stop date must be after today',
+  rateEndStudentOnly: 'Only student prices can have an end date',
+  rateEndBeforeStart: 'The end date cannot be before the start date',
+  rateEndOverlap: (p) => `Another price starts on ${p.date}; the end date cannot be after it`,
   slotEndedReason: 'The extra class slot has stopped',
 };

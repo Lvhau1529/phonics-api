@@ -57,6 +57,8 @@ export const AppliedRate = z.object({
   pricePerSession: PricePerSession,
   source: RateSource,
   rateId: Id.nullable(),
+  /** Ngày đầu tiên dòng giá này hết hiệu lực (ưu đãi có hạn) — null khi không hạn (từ 1.16.0; API cũ không có) */
+  effectiveTo: IsoDate.nullable().optional(),
 });
 export type AppliedRate = z.infer<typeof AppliedRate>;
 
@@ -296,18 +298,33 @@ export const CreateSlotRateBody = z.strictObject({
 });
 export type CreateSlotRateBody = z.infer<typeof CreateSlotRateBody>;
 
-/** Giá riêng học sinh; `slotId` = giá riêng ở một ca (mở rộng, UI chưa bật) */
-export const CreateStudentRateBody = CreateSlotRateBody.extend({ slotId: Id.optional() }).strict();
+/**
+ * Giá riêng học sinh (ưu đãi); `slotId` = chỉ ở một ca, không có = mọi ca học sinh học. `effectiveTo` (từ 1.16.0):
+ * ngày đầu tiên hết ưu đãi (vd miễn phí tháng đầu) — từ ngày đó về giá chung của học sinh / giá ca.
+ */
+export const CreateStudentRateBody = CreateSlotRateBody.extend({
+  slotId: Id.optional(),
+  effectiveTo: IsoDate.optional(),
+})
+  .strict()
+  .superRefine((b, ctx) => {
+    if (b.effectiveTo !== undefined && b.effectiveTo <= b.effectiveFrom) {
+      addValidationIssue(ctx, ['effectiveTo'], 'rateEndsAfterStart');
+    }
+  });
 export type CreateStudentRateBody = z.infer<typeof CreateStudentRateBody>;
 
 /**
  * Sửa đơn giá / ghi chú của một dòng giá đã có (từ 1.11.0 — nhập sai giá), giữ nguyên khoảng ngày. Response kèm
  * `affectedRecords` như khi đặt giá. Dòng bị thay thế từ đầu không sửa được.
+ * `effectiveTo` (từ 1.16.0, chỉ giá riêng học sinh): kết thúc ưu đãi từ ngày đó (= ngày bắt đầu → bỏ hẳn), `null` = bỏ
+ * hạn. Không được đè lên dòng cùng phạm vi bắt đầu sau.
  */
 export const UpdateExtraRateBody = z
   .strictObject({
     pricePerSession: PricePerSession,
     note: z.string().trim().max(200).nullable(),
+    effectiveTo: IsoDate.nullable(),
   })
   .partial()
   .refine((b) => Object.keys(b).length > 0, ValidationMessage.atLeastOneField);
