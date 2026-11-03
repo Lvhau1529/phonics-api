@@ -21,7 +21,10 @@ export class ExtraScheduleRepository {
   }
 
   findStudent(id: string) {
-    return this.prisma.user.findFirst({ where: { id, role: 'STUDENT' }, select: { id: true, status: true } });
+    return this.prisma.user.findFirst({
+      where: { id, role: 'STUDENT', deletedAt: null },
+      select: { id: true, status: true },
+    });
   }
 
   // ---------- Lịch ----------

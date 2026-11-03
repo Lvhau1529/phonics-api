@@ -68,7 +68,7 @@ function setup() {
     mockDeep<TokenService>(),
     mockDeep<GuardianWriterService>(),
   );
-  prisma.user.findUnique.mockResolvedValue(studentRow as never);
+  prisma.user.findFirst.mockResolvedValue(studentRow as never);
   // Transaction chạy callback với chính Prisma mock
   prisma.$transaction.mockImplementation(((fn: (tx: unknown) => unknown) => fn(prisma)) as never);
   access.assertStudentAccess.mockResolvedValue(undefined);
@@ -148,7 +148,7 @@ describe('StudentWriterService', () => {
 
   it('update: học sinh không tồn tại → 404', async () => {
     const { prisma, service } = setup();
-    prisma.user.findUnique.mockResolvedValue(null);
+    prisma.user.findFirst.mockResolvedValue(null);
 
     const err = await service.update(admin, 'nope', { displayName: 'New' }).catch((e: unknown) => e);
 
@@ -183,7 +183,7 @@ describe('StudentWriterService', () => {
 
   it('resetPassword: học sinh MANAGED → 409 STUDENT_IS_MANAGED, không đổi mật khẩu', async () => {
     const { prisma, service } = setup();
-    prisma.user.findUnique.mockResolvedValue({ ...studentRow, loginMode: 'MANAGED', email: null } as never);
+    prisma.user.findFirst.mockResolvedValue({ ...studentRow, loginMode: 'MANAGED', email: null } as never);
     await expect(service.resetPassword(admin, 's1', { newPassword: 'secret1' })).rejects.toMatchObject({
       code: 'STUDENT_IS_MANAGED',
     });
@@ -192,8 +192,9 @@ describe('StudentWriterService', () => {
 
   it('update: cấp email cho học sinh MANAGED → tự đăng nhập (OWN)', async () => {
     const { prisma, service, reader } = setup();
-    prisma.user.findUnique.mockResolvedValue({ ...studentRow, loginMode: 'MANAGED', email: null } as never);
-    prisma.user.findFirst.mockResolvedValue(null);
+    prisma.user.findFirst
+      .mockResolvedValueOnce({ ...studentRow, loginMode: 'MANAGED', email: null } as never)
+      .mockResolvedValueOnce(null);
     prisma.user.update.mockResolvedValue(studentRow as never);
     vi.spyOn(reader, 'toDetail').mockResolvedValue({} as never);
 
@@ -206,7 +207,7 @@ describe('StudentWriterService', () => {
 
   it('update: không đổi tay trạng thái học sinh đang chờ duyệt', async () => {
     const { prisma, service } = setup();
-    prisma.user.findUnique.mockResolvedValue({ ...studentRow, status: 'PENDING' } as never);
+    prisma.user.findFirst.mockResolvedValue({ ...studentRow, status: 'PENDING' } as never);
     await expect(service.update(admin, 's1', { status: 'ACTIVE' })).rejects.toMatchObject({
       code: 'CONFLICT',
     });

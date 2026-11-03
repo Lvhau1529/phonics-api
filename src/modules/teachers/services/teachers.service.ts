@@ -33,6 +33,7 @@ export class TeachersService {
   async list(query: TeacherListQuery): Promise<Paginated<TeacherSummary>> {
     const where: Prisma.UserWhereInput = {
       role: 'TEACHER',
+      deletedAt: null,
       status: query.status,
       teachingClasses: query.classId ? { some: { classId: query.classId } } : undefined,
       OR: query.q
@@ -152,7 +153,7 @@ export class TeachersService {
   }
 
   private async findTeacher(id: string): Promise<TeacherRow> {
-    const row = await this.prisma.user.findUnique({ where: { id }, include: teacherInclude });
+    const row = await this.prisma.user.findFirst({ where: { id, deletedAt: null }, include: teacherInclude });
     if (!row || row.role !== 'TEACHER') throw notFound('teacherNotFound');
     return row;
   }

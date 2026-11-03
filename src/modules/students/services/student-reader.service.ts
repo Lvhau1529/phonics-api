@@ -36,6 +36,7 @@ export class StudentReaderService {
     const classIds = await this.access.scopedClassIds(user, query.classId);
     const where: Prisma.UserWhereInput = {
       role: 'STUDENT',
+      deletedAt: null,
       status: query.status,
       loginMode: query.loginMode,
       // Tìm không dấu theo tên tiếng Việt + tiếng Anh ("nguyen an" ra "Nguyễn Văn An"), hoặc theo email
