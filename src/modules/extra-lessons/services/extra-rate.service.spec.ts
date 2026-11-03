@@ -64,7 +64,7 @@ describe('ExtraRateService.update', () => {
       'extraRate.update',
       'ExtraRate',
       'r1',
-      { pricePerSession: 120_000, note: null },
+      { pricePerSession: 120_000, note: null, effectiveTo: null },
       { pricePerSession: 150_000 },
     );
     expect(sync.repriceForRate).toHaveBeenCalledWith(updated);
@@ -89,6 +89,40 @@ describe('ExtraRateService.update', () => {
       code: 'FORBIDDEN_SCOPE',
     });
     expect(repo.updateRate).not.toHaveBeenCalled();
+  });
+
+  it('kết thúc ưu đãi của học sinh: ghi effectiveTo rồi tính lại buổi', async () => {
+    const { repo, sync, service } = setup();
+    const own = { ...rate, studentId: 's1' };
+    repo.findRate.mockResolvedValue(own as never);
+    repo.lockScope.mockResolvedValue([{ id: 'r1', effectiveFrom: '2026-10-01', effectiveTo: null }]);
+
+    await service.update(teacher, 'r1', { effectiveTo: '2026-11-03' });
+
+    expect(repo.updateRate).toHaveBeenCalledWith({}, 'r1', { effectiveTo: '2026-11-03' });
+    expect(sync.repriceForRate).toHaveBeenCalled();
+  });
+
+  it('giá mặc định của ca không đặt được ngày kết thúc', async () => {
+    const { repo, service } = setup();
+    const err = await service.update(teacher, 'r1', { effectiveTo: '2026-11-03' }).catch((e: unknown) => e);
+    expect((err as AppError).code).toBe('VALIDATION_ERROR');
+    expect(repo.updateRate).not.toHaveBeenCalled();
+  });
+
+  it('kéo dài / bỏ hạn đè lên dòng cùng phạm vi bắt đầu sau → 409', async () => {
+    const { repo, service } = setup();
+    repo.findRate.mockResolvedValue({ ...rate, studentId: 's1', effectiveTo: '2026-11-01' } as never);
+    repo.lockScope.mockResolvedValue([
+      { id: 'r1', effectiveFrom: '2026-10-01', effectiveTo: '2026-11-01' },
+      { id: 'r2', effectiveFrom: '2026-11-01', effectiveTo: null },
+    ]);
+    for (const effectiveTo of [null, '2026-11-20']) {
+      const err = await service.update(teacher, 'r1', { effectiveTo }).catch((e: unknown) => e);
+      expect((err as AppError).code).toBe('CONFLICT');
+    }
+    await service.update(teacher, 'r1', { effectiveTo: '2026-10-20' });
+    expect(repo.updateRate).toHaveBeenCalledTimes(1);
   });
 
   it('không tìm thấy → 404', async () => {

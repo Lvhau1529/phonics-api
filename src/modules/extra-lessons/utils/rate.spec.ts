@@ -23,6 +23,7 @@ describe('resolveRate', () => {
       pricePerSession: 90_000,
       source: 'STUDENT_SLOT',
       rateId: 'kid-c2',
+      effectiveTo: null,
     });
     expect(resolveRate(rates, 's1', 'c1', '2026-10-05')).toMatchObject({ source: 'STUDENT', rateId: 'kid' });
     // Giá riêng HS chưa hiệu lực trước 01/10 → giá mặc định ca
@@ -38,6 +39,7 @@ describe('resolveRate', () => {
       pricePerSession: 0,
       source: 'NONE',
       rateId: null,
+      effectiveTo: null,
     });
     expect(resolveRate(rates, 's1', null, '2026-10-05')).toMatchObject({ source: 'STUDENT' });
     expect(resolveRate(rates, 's2', null, '2026-10-05')).toMatchObject({ source: 'NONE' });
@@ -77,6 +79,39 @@ describe('planRateInsert', () => {
         '2026-10-01',
       ),
     ).toEqual([{ id: 'a', effectiveTo: '2026-10-01' }]);
+  });
+
+  it('ưu đãi có hạn: thay dòng bắt đầu trong khoảng, giữ dòng bắt đầu từ ngày hết hạn', () => {
+    const rows = [
+      { id: 'open', effectiveFrom: '2026-09-01', effectiveTo: '2026-11-15' },
+      { id: 'mid', effectiveFrom: '2026-11-15', effectiveTo: '2026-12-01' },
+      { id: 'later', effectiveFrom: '2026-12-01', effectiveTo: null },
+    ];
+    expect(planRateInsert(rows, '2026-11-01', '2026-12-01')).toEqual([
+      { id: 'open', effectiveTo: '2026-11-01' },
+      { id: 'mid', effectiveTo: '2026-11-15' },
+    ]);
+  });
+});
+
+describe('resolveRate: ưu đãi hết hạn', () => {
+  it('sau ngày hết ưu đãi ở ca → về giá chung học sinh, rồi giá ca', () => {
+    const rates = [
+      row({ id: 'trial', studentId: 's1', slotId: 'c1', pricePerSession: 0, effectiveTo: '2026-11-01' }),
+      row({ id: 'own', studentId: 's1', slotId: null, pricePerSession: 150_000 }),
+      row({ id: 'slot', slotId: 'c1', pricePerSession: 170_000 }),
+    ];
+    expect(resolveRate(rates, 's1', 'c1', '2026-10-20')).toEqual({
+      pricePerSession: 0,
+      source: 'STUDENT_SLOT',
+      rateId: 'trial',
+      effectiveTo: '2026-11-01',
+    });
+    expect(resolveRate(rates, 's1', 'c1', '2026-11-01')).toMatchObject({ source: 'STUDENT', rateId: 'own' });
+    expect(resolveRate(rates.slice(0, 1).concat(rates[2]), 's1', 'c1', '2026-11-01')).toMatchObject({
+      source: 'SLOT',
+      pricePerSession: 170_000,
+    });
   });
 });
 
