@@ -13,8 +13,10 @@ import { type AuthUser } from '@/modules/auth/types/auth.types';
 import { AttendanceRepository } from '@/modules/extra-lessons/repositories/attendance.repository';
 import { ExtraScheduleRepository } from '@/modules/extra-lessons/repositories/extra-schedule.repository';
 import { ExtraSlotRepository } from '@/modules/extra-lessons/repositories/extra-slot.repository';
+import { ExtraLessonsScheduler } from '@/modules/extra-lessons/jobs/extra-lessons.scheduler';
 import { AttendanceReaderService } from '@/modules/extra-lessons/services/attendance-reader.service';
 import { ExtraAccessService } from '@/modules/extra-lessons/services/extra-access.service';
+import { SessionSyncService } from '@/modules/extra-lessons/services/session-sync.service';
 import { type SessionDetailRow } from '@/modules/extra-lessons/types/extra.types';
 import { type Tx } from '@/database/types';
 import { resolveRate } from '@/modules/extra-lessons/utils/rate';
@@ -35,6 +37,8 @@ export class AttendanceWriterService {
     private readonly access: ExtraAccessService,
     private readonly audit: AuditService,
     private readonly time: TimeService,
+    private readonly sync: SessionSyncService,
+    private readonly scheduler: ExtraLessonsScheduler,
   ) {}
 
   async updateRecords(
@@ -192,6 +196,44 @@ export class AttendanceWriterService {
       ...(body.slotIds && { slotIds: body.slotIds }),
     });
     return { cancelled: ids };
+  }
+
+  /**
+   * Khôi phục buổi đã huỷ (huỷ nhầm / lịch nghỉ thay đổi) về PENDING: xoá lý do huỷ và thông tin xác nhận cũ, đặt lại số
+   * lần nhắc để mail 21:00 nhắc lại. Buổi chưa có học sinh (tạo sẵn ở trạng thái huỷ) → chụp danh sách từ lịch hiện
+   * tại. Tăng `recordsVersion` nên link mail cũ không duyệt được buổi này nữa.
+   */
+  async restore(actor: AuthUser, id: string): Promise<AttendanceSessionDetail> {
+    const session = await this.reader.find(id);
+    await this.reader.assertSessionAccess(actor, session);
+    if (session.status !== 'CANCELLED')
+      throw new AppError('CONFLICT', 409, { message: 'sessionNotCancelled' });
+    const records =
+      session.records.length === 0 && session.slotId
+        ? await this.sync.rosterRecords(session.slotId, session.date)
+        : [];
+    await this.repo.transaction(async (tx) => {
+      if (records.length) await this.repo.createRecords(tx, id, records);
+      await this.repo.touchSession(tx, id, {
+        status: 'PENDING',
+        cancelReason: null,
+        confirmedById: null,
+        confirmedAt: null,
+        confirmedVia: null,
+        digestCount: 0,
+      });
+    });
+    await this.audit.record(
+      actor,
+      'attendance.restoreSession',
+      'AttendanceSession',
+      id,
+      { status: session.status, cancelReason: session.cancelReason },
+      { status: 'PENDING', snapshotRecords: records.length },
+    );
+    // Có thể vừa có buổi chờ khi không còn ca hoạt động → hẹn lại mốc 21:00
+    await this.scheduler.reschedule();
+    return this.reader.detail(actor, id);
   }
 
   /**

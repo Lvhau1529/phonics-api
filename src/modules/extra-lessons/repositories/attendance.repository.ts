@@ -248,6 +248,27 @@ export class AttendanceRepository {
     });
   }
 
+  /** Huỷ có điều kiện (còn PENDING) — false nếu buổi đã được xác nhận / huỷ trước */
+  async cancelIfPending(id: string, reason: string): Promise<boolean> {
+    const { count } = await this.prisma.attendanceSession.updateMany({
+      where: { id, status: 'PENDING' },
+      data: { status: 'CANCELLED', cancelReason: reason },
+    });
+    return count === 1;
+  }
+
+  /** Thêm bản ghi chụp từ lịch (khôi phục buổi huỷ chưa có danh sách) */
+  async createRecords(
+    tx: Tx,
+    sessionId: string,
+    records: readonly Omit<Prisma.AttendanceRecordCreateManyInput, 'sessionId'>[],
+  ): Promise<void> {
+    await tx.attendanceRecord.createMany({
+      data: records.map((r) => ({ ...r, sessionId })),
+      skipDuplicates: true,
+    });
+  }
+
   // ---------- Đồng bộ với lịch / giá ----------
 
   /** Buổi (chưa huỷ) của các ca trong khoảng ngày, kèm bản ghi của học sinh */

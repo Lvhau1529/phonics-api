@@ -155,6 +155,8 @@ export const ENDPOINTS = {
     records: (id: string) => `/attendance/sessions/${id}/records`,
     confirm: (id: string) => `/attendance/sessions/${id}/confirm`,
     cancel: '/attendance/sessions/cancel',
+    /** POST: khôi phục buổi đã huỷ về chờ xác nhận (từ 1.18.0) */
+    restore: (id: string) => `/attendance/sessions/${id}/restore`,
     pendingCount: '/attendance/sessions/pending/count',
     /** POST ADMIN: gửi lại mail xác nhận cho GV các buổi đã chọn (từ 1.13.0) */
     resendDigest: '/attendance/sessions/resend-digest',
@@ -162,6 +164,8 @@ export const ENDPOINTS = {
     tuitionOverview: '/attendance/tuition',
     digest: (token: string) => `/attendance/public/digests/${token}`,
     confirmDigest: (token: string) => `/attendance/public/digests/${token}/confirm`,
+    /** POST public: GV báo nghỉ buổi trong mail (từ 1.18.0) */
+    cancelDigest: (token: string) => `/attendance/public/digests/${token}/cancel`,
   },
   extraSlots: {
     list: '/extra-slots',

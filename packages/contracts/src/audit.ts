@@ -71,6 +71,7 @@ export const AuditAction = z.enum([
   'attendance.updateRecords',
   'attendance.confirm',
   'attendance.cancelSession',
+  'attendance.restoreSession',
   'attendance.createSession',
   'attendance.resendDigest',
   'settings.updateTuition',
