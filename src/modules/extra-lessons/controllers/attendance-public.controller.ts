@@ -4,7 +4,7 @@ import { Throttle } from '@nestjs/throttler';
 import { Public } from '@/common/decorators/public.decorator';
 import { API_V1 } from '@/config/api-version';
 import { THROTTLE } from '@/config/constants';
-import { ConfirmDigestDto } from '@/modules/extra-lessons/dto/requests/extra.dto';
+import { CancelDigestDto, ConfirmDigestDto } from '@/modules/extra-lessons/dto/requests/extra.dto';
 import { AttendanceDigestService } from '@/modules/extra-lessons/services/attendance-digest.service';
 
 const tokenThrottle = { default: { limit: THROTTLE.auth.limit, ttl: THROTTLE.auth.ttl } };
@@ -26,5 +26,12 @@ export class AttendancePublicController {
   @Post(':token/confirm')
   confirm(@Param('token') token: string, @Body() body: ConfirmDigestDto) {
     return this.digests.confirm(token, body);
+  }
+
+  /** GV báo nghỉ buổi trong mail (buổi còn chờ xác nhận) */
+  @HttpCode(200)
+  @Post(':token/cancel')
+  cancel(@Param('token') token: string, @Body() body: CancelDigestDto) {
+    return this.digests.cancel(token, body);
   }
 }

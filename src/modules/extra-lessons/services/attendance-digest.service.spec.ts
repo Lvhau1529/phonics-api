@@ -74,3 +74,52 @@ describe('AttendanceDigestService.resend', () => {
     expect(mail.flush).toHaveBeenCalled();
   });
 });
+
+describe('AttendanceDigestService.cancel', () => {
+  it('báo nghỉ: chỉ huỷ buổi trong mail còn PENDING; đã huỷ / đã xác nhận / ngoài mail báo riêng', async () => {
+    const { repo, audit, service } = setup();
+    const digest = {
+      id: 'd1',
+      teacherId: 't1',
+      date: '2026-11-02',
+      expiresAt: new Date('2099-01-01T00:00:00Z'),
+      items: [
+        { sessionId: 's1', recordsVersion: 1 },
+        { sessionId: 's2', recordsVersion: 1 },
+        { sessionId: 's3', recordsVersion: 1 },
+      ],
+      teacher: { id: 't1', displayName: 'Cô Lan' },
+    };
+    repo.findDigest.mockResolvedValue(digest as never);
+    const row = (id: string, status: string) => ({
+      ...session(id, ['t1']),
+      status,
+      confirmedAt: null,
+      confirmedBy: null,
+    });
+    repo.digestSessions.mockResolvedValue([
+      row('s1', 'PENDING'),
+      row('s2', 'CANCELLED'),
+      row('s3', 'CONFIRMED'),
+    ] as never);
+    repo.cancelIfPending.mockResolvedValue(true);
+
+    const res = await service.cancel('tok', { sessionIds: ['s1', 's2', 's3', 'x9'], reason: 'GV ốm' });
+
+    expect(res).toMatchObject({ cancelled: ['s1'], alreadyCancelled: ['s2'], rejected: ['s3', 'x9'] });
+    expect(repo.cancelIfPending).toHaveBeenCalledTimes(1);
+    expect(repo.cancelIfPending).toHaveBeenCalledWith('s1', 'GV ốm');
+    expect(audit.record).toHaveBeenCalledWith(
+      { id: 't1' },
+      'attendance.cancelSession',
+      'AttendanceSession',
+      's1',
+      null,
+      {
+        status: 'CANCELLED',
+        reason: 'GV ốm',
+        via: 'EMAIL',
+      },
+    );
+  });
+});

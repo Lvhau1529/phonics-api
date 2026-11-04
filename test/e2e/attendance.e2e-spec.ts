@@ -1,6 +1,7 @@
 /**
  * Điểm danh học thêm: tạo buổi của ngày từ lịch (mặc định có mặt, chốt giá) → GV điểm danh trong app → mail 21:00 →
- * duyệt nhanh bằng token → sửa lịch / đặt giá sau khi đã xác nhận (hỏi rồi áp) → điểm danh theo tháng → huỷ buổi,
+ * duyệt nhanh bằng token → sửa lịch / đặt giá sau khi đã xác nhận (hỏi rồi áp) → điểm danh theo tháng → huỷ buổi
+ * (khôi phục, báo nghỉ qua link mail),
  * buổi bù. Mốc 00:05 / 21:00 gọi thẳng service với `now` dựng sẵn (không chờ timer).
  * Cần DATABASE_URL_TEST (DB Postgres riêng, bị TRUNCATE); không có thì cả file skip.
  */
@@ -265,6 +266,44 @@ describe.skipIf(!enabled)('attendance (e2e)', () => {
     expect(await t.prisma.attendanceSession.findFirst({ where: { date: nextWeek } })).toMatchObject({
       status: 'CANCELLED',
       slotId,
+    });
+
+    // Khôi phục: buổi huỷ sẵn (chưa có HS) → PENDING + chụp danh sách từ lịch hiện tại; khôi phục lần nữa → 409
+    const holidayId = holiday.body.cancelled[0] as string;
+    const restoredHoliday = await request(t.server)
+      .post(`${API_PREFIX}/attendance/sessions/${holidayId}/restore`)
+      .set(auth(teacherToken))
+      .expect(200);
+    // An đã rời ca từ 06/01 → lịch hiện tại không còn ai, danh sách chụp lại rỗng (chụp có HS: unit test writer)
+    expect(restoredHoliday.body).toMatchObject({ status: 'PENDING', cancelReason: null, records: [] });
+    await request(t.server)
+      .post(`${API_PREFIX}/attendance/sessions/${holidayId}/restore`)
+      .set(auth(teacherToken))
+      .expect(409);
+    // Buổi đã xác nhận rồi huỷ → khôi phục giữ danh sách, xoá thông tin xác nhận cũ
+    const restored = await request(t.server)
+      .post(`${API_PREFIX}/attendance/sessions/${sessionId}/restore`)
+      .set(auth(adminToken))
+      .expect(200);
+    expect(restored.body).toMatchObject({ status: 'PENDING', confirmedAt: null, confirmedBy: null });
+    expect(restored.body.records.map((r: { studentId: string }) => r.studentId)).toContain(guestId);
+
+    // GV báo nghỉ qua link mail: buổi còn chờ (dù danh sách đã đổi) → huỷ; lần hai → đã huỷ
+    const off = await request(t.server)
+      .post(`${API_PREFIX}/attendance/public/digests/${token}/cancel`)
+      .send({ sessionIds: [sessionId], reason: 'GV ốm' })
+      .expect(200);
+    expect(off.body).toMatchObject({ cancelled: [sessionId], alreadyCancelled: [], rejected: [] });
+    expect(off.body.digest.sessions[0]).toMatchObject({ id: sessionId, status: 'CANCELLED' });
+    const offAgain = await request(t.server)
+      .post(`${API_PREFIX}/attendance/public/digests/${token}/cancel`)
+      .send({ sessionIds: [sessionId, randomUUID()], reason: 'GV ốm' })
+      .expect(200);
+    expect(offAgain.body).toMatchObject({ cancelled: [], alreadyCancelled: [sessionId] });
+    expect(offAgain.body.rejected).toHaveLength(1);
+    expect(await t.prisma.attendanceSession.findUniqueOrThrow({ where: { id: sessionId } })).toMatchObject({
+      status: 'CANCELLED',
+      cancelReason: 'GV ốm',
     });
 
     // Buổi bù (admin), thêm học sinh tay

@@ -569,7 +569,9 @@ stateDiagram-v2
   direction LR
   [*] --> PENDING: 00:05 tạo buổi
   PENDING --> CONFIRMED: GV duyệt (mail / app)
-  PENDING --> CANCELLED: admin huỷ (nghỉ lễ)
+  PENDING --> CANCELLED: admin / GV huỷ (nghỉ lễ, GV báo nghỉ trong app / mail)
+  CONFIRMED --> CANCELLED: huỷ trong app (đăng nhập)
+  CANCELLED --> PENDING: khôi phục (chụp lại danh sách nếu buổi chưa có HS)
   CONFIRMED --> CONFIRMED: sửa sau xác nhận (audit)\nkhi tháng chưa APPROVED
 ```
 
@@ -862,7 +864,9 @@ Module mới: `modules/extra-lessons/` (ca, xếp HS, đơn giá, buổi, điể
 | POST | `attendance/sessions/:id/confirm` | `attendance.confirm` | |
 | POST | `attendance/sessions` | `extra.manageSlots` | Buổi bù (GV: phải có mình phụ trách) |
 | POST | `attendance/sessions/cancel` | `extra.manageSlots` | `{ sessionIds?, date?, reason }` — huỷ hàng loạt (nghỉ lễ); GV chỉ buổi / ca mình |
+| POST | `attendance/sessions/:id/restore` | `extra.manageSlots` | Khôi phục buổi huỷ → PENDING, `digest_count = 0`; buổi chưa có HS → chụp từ lịch |
 | GET / POST | `attendance/public/digests/:token[/confirm]` | `@Public` + throttle riêng | |
+| POST | `attendance/public/digests/:token/cancel` | `@Public` + throttle riêng | `{ sessionIds, reason }` — GV báo nghỉ buổi PENDING trong mail |
 | GET / POST / PATCH | `guardians[/:id]` | `guardians.manage` (đọc: `students.viewParentContact`) | Tìm theo email / SĐT để gộp |
 | PUT | `students/:id/guardians` | `guardians.manage` | `[{ guardianId, relation, isBillingContact, receivesReports, canAccess }]` |
 | POST | `guardians/:id/family-account` | `guardians.manage` | Tạo tài khoản gia đình + mail mời đặt mật khẩu |
@@ -942,6 +946,8 @@ Chuỗi UI thêm vào cả `vi.ts` + `en.ts`; route ADMIN-only bọc `adminOnly`
 | Tình huống | Xử lý |
 | --- | --- |
 | Nghỉ lễ | Admin huỷ hàng loạt theo ngày; buổi chưa tạo thì tạo luôn CANCELLED (không mail, không tính phí) |
+| GV cho nghỉ một buổi | Trang buổi → "Báo nghỉ" (lý do), hoặc bấm "Nghỉ" trong mail 21:00 (chỉ buổi còn chờ); buổi huỷ không tính phí |
+| Huỷ nhầm | Trang buổi → "Khôi phục": về chờ xác nhận, được nhắc lại trong mail 21:00 |
 | HS vắng (có / không phép) | Không tính phí (`BILLING_POLICY`); admin ghi đè từng buổi nếu có thoả thuận riêng |
 | Đổi giá giữa tháng | Buổi sau ngày hiệu lực dùng giá mới; ngày hiệu lực ở quá khứ → hỏi áp lại cho buổi đã ghi nhận (§6.2) |
 | HS học 2 ca của 2 GV, GV A đổi giá riêng HS | Chặn (`RATE_SCOPE_FORBIDDEN`) — giá riêng HS áp mọi ca; GV A đặt giá mặc định ca mình hoặc nhờ admin |

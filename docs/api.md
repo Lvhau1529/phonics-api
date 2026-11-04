@@ -98,8 +98,10 @@ Tài khoản `PENDING` (phụ huynh chờ duyệt) chỉ gọi được `auth/me
 | GET / PUT | `/admin/settings/tuition` | A | Cài đặt phiếu học phí `TuitionSettings` / body `UpdateTuitionSettings` (PUT thay cả bản, trường không gửi = null = không in; audit `settings.updateTuition`) |
 | POST | `/attendance/sessions` | A, T (perm:`extra.manageSlots`) | `CreateAttendanceSessionBody` → detail (201) — buổi bù (GV phải có trong `teacherIds`) |
 | POST | `/attendance/sessions/cancel` | A, T (perm:`extra.manageSlots`) | `CancelAttendanceSessionsBody { sessionIds \| date + dateTo? + slotIds?, reason }` → `{ cancelled }` (nghỉ nhiều ngày tối đa 62 ngày, ca chưa có buổi được tạo sẵn buổi huỷ; GV: chỉ buổi / ca mình phụ trách) |
+| POST | `/attendance/sessions/:id/restore` | A, T (perm:`extra.manageSlots`) | → `AttendanceSessionDetail` (buổi CANCELLED → PENDING; chưa có HS thì chụp từ lịch; 409 `CONFLICT` khi buổi chưa huỷ) |
 | GET | `/attendance/public/digests/:token` | pub | → `AttendanceDigestView` (link mail 21:00; 404 `ATTENDANCE_TOKEN_INVALID`, 410 `ATTENDANCE_TOKEN_EXPIRED`) |
 | POST | `/attendance/public/digests/:token/confirm` | pub | `{ sessionIds }` → `ConfirmDigestResponse` (chỉ buổi trong mail, còn PENDING, danh sách chưa đổi) |
+| POST | `/attendance/public/digests/:token/cancel` | pub | `CancelDigestBody { sessionIds, reason }` → `CancelDigestResponse` (GV báo nghỉ; chỉ buổi trong mail còn PENDING) |
 | POST | `/students/:id/slot-assignments/apply` | A, T (perm:`extra.manageSchedule`) | `{ sessionIds }` → `{ updated }` — áp lịch vào buổi đã xác nhận (`affectedSessions`) |
 | PATCH | `/extra-rates/:id` | A, T (perm:`extra.managePricing`, cùng phạm vi như đặt giá) | `UpdateExtraRateBody { pricePerSession?, note?, effectiveTo? }` → `ExtraRate` kèm `affectedRecords`. `effectiveTo` (1.16.0, chỉ giá riêng học sinh): kết thúc ưu đãi từ ngày đó, `null` = bỏ hạn; 409 nếu đè lên dòng cùng phạm vi sau. 409 nếu dòng đã bị thay thế từ đầu |
 | POST | `/extra-rates/:id/apply` | A, T (perm:`extra.managePricing`) | `{ sessionIds }` → `{ updated }` — áp giá vào buổi đã xác nhận (`affectedRecords`) |

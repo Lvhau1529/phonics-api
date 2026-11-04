@@ -145,6 +145,7 @@ export const en: Messages = {
   billingFieldsAdminOnly: 'Only admins can change per-session price or billing',
   removeManualOnly:
     'Only manually added students can be removed — mark scheduled students absent or fix their schedule',
+  sessionNotCancelled: 'The session is not cancelled',
   sessionAlreadyConfirmed: 'The session was already confirmed by someone else',
   slotEndsAfterStart: 'The stop date must be after the start date',
   slotEndInPast: 'The stop date must be after today',

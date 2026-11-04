@@ -9,6 +9,7 @@ import {
   AwardBonusBody,
   BILLING_POLICY,
   CancelAttendanceSessionsBody,
+  CancelDigestBody,
   CreateExtraSlotBody,
   CreateSlotAssignmentBody,
   CreateStudentsBody,
@@ -654,6 +655,12 @@ describe('điểm danh', () => {
       CancelAttendanceSessionsBody.safeParse({ sessionIds: [id], slotIds: [id], reason: 'x' }).error
         ?.issues[0]?.message,
     ).toBe('slotsNeedDate');
+  });
+
+  it('báo nghỉ qua mail: cần buổi và lý do', () => {
+    expect(CancelDigestBody.safeParse({ sessionIds: [id], reason: 'GV ốm' }).success).toBe(true);
+    expect(CancelDigestBody.safeParse({ sessionIds: [id], reason: '  ' }).success).toBe(false);
+    expect(CancelDigestBody.safeParse({ sessionIds: [], reason: 'x' }).success).toBe(false);
   });
 
   it('sửa điểm danh: cần ít nhất một thay đổi, không trùng học sinh', () => {

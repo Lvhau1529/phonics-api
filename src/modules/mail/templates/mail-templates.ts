@@ -103,7 +103,7 @@ export const MAIL_TEMPLATES: Record<MailTemplateKey, MailTemplateDef> = {
       dateText: 'Ngày gửi, vd Thứ Ba 03/11',
       count: 'Số buổi cần xác nhận',
       sessions:
-        'Danh sách buổi: name, dateText, timeText, isOld, studentCount, presentCount, absentCount, confirmLink, editLink',
+        'Danh sách buổi: name, dateText, timeText, isOld, studentCount, presentCount, absentCount, confirmLink, cancelLink, editLink',
       confirmAllLink: 'Link duyệt tất cả',
     },
     sample: {
@@ -120,6 +120,7 @@ export const MAIL_TEMPLATES: Record<MailTemplateKey, MailTemplateDef> = {
           presentCount: 11,
           absentCount: 1,
           confirmLink: 'https://admin.example.vn/a/attendance/abc?session=1',
+          cancelLink: 'https://admin.example.vn/a/attendance/abc?session=1&action=cancel',
           editLink: 'https://admin.example.vn/attendance/sessions/1',
         },
         {
@@ -131,6 +132,7 @@ export const MAIL_TEMPLATES: Record<MailTemplateKey, MailTemplateDef> = {
           presentCount: 10,
           absentCount: 0,
           confirmLink: 'https://admin.example.vn/a/attendance/abc?session=2',
+          cancelLink: 'https://admin.example.vn/a/attendance/abc?session=2&action=cancel',
           editLink: 'https://admin.example.vn/attendance/sessions/2',
         },
       ],
@@ -144,11 +146,11 @@ export const MAIL_TEMPLATES: Record<MailTemplateKey, MailTemplateDef> = {
       '{% for s in sessions %}<tr style="border-top:1px solid #e4e4e7">',
       '<td style="padding:8px 4px">{% if s.isOld %}<i>Còn treo — {{ s.dateText }}</i><br>{% endif %}<b>{{ s.name }}</b> {{ s.timeText }}<br>',
       '{{ s.studentCount }} HS ({{ s.presentCount }} có mặt{% if s.absentCount > 0 %}, {{ s.absentCount }} vắng{% endif %})</td>',
-      '<td style="padding:8px 4px;white-space:nowrap;text-align:right"><a href="{{ s.confirmLink }}">Duyệt</a> · <a href="{{ s.editLink }}">Sửa</a></td>',
+      '<td style="padding:8px 4px;white-space:nowrap;text-align:right"><a href="{{ s.confirmLink }}">Duyệt</a> · <a href="{{ s.editLink }}">Sửa</a> · <a href="{{ s.cancelLink }}">Nghỉ</a></td>',
       '</tr>{% endfor %}',
       '</table>',
       '<p style="text-align:center;margin-top:20px"><a href="{{ confirmAllLink }}" style="display:inline-block;padding:10px 18px;background:#ffdc58;color:#18181b;border-radius:6px;text-decoration:none;font-weight:bold">Duyệt tất cả {{ count }} buổi</a></p>',
-      '<p style="font-size:13px;color:#71717a">Có thay đổi (vắng, thêm học sinh) thì bấm Sửa, đăng nhập rồi xác nhận. Link duyệt hết hạn sau 7 ngày.</p>',
+      '<p style="font-size:13px;color:#71717a">Có thay đổi (vắng, thêm học sinh) thì bấm Sửa, đăng nhập rồi xác nhận. Buổi không học (GV / lớp nghỉ) thì bấm Nghỉ — buổi được huỷ, không tính học phí. Link hết hạn sau 7 ngày.</p>',
     ].join('\n'),
   },
 };

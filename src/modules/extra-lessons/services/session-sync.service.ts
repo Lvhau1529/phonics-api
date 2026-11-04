@@ -104,16 +104,16 @@ export class SessionSyncService {
 
   // ---- tạo buổi ----
 
-  private async createSlotSession(
-    slot: Awaited<ReturnType<AttendanceRepository['slotsOn']>>[number],
-    date: string,
-  ): Promise<boolean> {
-    const studentIds = await this.repo.rosterOf(slot.id, date);
-    // Ca không còn học sinh nào hôm đó: không tạo buổi trống (cần thì GV tạo buổi bù)
-    if (studentIds.length === 0) return false;
-    const rates = await this.schedule.ratesFor(studentIds, [slot.id]);
-    const records = studentIds.map((studentId) => {
-      const rate = resolveRate(rates, studentId, slot.id, date);
+  /**
+   * Bản ghi chụp từ lịch học sinh của ca `slotId` ngày `date`: mặc định có mặt, chốt đơn giá. Dùng khi tạo buổi 00:05
+   * và khi khôi phục buổi huỷ chưa có danh sách (buổi tạo sẵn ở trạng thái huỷ lúc nghỉ lễ).
+   */
+  async rosterRecords(slotId: string, date: string) {
+    const studentIds = await this.repo.rosterOf(slotId, date);
+    if (studentIds.length === 0) return [];
+    const rates = await this.schedule.ratesFor(studentIds, [slotId]);
+    return studentIds.map((studentId) => {
+      const rate = resolveRate(rates, studentId, slotId, date);
       return {
         studentId,
         mark: 'PRESENT' as const,
@@ -123,6 +123,15 @@ export class SessionSyncService {
         source: 'SNAPSHOT',
       };
     });
+  }
+
+  private async createSlotSession(
+    slot: Awaited<ReturnType<AttendanceRepository['slotsOn']>>[number],
+    date: string,
+  ): Promise<boolean> {
+    const records = await this.rosterRecords(slot.id, date);
+    // Ca không còn học sinh nào hôm đó: không tạo buổi trống (cần thì GV tạo buổi bù)
+    if (records.length === 0) return false;
     try {
       await this.repo.transaction((tx) =>
         this.repo.createSession(tx, {
