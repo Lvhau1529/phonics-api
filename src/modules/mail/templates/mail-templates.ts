@@ -155,9 +155,6 @@ export const MAIL_TEMPLATES: Record<MailTemplateKey, MailTemplateDef> = {
   },
 };
 
-export const isMailTemplateKey = (key: string): key is MailTemplateKey =>
-  (MAIL_TEMPLATE_KEYS as readonly string[]).includes(key);
-
 /** Khung chung bao quanh nội dung mọi mail (code, không cho sửa): bề ngang đọc được trên điện thoại, chân trang */
 export function mailLayout(bodyHtml: string): string {
   return [

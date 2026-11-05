@@ -34,7 +34,8 @@ function setup() {
   prisma.class.findUnique.mockResolvedValue({ id: classId, archivedAt: null } as never);
   enrollment.today.mockReturnValue('2026-11-02');
   enrollment.syncAfterEnroll.mockResolvedValue([]);
-  reader.findStudent.mockImplementation(((id: string) => Promise.resolve({ id })) as never);
+  reader.findStudents.mockImplementation(((ids: string[]) =>
+    Promise.resolve(ids.map((id) => ({ id })))) as never);
   reader.toDetail.mockImplementation(((_u: AuthUser, row: { id: string }) => Promise.resolve(row)) as never);
   return { prisma, access, enrollment, guardians, ranking, audit, service };
 }

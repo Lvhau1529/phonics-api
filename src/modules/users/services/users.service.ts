@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { AvatarKey, DEFAULT_AVATAR, type UpdateProfileBody, type User } from '@phonics/contracts';
+import { type UpdateProfileBody, type User } from '@phonics/contracts';
 import { AppError, notFound } from '@/common/errors/app-error';
 import {
   applyNameChange,
@@ -8,44 +8,8 @@ import {
   type StudentNameColumns,
 } from '@/common/utils/student-names';
 import { PrismaService } from '@/database/prisma.service';
-import { type Prisma } from '@/generated/prisma/client';
-
-export const userViewInclude = {
-  studentProfile: {
-    select: {
-      vietnameseName: true,
-      englishName: true,
-      memberships: {
-        where: { leftAt: null },
-        take: 1,
-        select: {
-          joinedAt: true,
-          class: { select: { id: true, name: true, grade: true, schoolYear: true } },
-        },
-      },
-    },
-  },
-} satisfies Prisma.UserInclude;
-
-type UserRow = Prisma.UserGetPayload<{ include: typeof userViewInclude }>;
-
-/** Chuyển row Prisma → contracts.User (không lộ hash / token) */
-export function toUserView(row: UserRow): User {
-  const membership = row.studentProfile?.memberships[0];
-  return {
-    id: row.id,
-    email: row.email,
-    role: row.role,
-    status: row.status,
-    provider: row.provider,
-    displayName: row.displayName,
-    avatarKey: AvatarKey.safeParse(row.avatarKey).data ?? DEFAULT_AVATAR,
-    class: membership ? { ...membership.class, joinedAt: membership.joinedAt.toISOString() } : null,
-    createdAt: row.createdAt.toISOString(),
-    loginMode: row.loginMode,
-    loginMethods: { password: row.passwordHash !== null, google: row.googleSub !== null },
-  };
-}
+import { toUserView } from '@/modules/users/dto/responses/user.view';
+import { userViewInclude } from '@/modules/users/types/user.types';
 
 @Injectable()
 export class UsersService {

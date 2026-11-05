@@ -7,6 +7,7 @@ import {
   type NotificationType,
   type NotificationView,
 } from '@phonics/contracts';
+import { paginate } from '@/common/utils/paginate';
 import { PrismaService } from '@/database/prisma.service';
 import { type Tx } from '@/database/types';
 import { type Prisma } from '@/generated/prisma/client';
@@ -82,17 +83,18 @@ export class NotificationsService {
 
   async list(userId: string, query: NotificationListQuery): Promise<NotificationListResponse> {
     const where: Prisma.NotificationWhereInput = { userId, readAt: query.unread ? null : undefined };
-    const [rows, total, unreadCount] = await Promise.all([
-      this.prisma.notification.findMany({
-        where,
-        orderBy: { createdAt: 'desc' },
-        skip: (query.page - 1) * query.pageSize,
-        take: query.pageSize,
-      }),
-      this.prisma.notification.count({ where }),
+    const [page, unreadCount] = await Promise.all([
+      paginate(
+        query,
+        async (args) =>
+          (await this.prisma.notification.findMany({ where, orderBy: { createdAt: 'desc' }, ...args })).map(
+            toView,
+          ),
+        () => this.prisma.notification.count({ where }),
+      ),
       this.prisma.notification.count({ where: { userId, readAt: null } }),
     ]);
-    return { items: rows.map(toView), total, page: query.page, pageSize: query.pageSize, unreadCount };
+    return { ...page, unreadCount };
   }
 
   async markRead(userId: string, body: MarkReadBody): Promise<MarkReadResponse> {

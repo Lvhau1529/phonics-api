@@ -4,7 +4,6 @@ import {
   type QuestionConfig,
   type QuestionType,
   type SnapshotQuestion,
-  gradingModeOf,
 } from '@phonics/contracts';
 import { clamp } from 'es-toolkit';
 import {
@@ -45,8 +44,6 @@ const GRADERS: Record<QuestionType, AnyGrader | null> = {
   TRACE_AND_READ: null,
   SPEAK: null,
 };
-
-export const isAutoGraded = (type: QuestionType): boolean => gradingModeOf(type) === 'AUTO';
 
 /**
  * Chấm một câu theo snapshot. Trả ZERO khi: dạng chấm tay, chưa trả lời, answer sai dạng / không parse được.

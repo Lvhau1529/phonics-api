@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { type GameResultBody, type GameResultResponse, type PointsReason } from '@phonics/contracts';
 import { AppError } from '@/common/errors/app-error';
+import { isUniqueViolation } from '@/common/utils/prisma-errors';
 import { POINT_RULES } from '@/config/constants';
 import { TimeService } from '@/core/time/time.service';
 import { type Prisma } from '@/generated/prisma/client';
@@ -10,11 +11,7 @@ import { PointReaderService } from '@/modules/points/services/point-reader.servi
 import { type RankChange, RankingService } from '@/modules/points/services/ranking.service';
 import { GameResultRepository } from '@/modules/game-results/repositories/game-result.repository';
 import { type ResultRow } from '@/modules/game-results/types/game-result.types';
-import {
-  assertResultPlausible,
-  computePoints,
-  isUniqueViolation,
-} from '@/modules/game-results/utils/game-result-rules';
+import { assertResultPlausible, computePoints } from '@/modules/game-results/utils/game-result-rules';
 
 /**
  * Kết quả ván SOLO từ game client. Đây là lõi của hệ thống điểm: mỗi ván hợp lệ sinh đúng một bút toán

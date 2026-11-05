@@ -7,6 +7,7 @@ import { AUTH } from '@/config/constants';
 import { ENV } from '@/config/env.module';
 import { type Env } from '@/config/env.schema';
 import { PrismaService } from '@/database/prisma.service';
+import { type Tx } from '@/database/types';
 import { type AccessTokenPayload } from '@/modules/auth/types/auth.types';
 import { dayjs } from '@/core/time/dayjs';
 
@@ -121,8 +122,19 @@ export class TokenService {
     });
   }
 
-  /** Đăng xuất mọi thiết bị: thu hồi mọi refresh token + vô hiệu access token đang có */
-  async revokeAll(userId: string): Promise<void> {
+  /**
+   * Đăng xuất mọi thiết bị: thu hồi mọi refresh token + vô hiệu access token đang có.
+   * Truyền `tx` để chạy chung transaction của caller (vd đổi mật khẩu + thu hồi phiên).
+   */
+  async revokeAll(userId: string, tx?: Tx): Promise<void> {
+    if (tx) {
+      await tx.refreshToken.updateMany({
+        where: { userId, revokedAt: null },
+        data: { revokedAt: new Date() },
+      });
+      await tx.user.update({ where: { id: userId }, data: { tokenVersion: { increment: 1 } } });
+      return;
+    }
     await this.prisma.$transaction([
       this.prisma.refreshToken.updateMany({
         where: { userId, revokedAt: null },

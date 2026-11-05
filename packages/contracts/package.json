@@ -1,6 +1,6 @@
 {
   "name": "@lvhau1529/phonics-contracts",
-  "version": "1.18.0",
+  "version": "1.19.0",
   "description": "Hợp đồng API Phonics Arcade (zod schema, type, hằng số) dùng chung cho game, admin và api",
   "repository": {
     "type": "git",

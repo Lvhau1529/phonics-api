@@ -1,7 +1,7 @@
 import { Controller, Delete, Get, HttpCode, Param, ParseUUIDPipe } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '@/common/decorators/current-user.decorator';
-import { RequirePermission, Roles } from '@/common/decorators/roles.decorator';
+import { Roles } from '@/common/decorators/roles.decorator';
 import { API_V1 } from '@/config/api-version';
 import { type AuthUser } from '@/modules/auth/types/auth.types';
 import { AccountDeletionService } from '@/modules/users/services/account-deletion.service';
@@ -39,13 +39,11 @@ export class AccountDeletionController {
     await this.deletion.deleteTeacher(user, id);
   }
 
-  @RequirePermission('guardians.manage')
   @Get('guardians/:id/delete-preview')
   guardianPreview(@Param('id', ParseUUIDPipe) id: string) {
     return this.deletion.guardianPreview(id);
   }
 
-  @RequirePermission('guardians.manage')
   @HttpCode(204)
   @Delete('guardians/:id')
   async deleteGuardian(@CurrentUser() user: AuthUser, @Param('id', ParseUUIDPipe) id: string): Promise<void> {

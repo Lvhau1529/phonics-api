@@ -19,7 +19,7 @@ import { GuardianReaderService } from '@/modules/families/services/guardian-read
 const emailTaken = () =>
   new AppError('GUARDIAN_EMAIL_TAKEN', 409, { fieldErrors: { email: ['GUARDIAN_EMAIL_TAKEN'] } });
 
-/** Ghi phụ huynh + liên kết phụ huynh ↔ học sinh (admin, quyền guardians.manage; gắn lúc tạo học sinh: cả GV) */
+/** Ghi phụ huynh + liên kết phụ huynh ↔ học sinh (admin; gắn lúc tạo học sinh: cả GV) */
 @Injectable()
 export class GuardianWriterService {
   constructor(

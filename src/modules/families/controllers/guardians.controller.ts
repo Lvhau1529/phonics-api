@@ -1,7 +1,7 @@
 import { Body, Controller, Get, HttpCode, Param, ParseUUIDPipe, Patch, Post, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '@/common/decorators/current-user.decorator';
-import { RequirePermission, Roles } from '@/common/decorators/roles.decorator';
+import { Roles } from '@/common/decorators/roles.decorator';
 import { API_V1 } from '@/config/api-version';
 import { type AuthUser } from '@/modules/auth/types/auth.types';
 import {
@@ -14,11 +14,10 @@ import { FamilyAccountService } from '@/modules/families/services/family-account
 import { GuardianReaderService } from '@/modules/families/services/guardian-reader.service';
 import { GuardianWriterService } from '@/modules/families/services/guardian-writer.service';
 
-/** Phụ huynh + tài khoản gia đình (admin, quyền guardians.manage) */
+/** Phụ huynh + tài khoản gia đình — chỉ admin (danh sách phụ huynh không lọc theo lớp nên không mở cho GV) */
 @ApiTags('guardians')
 @ApiBearerAuth()
 @Roles('ADMIN')
-@RequirePermission('guardians.manage')
 @Controller({ path: 'guardians', version: API_V1 })
 export class GuardiansController {
   constructor(

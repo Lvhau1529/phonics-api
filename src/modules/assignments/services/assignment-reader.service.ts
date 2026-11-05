@@ -91,7 +91,12 @@ export class AssignmentReaderService {
 
   /** Mỗi học sinh đang ở lớp một dòng (kể cả chưa làm) */
   async roster(user: AuthUser, id: string): Promise<AssignmentRosterResponse> {
-    const assignment = await this.load(user, id);
+    return this.rosterOf(await this.load(user, id));
+  }
+
+  /** Roster cho một bài đã kiểm tra quyền (dùng lại dòng đã `load`) */
+  async rosterOf(assignment: AssignmentRow): Promise<AssignmentRosterResponse> {
+    const id = assignment.id;
     const [members, submissions, ranks] = await Promise.all([
       this.repo.rosterMembers(assignment.classId),
       this.repo.rosterSubmissions(id),

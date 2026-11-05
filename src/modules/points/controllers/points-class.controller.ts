@@ -3,7 +3,6 @@ import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '@/common/decorators/current-user.decorator';
 import { RequirePermission, Roles } from '@/common/decorators/roles.decorator';
 import { API_V1 } from '@/config/api-version';
-import { AccessService } from '@/core/access/access.service';
 import { type AuthUser } from '@/modules/auth/types/auth.types';
 import {
   AwardBonusBatchDto,
@@ -23,27 +22,24 @@ export class PointsClassController {
   constructor(
     private readonly points: PointReaderService,
     private readonly bonusService: PointBonusService,
-    private readonly access: AccessService,
   ) {}
 
   @Get('ranking')
-  async ranking(
+  ranking(
     @CurrentUser() user: AuthUser,
     @Param('classId', ParseUUIDPipe) classId: string,
     @Query() query: RankingQueryDto,
   ) {
-    await this.access.assertClassAccess(user, classId);
-    return this.points.classRanking(classId, query);
+    return this.points.classRankingFor(user, classId, query);
   }
 
   @Get('points')
-  async list(
+  list(
     @CurrentUser() user: AuthUser,
     @Param('classId', ParseUUIDPipe) classId: string,
     @Query() query: PointsListQueryDto,
   ) {
-    await this.access.assertClassAccess(user, classId);
-    return this.points.list({ ...query, classId });
+    return this.points.classPoints(user, classId, query);
   }
 
   @RequirePermission('points.award')

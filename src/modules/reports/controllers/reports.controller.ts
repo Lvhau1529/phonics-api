@@ -3,12 +3,11 @@ import { ApiBearerAuth, ApiProduces, ApiTags } from '@nestjs/swagger';
 import { REPORT_MIME } from '@phonics/contracts';
 import { CurrentUser } from '@/common/decorators/current-user.decorator';
 import { RequirePermission, Roles } from '@/common/decorators/roles.decorator';
+import { toStreamable } from '@/common/utils/streamable';
 import { API_V1 } from '@/config/api-version';
 import { type AuthUser } from '@/modules/auth/types/auth.types';
 import { ReportQueryDto } from '@/modules/reports/dto/requests/reports.dto';
 import { ReportsService } from '@/modules/reports/services/reports.service';
-import { type ReportFile } from '@/modules/reports/types/report.types';
-import { contentDisposition } from '@/modules/reports/utils/report-format';
 
 /** Xuất file xlsx / pdf (admin + giáo viên có quyền reports.export; phạm vi lớp kiểm tra trong service) */
 @ApiTags('reports')
@@ -58,13 +57,4 @@ export class ReportsController {
   ): Promise<StreamableFile> {
     return toStreamable(await this.reports.assignmentResults(user, assignmentId));
   }
-}
-
-/** Nest tự đặt Content-Type / Content-Disposition / Content-Length từ options của StreamableFile */
-function toStreamable(file: ReportFile): StreamableFile {
-  return new StreamableFile(file.buffer, {
-    type: file.mime,
-    disposition: contentDisposition(file.filename),
-    length: file.buffer.length,
-  });
 }

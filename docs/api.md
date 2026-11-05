@@ -114,7 +114,7 @@ Hẹn giờ (`ExtraLessonsScheduler`, theo APP_TIMEZONE): **00:05** tạo buổi
 GV một mail `teacher.digest` các buổi PENDING (tối đa 3 lần nhắc / buổi). Sửa lịch / đặt giá: buổi PENDING tự đồng
 bộ, buổi CONFIRMED trả trong `affectedSessions` / `affectedRecords` để hỏi người dùng.
 
-## guardians (A, perm:`guardians.manage`)
+## guardians (A)
 
 | Method | Path | Ai | Request → Response |
 | --- | --- | --- | --- |
@@ -183,7 +183,7 @@ bộ, buổi CONFIRMED trả trong `affectedSessions` / `affectedRecords` để 
 | POST | `/students/:id/move-class` | A, T perm:`class.changeStudentClass` | `MoveClassBody` → `StudentDetail` |
 | POST | `/students/:id/reset-password` | A | `ResetPasswordBody` → 204. 409 `STUDENT_IS_MANAGED` (bé vào qua phụ huynh) |
 | GET | `/students/:id/guardians` | A, T (perm:`students.viewParentContact`) | → `StudentGuardiansResponse` |
-| PUT | `/students/:id/guardians` | A (perm:`guardians.manage`) | `SetStudentGuardiansBody` → `StudentGuardiansResponse` (thôi `canAccess` → phiên phụ huynh mở cho bé hết hiệu lực) |
+| PUT | `/students/:id/guardians` | A | `SetStudentGuardiansBody` → `StudentGuardiansResponse` (thôi `canAccess` → phiên phụ huynh mở cho bé hết hiệu lực) |
 | GET | `/students/:id/points` | A, T | `PointsListQuery` → `Paginated<PointEntryView>` |
 | GET | `/students/:id/points/by-game` | A, T | `?range` → `{ items: PointsByGame[] }` |
 | GET | `/students/:id/game-results` | A, T | → `Paginated<GameResultView>` |
