@@ -24,7 +24,6 @@ export const PermissionCode = z.enum([
   'worksheets.assign',
   'worksheets.grade',
   'worksheets.viewStats',
-  'guardians.manage',
   'families.approve',
   'extra.manageSlots',
   'extra.manageSchedule',
@@ -74,11 +73,6 @@ export const PERMISSIONS: readonly PermissionDef[] = [
     code: 'worksheets.viewStats',
     defaultRoles: ['ADMIN', 'TEACHER'],
     description: 'Xem thống kê phiếu bài tập',
-  },
-  {
-    code: 'guardians.manage',
-    defaultRoles: ['ADMIN'],
-    description: 'Quản lý phụ huynh, tạo / chuyển sang tài khoản gia đình',
   },
   {
     code: 'families.approve',

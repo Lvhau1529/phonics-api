@@ -372,6 +372,7 @@ describe('ROLE_DEFAULT_PERMISSIONS (worksheets)', () => {
 });
 
 import {
+  PermissionCode,
   UpdateClassBody,
   VALIDATION_MESSAGES,
   ValidationMessage,
@@ -508,7 +509,8 @@ describe('tài khoản gia đình', () => {
     expect(ROLE_DEFAULT_PERMISSIONS.TEACHER).toEqual(
       expect.arrayContaining(['families.approve', 'students.viewParentContact']),
     );
-    expect(ROLE_DEFAULT_PERMISSIONS.TEACHER).not.toContain('guardians.manage');
+    // Quản lý phụ huynh là việc của admin (route @Roles('ADMIN')), không còn là quyền cấp được
+    expect(PermissionCode.safeParse('guardians.manage').success).toBe(false);
     expect(ROLE_DEFAULT_PERMISSIONS.PARENT).toEqual([]);
   });
 });
