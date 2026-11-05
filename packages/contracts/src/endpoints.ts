@@ -162,6 +162,8 @@ export const ENDPOINTS = {
     resendDigest: '/attendance/sessions/resend-digest',
     /** GET ADMIN: thống kê học phí tổng quát theo tháng (từ 1.13.0) */
     tuitionOverview: '/attendance/tuition',
+    /** GET ADMIN: soạn tin nhắn thông báo học phí từng phụ huynh (Zalo) (từ 1.20.0) */
+    tuitionNotices: '/attendance/tuition/notices',
     digest: (token: string) => `/attendance/public/digests/${token}`,
     confirmDigest: (token: string) => `/attendance/public/digests/${token}/confirm`,
     /** POST public: GV báo nghỉ buổi trong mail (từ 1.18.0) */

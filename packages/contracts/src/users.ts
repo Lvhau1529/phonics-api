@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { IsoDateTime } from './common/dates.js';
 import { Id } from './common/ids.js';
 import { ValidationMessage } from './common/validation-messages.js';
+import { isValidPhone } from './common/phone.js';
 
 /** PARENT: tài khoản gia đình (phụ huynh giữ đăng nhập, vào hồ sơ từng bé) */
 export const Role = z.enum(['ADMIN', 'TEACHER', 'STUDENT', 'PARENT']);
@@ -62,11 +63,15 @@ export const DEFAULT_AVATAR: AvatarKey = 'bunny';
 export const DisplayName = z.string().trim().min(1).max(30);
 export const Email = z.string().trim().toLowerCase().max(254).pipe(z.email());
 export const Password = z.string().min(6).max(72);
-/** Số điện thoại nhập tay; server chuẩn hoá E.164 (`0912…` → `+84912…`) */
+/**
+ * Số điện thoại nhập tay (`0912 345 678`, `+84 912…`, đầu số cũ `0166…`): phải là di động / cố định Việt Nam hoặc số
+ * quốc tế hợp lệ sau khi chuẩn hoá (`isValidPhone`). Server lưu dạng E.164 (`normalizePhone`).
+ */
 export const Phone = z
   .string()
   .trim()
-  .regex(/^[0-9+\-\s().]{6,20}$/, ValidationMessage.phoneInvalid);
+  .regex(/^[0-9+\-\s().]{6,20}$/, ValidationMessage.phoneInvalid)
+  .refine(isValidPhone, ValidationMessage.phoneInvalid);
 
 /** Thông tin lớp hiện tại của học sinh (gắn trong user) */
 export const StudentClassRef = z.object({
