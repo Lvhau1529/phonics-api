@@ -8,7 +8,6 @@ import { Prisma } from '@/generated/prisma/client';
 import { type EventsService } from '@/modules/events/services/events.service';
 import { type GameUnlockService } from '@/modules/games/services/game-unlock.service';
 import { type PointReaderService } from '@/modules/points/services/point-reader.service';
-import { type RankingService } from '@/modules/points/services/ranking.service';
 import { GameResultRepository } from '@/modules/game-results/repositories/game-result.repository';
 import { GameResultWriterService } from '@/modules/game-results/services/game-result-writer.service';
 
@@ -58,7 +57,6 @@ const TODAY = { from: new Date('2026-10-01T00:00:00Z'), to: new Date('2026-10-02
 describe('GameResultWriterService.submit', () => {
   let prisma: DeepMockProxy<PrismaService>;
   const games = mock<GameUnlockService>();
-  const ranking = mock<RankingService>();
   const points = mock<PointReaderService>();
   const events = mock<EventsService>();
   const time = mock<TimeService>();
@@ -66,7 +64,7 @@ describe('GameResultWriterService.submit', () => {
 
   beforeEach(() => {
     prisma = mockDeep<PrismaService>();
-    for (const m of [games, ranking, points, events, time]) mockReset(m);
+    for (const m of [games, points, events, time]) mockReset(m);
     // Transaction gọi callback với chính mock (tx === prisma)
     (prisma.$transaction as unknown as { mockImplementation: (fn: unknown) => void }).mockImplementation(
       (cb: (tx: unknown) => Promise<unknown>) => cb(prisma),
@@ -77,22 +75,13 @@ describe('GameResultWriterService.submit', () => {
       byKind: { GAME: range ? 5 : 40, BONUS: range ? 0 : 2 },
       byGame: [{ gameId: 'bread-catcher', points: range ? 5 : 30, rounds: 3 }],
     }));
-    ranking.currentRank.mockResolvedValue({ classId: CLASS_ID, rank: 2, members: 10 });
-    ranking.recomputeAndNotify.mockResolvedValue({ previous: 3, current: 2 });
     events.recordPlay.mockResolvedValue(undefined);
     prisma.gameResult.findUnique.mockResolvedValue(null);
     prisma.classMembership.findFirst.mockResolvedValue({ classId: CLASS_ID } as never);
     games.isUnlockedFor.mockResolvedValue({ exists: true, enabled: true, unlocked: true });
     prisma.pointEntry.aggregate.mockResolvedValue({ _sum: { points: 0 } } as never);
     // Repository thật bọc Prisma mock: assert trên lời gọi Prisma như trước khi tách service
-    service = new GameResultWriterService(
-      new GameResultRepository(prisma),
-      games,
-      ranking,
-      points,
-      events,
-      time,
-    );
+    service = new GameResultWriterService(new GameResultRepository(prisma), games, points, events, time);
   });
 
   const expectAppError = async (promise: Promise<unknown>, code: string, status: number) => {
@@ -142,14 +131,14 @@ describe('GameResultWriterService.submit', () => {
     expect(res).toMatchObject({ resultId: RESULT_ID, duplicate: true, pointsAwarded: 7 });
     expect(res.pointsReason).toBeUndefined();
     expect(res.totals).toEqual({ all: 42, today: 5, game: 30 });
-    expect(res.rank).toEqual({ previous: 2, current: 2 });
+    expect(res).not.toHaveProperty('rank');
     expect(prisma.$transaction).not.toHaveBeenCalled();
     expect(prisma.gameResult.create).not.toHaveBeenCalled();
     expect(prisma.pointEntry.create).not.toHaveBeenCalled();
     expect(events.recordPlay).not.toHaveBeenCalled();
   });
 
-  it('happy path: cộng min(10, correct) điểm, tính lại hạng, ghi PLAY event', async () => {
+  it('happy path: cộng min(10, correct) điểm, ghi PLAY event', async () => {
     const b = body({ correct: 7 });
     prisma.gameResult.create.mockResolvedValue(resultRow(b, 7) as never);
 
@@ -177,7 +166,6 @@ describe('GameResultWriterService.submit', () => {
         note: 'bread-catcher · level-1 · 7/10',
       }),
     });
-    expect(ranking.recomputeAndNotify).toHaveBeenCalledWith(prisma, CLASS_ID, STUDENT_ID);
     expect(events.recordPlay).toHaveBeenCalledWith(
       prisma,
       expect.objectContaining({ gameId: 'bread-catcher', userId: STUDENT_ID, mode: 'solo' }),
@@ -185,7 +173,6 @@ describe('GameResultWriterService.submit', () => {
     expect(res).toMatchObject({
       duplicate: false,
       pointsAwarded: 7,
-      rank: { previous: 3, current: 2 },
       totals: { all: 42, today: 5, game: 30 },
     });
   });
@@ -199,7 +186,7 @@ describe('GameResultWriterService.submit', () => {
     expect(prisma.pointEntry.create).toHaveBeenCalledWith({ data: expect.objectContaining({ points: 10 }) });
   });
 
-  it('game chưa mở khoá → 0 điểm, GAME_LOCKED, không có bút toán / tính hạng', async () => {
+  it('game chưa mở khoá → 0 điểm, GAME_LOCKED, không có bút toán', async () => {
     const b = body();
     games.isUnlockedFor.mockResolvedValue({ exists: true, enabled: true, unlocked: false });
     prisma.gameResult.create.mockResolvedValue(resultRow(b, 0, 'GAME_LOCKED') as never);
@@ -212,12 +199,10 @@ describe('GameResultWriterService.submit', () => {
       }),
     );
     expect(prisma.pointEntry.create).not.toHaveBeenCalled();
-    expect(ranking.recomputeAndNotify).not.toHaveBeenCalled();
     expect(events.recordPlay).toHaveBeenCalled();
     expect(res).toMatchObject({
       pointsAwarded: 0,
       pointsReason: 'GAME_LOCKED',
-      rank: { previous: 2, current: 2 },
     });
   });
 
@@ -261,7 +246,6 @@ describe('GameResultWriterService.submit', () => {
     await service.submit(STUDENT_ID, b);
 
     expect(prisma.pointEntry.create).not.toHaveBeenCalled();
-    expect(ranking.recomputeAndNotify).not.toHaveBeenCalled();
   });
 
   it('không thuộc lớp nào → 0 điểm NO_CLASS, classId null', async () => {

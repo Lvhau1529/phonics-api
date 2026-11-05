@@ -4,7 +4,6 @@ import { sumBy } from 'es-toolkit';
 import { AppError } from '@/common/errors/app-error';
 import { AuditService } from '@/modules/audit/services/audit.service';
 import { type AuthUser } from '@/modules/auth/types/auth.types';
-import { NotificationsService } from '@/modules/notifications/services/notifications.service';
 import { round2 } from '@/modules/submissions/grading/index';
 import { SubmissionRepository } from '@/modules/submissions/repositories/submission.repository';
 import {
@@ -23,12 +22,11 @@ export class SubmissionGradingService {
     private readonly repo: SubmissionRepository,
     private readonly reader: SubmissionReaderService,
     private readonly audit: AuditService,
-    private readonly notifications: NotificationsService,
   ) {}
 
   /**
-   * Chấm tay / ghi đè điểm từng câu; `finalize` chốt: mọi câu MANUAL phải có điểm → GRADED, tính totalScore,
-   * thông báo học sinh (một lần). Bài đã GRADED mà sửa điểm thì tính lại tổng.
+   * Chấm tay / ghi đè điểm từng câu; `finalize` chốt: mọi câu MANUAL phải có điểm → GRADED, tính totalScore.
+   * Bài đã GRADED mà sửa điểm thì tính lại tổng.
    */
   async grade(actor: AuthUser, submissionId: string, body: GradeSubmissionBody): Promise<SubmissionDetail> {
     const current = await this.reader.loadForTeacher(actor, submissionId);
@@ -75,23 +73,6 @@ export class SubmissionGradingService {
         gradedAt: now,
         gradedById: actor.id,
       });
-      if (!wasGraded) {
-        await this.notifications.create(
-          {
-            userId: updated.studentId,
-            type: 'SUBMISSION_GRADED',
-            title: 'Your homework was graded!',
-            body: `${snapshotOf(updated).title}: ${totalScore}/${updated.maxScore}. Great effort!`,
-            data: {
-              assignmentId: updated.assignmentId,
-              submissionId,
-              totalScore,
-              maxScore: updated.maxScore,
-            },
-          },
-          tx,
-        );
-      }
       return updated;
     });
     await this.audit.record(

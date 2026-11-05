@@ -24,9 +24,4 @@ export class PointsMeController {
   history(@CurrentUser() user: AuthUser, @Query() query: PointsListQueryDto) {
     return this.points.list({ ...query, studentId: user.id, classId: undefined });
   }
-
-  @Get('class/ranking')
-  ranking(@CurrentUser() user: AuthUser, @Query() query: RankingQueryDto) {
-    return this.points.myClassRanking(user, query);
-  }
 }

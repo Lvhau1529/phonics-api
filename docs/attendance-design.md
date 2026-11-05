@@ -2,6 +2,10 @@
 
 Trạng thái: **đề xuất v3** (chưa code). Phạm vi: phonics-api (+ contracts) và phonics-admin.
 
+> **Cập nhật 2026-11-05 (contracts 2.0.0):** bỏ hẳn `login_mode` / học sinh tự đăng nhập (`OWN`), công cụ chuyển
+> đổi gia đình, `parent_*` và thông báo trong app — xem [family-first.md](family-first.md). Các mục nói về `OWN` /
+> `MANAGED` bên dưới chỉ còn giá trị lịch sử.
+
 ## 0. Lịch sử thay đổi
 
 ### v3 (theo phản hồi vòng 2)

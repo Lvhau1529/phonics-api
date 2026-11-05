@@ -132,38 +132,6 @@ export class GuardianWriterService {
   }
 
   /**
-   * `parent` của PATCH students/:id (client < 1.7.0): sửa phụ huynh nhận học phí. Chưa có → gắn phụ huynh trùng email
-   * hoặc tạo mới; `null` → gỡ liên kết nhận học phí.
-   */
-  async setBillingContact(tx: Tx, studentId: string, parent: ParentContact | null, vietnameseName: string) {
-    const links = await this.repo.studentLinks(studentId, tx);
-    const billing = links.find((l) => l.isBillingContact);
-    if (!parent || (!parent.name && !parent.email && !parent.phone)) {
-      if (billing) {
-        await this.repo.replaceStudentLinks(
-          tx,
-          studentId,
-          links.filter((l) => l !== billing).map(({ studentId: _s, createdAt: _c, guardian: _g, ...l }) => l),
-        );
-      }
-      return;
-    }
-    const data = {
-      fullName: parent.name ?? billing?.guardian.fullName ?? `Phụ huynh ${vietnameseName}`.slice(0, 60),
-      email: parent.email ?? null,
-      phone: parent.phone ? normalizePhone(parent.phone) : null,
-    };
-    if (billing) {
-      if (data.email && data.email !== billing.guardian.email) {
-        if (await this.repo.isEmailTaken(data.email, billing.guardianId, tx)) throw emailTaken();
-      }
-      await this.repo.update(billing.guardianId, data, tx);
-      return;
-    }
-    await this.linkNewBillingContact(tx, [studentId], data);
-  }
-
-  /**
    * Học sinh vừa tạo (`POST /students`): một phụ huynh nhận học phí chung cho các bé — trùng email phụ huynh có sẵn
    * thì gắn vào phụ huynh đó (anh chị em gộp một mail học phí), không thì tạo mới.
    */

@@ -12,7 +12,6 @@ import { AuditService } from '@/modules/audit/services/audit.service';
 import { type AuthUser } from '@/modules/auth/types/auth.types';
 import { ExtraEnrollmentService } from '@/modules/extra-lessons/services/extra-enrollment.service';
 import { GuardianWriterService } from '@/modules/families/services/guardian-writer.service';
-import { RankingService } from '@/modules/points/services/ranking.service';
 import { StudentRepository } from '@/modules/students/repositories/student.repository';
 import { StudentReaderService } from '@/modules/students/services/student-reader.service';
 
@@ -30,7 +29,6 @@ export class StudentCreatorService {
     private readonly access: AccessService,
     private readonly enrollment: ExtraEnrollmentService,
     private readonly guardians: GuardianWriterService,
-    private readonly ranking: RankingService,
     private readonly audit: AuditService,
   ) {}
 
@@ -49,7 +47,6 @@ export class StudentCreatorService {
         const id = await this.repo.create(tx, {
           role: 'STUDENT',
           status: 'ACTIVE',
-          loginMode: 'MANAGED',
           displayName: names.displayName,
           avatarKey: input.avatarKey ?? DEFAULT_AVATAR,
           studentProfile: { create: { ...profileNameData(names), reviewedById: actor.id, reviewedAt: now } },
@@ -72,8 +69,6 @@ export class StudentCreatorService {
           body.students[0]!.vietnameseName,
         );
       }
-      const classIds = new Set(body.students.flatMap((s) => (s.classId ? [s.classId] : [])));
-      for (const classId of classIds) await this.ranking.recomputeAndNotify(tx, classId);
       return created;
     });
 

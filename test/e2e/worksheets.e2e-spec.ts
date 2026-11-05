@@ -60,15 +60,33 @@ describe.skipIf(!enabled)('worksheets (e2e)', () => {
       },
     });
     classId = cls.id;
+    // Bé không có thông tin đăng nhập: phụ huynh (tài khoản gia đình) mở phiên cho bé
+    const parent = await t.prisma.user.create({
+      data: {
+        email: 'parent.ws@e2e.local',
+        passwordHash,
+        role: 'PARENT',
+        displayName: 'Parent WS',
+        emailVerified: true,
+      },
+    });
     const student = await t.prisma.user.create({
       data: {
-        email: 'kid.ws@e2e.local',
-        passwordHash,
         role: 'STUDENT',
         displayName: 'Kid WS',
-        emailVerified: true,
         studentProfile: {
-          create: { vietnameseName: 'Kid WS', memberships: { create: { classId } } },
+          create: {
+            vietnameseName: 'Kid WS',
+            memberships: { create: { classId } },
+            guardians: {
+              create: {
+                isBillingContact: true,
+                guardian: {
+                  create: { fullName: 'Parent WS', email: 'parent.ws@e2e.local', userId: parent.id },
+                },
+              },
+            },
+          },
         },
       },
     });
@@ -97,7 +115,14 @@ describe.skipIf(!enabled)('worksheets (e2e)', () => {
           .expect(200)
       ).body.accessToken as string;
     teacherToken = await login('teacher.ws@e2e.local');
-    studentToken = await login('kid.ws@e2e.local');
+    const parentToken = await login('parent.ws@e2e.local');
+    studentToken = (
+      await request(t.server)
+        .post(`${API_PREFIX}/auth/switch-profile`)
+        .set(auth(parentToken))
+        .send({ studentId })
+        .expect(200)
+    ).body.accessToken as string;
   });
 
   afterAll(async () => {
@@ -234,12 +259,6 @@ describe.skipIf(!enabled)('worksheets (e2e)', () => {
       optionId: 'a',
     });
 
-    const notif = await request(t.server)
-      .get(`${API_PREFIX}/me/notifications`)
-      .set(auth(studentToken))
-      .expect(200);
-    expect(notif.body.items.some((n: { type: string }) => n.type === 'ASSIGNMENT_NEW')).toBe(true);
-
     const list = await request(t.server)
       .get(`${API_PREFIX}/me/assignments?filter=open`)
       .set(auth(studentToken))
@@ -355,19 +374,13 @@ describe.skipIf(!enabled)('worksheets (e2e)', () => {
     });
 
     const ranking = await request(t.server)
-      .get(`${API_PREFIX}/me/assignments/${assignmentId}/ranking`)
-      .set(auth(studentToken))
+      .get(`${API_PREFIX}/assignments/${assignmentId}/ranking`)
+      .set(auth(teacherToken))
       .expect(200);
-    expect(ranking.body.me).toMatchObject({ rank: 1, totalScore: 3.5, isMe: true });
-
-    const notif = await request(t.server)
-      .get(`${API_PREFIX}/me/notifications`)
-      .set(auth(studentToken))
-      .expect(200);
-    expect(notif.body.items.some((n: { type: string }) => n.type === 'SUBMISSION_GRADED')).toBe(true);
+    expect(ranking.body.items[0]).toMatchObject({ rank: 1, totalScore: 3.5 });
   });
 
-  it('nhận xét theo câu: GV tạo → HS trả lời → GV được thông báo; HS không tạo gốc được', async () => {
+  it('nhận xét theo câu: GV tạo + trả lời; bé / phụ huynh chỉ xem', async () => {
     const root = await request(t.server)
       .post(`${API_PREFIX}/submissions/${submissionId}/comments`)
       .set(auth(teacherToken))
@@ -378,13 +391,13 @@ describe.skipIf(!enabled)('worksheets (e2e)', () => {
     await request(t.server)
       .post(`${API_PREFIX}/me/submissions/${submissionId}/comments`)
       .set(auth(studentToken))
-      .send({ body: 'hello' })
-      .expect(400);
+      .send({ body: 'Thank you!', parentId: rootCommentId })
+      .expect(404);
 
     await request(t.server)
-      .post(`${API_PREFIX}/me/submissions/${submissionId}/comments`)
-      .set(auth(studentToken))
-      .send({ body: 'Thank you!', parentId: rootCommentId })
+      .post(`${API_PREFIX}/submissions/${submissionId}/comments`)
+      .set(auth(teacherToken))
+      .send({ body: 'Keep it up!', parentId: rootCommentId })
       .expect(201);
 
     const thread = await request(t.server)
@@ -392,13 +405,7 @@ describe.skipIf(!enabled)('worksheets (e2e)', () => {
       .set(auth(studentToken))
       .expect(200);
     expect(thread.body.items).toHaveLength(1);
-    expect(thread.body.items[0].replies[0]).toMatchObject({ body: 'Thank you!', authorRole: 'STUDENT' });
-
-    const teacherNotif = await request(t.server)
-      .get(`${API_PREFIX}/me/notifications`)
-      .set(auth(teacherToken))
-      .expect(200);
-    expect(teacherNotif.body.items.some((n: { type: string }) => n.type === 'COMMENT_REPLY')).toBe(true);
+    expect(thread.body.items[0].replies[0]).toMatchObject({ body: 'Keep it up!', authorRole: 'TEACHER' });
   });
 
   it('thống kê: bài giao, lớp, học sinh; xuất xlsx', async () => {

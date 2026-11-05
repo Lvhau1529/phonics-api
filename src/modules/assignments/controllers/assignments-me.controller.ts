@@ -24,9 +24,4 @@ export class AssignmentsMeController {
   detail(@CurrentUser() user: AuthUser, @Param('id', ParseUUIDPipe) id: string) {
     return this.assignments.detail(user, id);
   }
-
-  @Get(':id/ranking')
-  ranking(@CurrentUser() user: AuthUser, @Param('id', ParseUUIDPipe) id: string) {
-    return this.assignments.ranking(user, id);
-  }
 }

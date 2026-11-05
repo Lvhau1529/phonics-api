@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { Id } from './common/ids.js';
 import { PermissionCode } from './permissions.js';
-import { AvatarKey, DisplayName, Email, Password, Phone, User } from './users.js';
+import { DisplayName, Email, Phone, User } from './users.js';
 
 /**
  * Cách nhận refresh token:
@@ -13,7 +13,7 @@ export const RefreshTransport = z.enum(['cookie', 'body']);
 export type RefreshTransport = z.infer<typeof RefreshTransport>;
 export const REFRESH_COOKIE_NAME = 'pa_rt';
 
-/** Liên hệ phụ huynh (học sinh mẫu giáo: email thường do phụ huynh quản lý) */
+/** Liên hệ phụ huynh khi admin / GV thêm học sinh (`CreateStudentsBody.parent`) */
 export const ParentContact = z.strictObject({
   name: z.string().trim().max(60).optional(),
   email: Email.optional(),
@@ -21,41 +21,18 @@ export const ParentContact = z.strictObject({
 });
 export type ParentContact = z.infer<typeof ParentContact>;
 
-/**
- * Học sinh đăng ký: phải chọn lớp (danh sách GET /public/classes).
- * @deprecated từ 1.7.0 dùng `RegisterFamilyBody` (`auth/register-family`). Tài khoản tạo ra phải chờ duyệt: API trả
- * 403 `ACCOUNT_PENDING` thay vì token.
- */
-export const RegisterBody = z.strictObject({
-  email: Email,
-  password: Password,
-  displayName: DisplayName,
-  avatarKey: AvatarKey.optional(),
-  classId: Id,
-  parent: ParentContact.optional(),
-});
-export type RegisterBody = z.infer<typeof RegisterBody>;
-
 export const LoginBody = z.strictObject({
   email: Email,
   password: z.string().min(1).max(72),
 });
 export type LoginBody = z.infer<typeof LoginBody>;
 
-/** Profile bắt buộc khi đăng nhập Google lần đầu (server trả 422 PROFILE_REQUIRED nếu thiếu) */
-export const GoogleProfile = z.strictObject({
-  displayName: DisplayName,
-  avatarKey: AvatarKey.optional(),
-  classId: Id,
-  parent: ParentContact.optional(),
-});
-export type GoogleProfile = z.infer<typeof GoogleProfile>;
-
 const GoogleIdToken = z.string().min(1).max(4096);
 
 /**
  * App gọi đăng nhập Google — quyết định việc làm khi email chưa có tài khoản: `game` (mặc định) → 422
  * PROFILE_REQUIRED (đăng ký gia đình); `admin` → tạo yêu cầu tài khoản giáo viên PENDING, trả 403 ACCOUNT_PENDING.
+ * Học sinh không đăng nhập bằng Google / mật khẩu (từ 2.0.0, 403 `STUDENT_LOGIN_DISABLED`): vào qua tài khoản gia đình.
  */
 export const GoogleApp = z.enum(['game', 'admin']);
 export type GoogleApp = z.infer<typeof GoogleApp>;
@@ -67,7 +44,6 @@ export type GoogleApp = z.infer<typeof GoogleApp>;
 export const GoogleBody = z.strictObject({
   /** ID token từ Google Identity Services */
   idToken: GoogleIdToken,
-  profile: GoogleProfile.optional(),
   /** Từ 1.14.0 */
   app: GoogleApp.optional(),
 });

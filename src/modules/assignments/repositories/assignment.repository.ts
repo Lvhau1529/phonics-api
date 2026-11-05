@@ -147,14 +147,6 @@ export class AssignmentRepository {
 
   // ---------- lớp / học sinh ----------
 
-  async activeStudentIds(classId: string, db: Tx | PrismaService = this.prisma): Promise<string[]> {
-    const rows = await db.classMembership.findMany({
-      where: { classId, leftAt: null },
-      select: { studentId: true },
-    });
-    return rows.map((r) => r.studentId);
-  }
-
   rosterMembers(classId: string): Promise<RosterMember[]> {
     return this.prisma.classMembership.findMany({
       where: { classId, leftAt: null },

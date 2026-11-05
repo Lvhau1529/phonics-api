@@ -1,10 +1,10 @@
-/** Luật thuần của tài khoản gia đình: gom đơn chờ duyệt, chọn chế độ chuyển đổi */
-import { type ConvertBlocker, type ConvertPreview, type UserStatus } from '@phonics/contracts';
+/** Luật thuần của tài khoản gia đình: gom đơn chờ duyệt */
+import { type UserStatus } from '@phonics/contracts';
 import { type PendingChildRow } from '@/modules/families/types/family.types';
 
-/** Gia đình của một bé chờ duyệt: tài khoản PARENT (đăng ký mới) hoặc chính bé (đăng ký kiểu cũ, không có phụ huynh) */
+/** Gia đình của một bé chờ duyệt = tài khoản PARENT đã đăng ký */
 export interface PendingGroup {
-  /** Id tài khoản đăng ký */
+  /** Id tài khoản phụ huynh */
   id: string;
   parent: {
     userId: string;
@@ -14,7 +14,7 @@ export interface PendingGroup {
     phone: string | null;
     status: UserStatus;
     createdAt: Date;
-  } | null;
+  };
   children: PendingChildRow[];
 }
 
@@ -24,28 +24,29 @@ export function familyParentOf(row: PendingChildRow) {
   return link?.guardian ?? null;
 }
 
-/** Gom bé chờ duyệt theo tài khoản đăng ký, giữ thứ tự xuất hiện */
+/**
+ * Gom bé chờ duyệt theo tài khoản phụ huynh, giữ thứ tự xuất hiện. Bé chờ duyệt không có tài khoản gia đình (đơn
+ * học sinh tự đăng ký kiểu cũ — migration `family_first` đã chuyển sang REJECTED) bị bỏ qua.
+ */
 export function groupPendingChildren(rows: readonly PendingChildRow[]): PendingGroup[] {
   const groups = new Map<string, PendingGroup>();
   for (const row of rows) {
     const guardian = familyParentOf(row);
-    const id = guardian?.user?.id ?? row.userId;
+    if (!guardian?.user) continue;
+    const id = guardian.user.id;
     let group = groups.get(id);
     if (!group) {
       group = {
         id,
-        parent:
-          guardian?.user != null
-            ? {
-                userId: guardian.user.id,
-                guardianId: guardian.id,
-                fullName: guardian.fullName,
-                email: guardian.email,
-                phone: guardian.phone,
-                status: guardian.user.status,
-                createdAt: guardian.user.createdAt,
-              }
-            : null,
+        parent: {
+          userId: guardian.user.id,
+          guardianId: guardian.id,
+          fullName: guardian.fullName,
+          email: guardian.email,
+          phone: guardian.phone,
+          status: guardian.user.status,
+          createdAt: guardian.user.createdAt,
+        },
         children: [],
       };
       groups.set(id, group);
@@ -55,38 +56,7 @@ export function groupPendingChildren(rows: readonly PendingChildRow[]): PendingG
   return [...groups.values()];
 }
 
-/** Bé thuộc đơn `accountId`: chính bé (đơn kiểu cũ) hoặc bé của phụ huynh có tài khoản đó */
+/** Bé thuộc đơn `accountId` (tài khoản phụ huynh) */
 export function belongsToFamily(row: PendingChildRow, accountId: string): boolean {
-  return row.userId === accountId || familyParentOf(row)?.user?.id === accountId;
-}
-
-/** Dữ liệu cần để quyết định cách chuyển sang tài khoản gia đình */
-export interface ConvertInput {
-  guardian: { email: string | null; userId: string | null };
-  requestedIds: readonly string[];
-  students: readonly { id: string; email: string | null }[];
-  /** Tài khoản đang dùng email phụ huynh (nếu có) */
-  emailOwner: { id: string } | null;
-}
-
-/**
- * existing: phụ huynh đã có tài khoản; move: email đăng nhập của một học sinh được chọn là email phụ huynh → chuyển
- * thông tin đăng nhập sang tài khoản gia đình; create: tạo tài khoản mới + mail mời đặt mật khẩu.
- */
-export function convertPlan(input: ConvertInput): {
-  account: ConvertPreview['account'];
-  credentialsFrom: string | null;
-  blockers: ConvertBlocker[];
-} {
-  const blockers: ConvertBlocker[] = [];
-  if (input.students.length !== input.requestedIds.length) blockers.push('STUDENT_NOT_FOUND');
-  if (input.guardian.userId) return { account: 'existing', credentialsFrom: null, blockers };
-
-  const email = input.guardian.email;
-  if (!email)
-    return { account: 'create', credentialsFrom: null, blockers: [...blockers, 'GUARDIAN_NO_EMAIL'] };
-  const source = input.students.find((s) => s.email === email);
-  if (source) return { account: 'move', credentialsFrom: source.id, blockers };
-  if (input.emailOwner) blockers.push('EMAIL_USED_BY_OTHER_ACCOUNT');
-  return { account: 'create', credentialsFrom: null, blockers };
+  return familyParentOf(row)?.user?.id === accountId;
 }

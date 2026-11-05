@@ -113,8 +113,6 @@ describe.skipIf(!enabled)('create students (e2e)', () => {
     expect(res.body.items[0]).toMatchObject({
       displayName: 'Andy',
       vietnameseName: 'Trần Minh An',
-      email: null,
-      loginMode: 'MANAGED',
       status: 'ACTIVE',
       class: null,
     });
@@ -194,6 +192,6 @@ describe.skipIf(!enabled)('create students (e2e)', () => {
       .set(auth(adminToken))
       .send({ students: [{ vietnameseName: 'Phạm Em' }] })
       .expect(201);
-    expect(res.body.items[0]).toMatchObject({ class: null, loginMode: 'MANAGED' });
+    expect(res.body.items[0]).toMatchObject({ class: null });
   });
 });

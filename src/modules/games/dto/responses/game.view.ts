@@ -55,12 +55,3 @@ export function toStudentGameStatus(
   }
   return { gameId: game.id as GameId, unlocked: source !== null, source, unlockedAt, ...stats };
 }
-
-/** Thông báo "game mới mở" cho học sinh */
-export const gameUnlockedNotification = (userId: string, game: Pick<GameRow, 'id' | 'title'>) => ({
-  userId,
-  type: 'GAME_UNLOCKED' as const,
-  title: `New game unlocked: ${game.title}`,
-  body: `Your teacher unlocked ${game.title}. Have fun!`,
-  data: { gameId: game.id },
-});

@@ -21,7 +21,7 @@ function selfRow(over: Record<string, unknown> = {}) {
   const row = {
     id: 'u1',
     email: 'lan@example.vn',
-    loginMode: 'OWN',
+    role: 'PARENT',
     passwordHash: 'hash',
     googleSub: null,
     ...over,
@@ -115,6 +115,16 @@ describe('GoogleLinkService', () => {
       await expect(svc.link({ ...actor, actorId: 'p1' }, 'id-token')).rejects.toMatchObject({
         code: 'FORBIDDEN',
       });
+    });
+
+    it('học sinh (không có đăng nhập riêng) → 403 STUDENT_LOGIN_DISABLED', async () => {
+      prisma.user.findUniqueOrThrow.mockResolvedValue(
+        selfRow({ role: 'STUDENT', email: null, passwordHash: null }),
+      );
+      await expect(svc.link({ ...actor, role: 'STUDENT' }, 'id-token')).rejects.toMatchObject({
+        code: 'STUDENT_LOGIN_DISABLED',
+      });
+      expect(prisma.user.update).not.toHaveBeenCalled();
     });
   });
 

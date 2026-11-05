@@ -1,4 +1,4 @@
-import { Body, Controller, Get, HttpCode, Param, ParseUUIDPipe, Patch, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, Param, ParseUUIDPipe, Patch, Post, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '@/common/decorators/current-user.decorator';
 import { RequirePermission, Roles } from '@/common/decorators/roles.decorator';
@@ -13,7 +13,6 @@ import {
   CreateStudentsDto,
   GameResultListQueryDto,
   MoveClassDto,
-  ResetPasswordDto,
   StudentListQueryDto,
   StudentPointsQueryDto,
   UpdateStudentDto,
@@ -70,17 +69,6 @@ export class StudentsController {
     @Body() body: MoveClassDto,
   ) {
     return this.writer.moveClass(user, id, body);
-  }
-
-  @Roles('ADMIN')
-  @HttpCode(204)
-  @Post(':id/reset-password')
-  async resetPassword(
-    @CurrentUser() user: AuthUser,
-    @Param('id', ParseUUIDPipe) id: string,
-    @Body() body: ResetPasswordDto,
-  ): Promise<void> {
-    await this.writer.resetPassword(user, id, body);
   }
 
   @Get(':id/points')

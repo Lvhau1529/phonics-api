@@ -7,7 +7,6 @@ import { type AuditService } from '@/modules/audit/services/audit.service';
 import { type AuthUser } from '@/modules/auth/types/auth.types';
 import { type ExtraEnrollmentService } from '@/modules/extra-lessons/services/extra-enrollment.service';
 import { type GuardianWriterService } from '@/modules/families/services/guardian-writer.service';
-import { type RankingService } from '@/modules/points/services/ranking.service';
 import { StudentRepository } from '@/modules/students/repositories/student.repository';
 import { StudentCreatorService } from '@/modules/students/services/student-creator.service';
 import { type StudentReaderService } from '@/modules/students/services/student-reader.service';
@@ -24,9 +23,8 @@ function setup() {
   const access = mockDeep<AccessService>();
   const enrollment = mockDeep<ExtraEnrollmentService>();
   const guardians = mockDeep<GuardianWriterService>();
-  const ranking = mockDeep<RankingService>();
   const audit = mockDeep<AuditService>();
-  const service = new StudentCreatorService(repo, reader, access, enrollment, guardians, ranking, audit);
+  const service = new StudentCreatorService(repo, reader, access, enrollment, guardians, audit);
 
   prisma.$transaction.mockImplementation(((fn: (tx: unknown) => unknown) => fn(prisma)) as never);
   let n = 0;
@@ -37,7 +35,7 @@ function setup() {
   reader.findStudents.mockImplementation(((ids: string[]) =>
     Promise.resolve(ids.map((id) => ({ id })))) as never);
   reader.toDetail.mockImplementation(((_u: AuthUser, row: { id: string }) => Promise.resolve(row)) as never);
-  return { prisma, access, enrollment, guardians, ranking, audit, service };
+  return { prisma, access, enrollment, guardians, audit, service };
 }
 
 describe('StudentCreatorService', () => {
@@ -86,10 +84,10 @@ describe('StudentCreatorService', () => {
     expect(prisma.user.create.mock.calls[0]![0].data).toMatchObject({
       role: 'STUDENT',
       status: 'ACTIVE',
-      loginMode: 'MANAGED',
       displayName: 'Nguyễn An',
     });
     expect(prisma.user.create.mock.calls[0]![0].data).not.toHaveProperty('email');
+    expect(prisma.user.create.mock.calls[0]![0].data).not.toHaveProperty('passwordHash');
     // Ca + giá kiểm tra một lần cho cùng ca
     expect(enrollment.assertCanEnroll).toHaveBeenCalledTimes(1);
     expect(enrollment.assertCanEnroll).toHaveBeenCalledWith(teacher, slotId, true);
@@ -116,8 +114,8 @@ describe('StudentCreatorService', () => {
     expect(audit.record).toHaveBeenCalledTimes(2);
   });
 
-  it('vào lớp → mở membership + tính lại hạng lớp một lần; ADMIN không bắt buộc lớp / ca', async () => {
-    const { prisma, ranking, enrollment, service } = setup();
+  it('vào lớp → mở membership; ADMIN không bắt buộc lớp / ca', async () => {
+    const { prisma, enrollment, service } = setup();
 
     await service.create(admin, {
       students: [{ vietnameseName: 'Trần Chi', classId }, { vietnameseName: 'Lê Dũng' }],
@@ -126,7 +124,6 @@ describe('StudentCreatorService', () => {
     expect(prisma.classMembership.create).toHaveBeenCalledExactlyOnceWith({
       data: { studentId: 's1', classId, joinedAt: expect.any(Date) },
     });
-    expect(ranking.recomputeAndNotify).toHaveBeenCalledExactlyOnceWith(prisma, classId);
     expect(enrollment.enroll).not.toHaveBeenCalled();
   });
 

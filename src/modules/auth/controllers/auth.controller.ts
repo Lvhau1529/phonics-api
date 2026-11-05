@@ -16,7 +16,6 @@ import {
   LoginDto,
   LogoutDto,
   RefreshDto,
-  RegisterDto,
 } from '@/modules/auth/dto/requests/auth.dto';
 import { AuthService } from '@/modules/auth/services/auth.service';
 import { GoogleLinkService } from '@/modules/auth/services/google-link.service';
@@ -38,14 +37,6 @@ export class AuthController {
     private readonly googleLinks: GoogleLinkService,
     @Inject(ENV) private readonly env: Env,
   ) {}
-
-  /** @deprecated dùng `auth/register-family`. Tạo học sinh chờ duyệt rồi trả 403 ACCOUNT_PENDING (không cấp token) */
-  @Public()
-  @Throttle(authThrottle)
-  @Post('register')
-  async register(@Body() body: RegisterDto): Promise<void> {
-    await this.auth.register(body);
-  }
 
   @Public()
   @Throttle(authThrottle)

@@ -8,7 +8,7 @@ import {
   type RankingQuery,
   type RankingResponse,
 } from '@phonics/contracts';
-import { AppError, notFound } from '@/common/errors/app-error';
+import { notFound } from '@/common/errors/app-error';
 import { paginate } from '@/common/utils/paginate';
 import { AccessService } from '@/core/access/access.service';
 import { TimeService } from '@/core/time/time.service';
@@ -61,13 +61,6 @@ export class PointReaderService {
     }
     const byGame = query.gameId ? totals.byGame.filter((g) => g.gameId === query.gameId) : totals.byGame;
     return { ...totals, byGame, class: cls, range: { range: query.range, from: query.from, to: query.to } };
-  }
-
-  /** GET /me/class/ranking */
-  async myClassRanking(user: AuthUser, query: RankingQuery): Promise<RankingResponse> {
-    const classId = await this.repo.currentClassId(user.id);
-    if (!classId) throw new AppError('NOT_FOUND', 404, { message: 'noClassYet' });
-    return this.classRanking(classId, query, user.id);
   }
 
   /** GET /classes/:classId/ranking — kiểm tra phạm vi lớp của người gọi */

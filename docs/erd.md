@@ -23,7 +23,6 @@ erDiagram
   games ||--o{ student_game_unlocks : ""
   games ||--o{ game_events : "VIEW / PLAY"
   users o|--o{ game_events : "nếu đăng nhập"
-  users ||--o{ notifications : ""
   users ||--o{ refresh_tokens : ""
   users ||--o{ auth_tokens : "link mời"
   users |o--o| guardians : "tài khoản gia đình (PARENT)"
@@ -58,17 +57,16 @@ erDiagram
 
   users {
     uuid id PK
-    string email UK "null với học sinh MANAGED"
+    string email UK "null với học sinh (không tự đăng nhập)"
     string password_hash "null với Google"
     string google_sub UK
     enum provider "LOCAL | GOOGLE"
     enum role "ADMIN | TEACHER | STUDENT | PARENT"
     enum status "ACTIVE | DISABLED | PENDING | REJECTED"
-    enum login_mode "OWN | MANAGED"
     string display_name
     string avatar_key "preset"
     int token_version
-    datetime last_login_at
+    datetime last_login_at "học sinh: lần gần nhất hồ sơ bé được mở"
   }
   student_profiles {
     uuid user_id PK
@@ -76,9 +74,6 @@ erDiagram
     string english_name "tuỳ chọn; có thì = users.display_name"
     string name_search "2 tên bỏ dấu — tìm"
     string name_sort_key "tên (từ cuối) + họ tên — sắp xếp"
-    string parent_name "cũ, chỉ đọc — đã chuyển sang guardians"
-    string parent_email "cũ"
-    string parent_phone "cũ"
     string notes "admin"
     uuid requested_class_id FK "lớp đăng ký, chờ duyệt"
     uuid reviewed_by_id FK
@@ -188,7 +183,6 @@ erDiagram
     uuid class_id
     datetime joined_at
     datetime left_at "null = đang học"
-    int last_rank "hạng lần tính gần nhất"
   }
   user_permissions {
     uuid user_id
@@ -258,15 +252,6 @@ erDiagram
     uuid game_result_id UK
     uuid created_by_id
     datetime created_at
-  }
-  notifications {
-    uuid id PK
-    uuid user_id
-    enum type
-    string title
-    string body
-    json data
-    datetime read_at
   }
   refresh_tokens {
     uuid id PK
@@ -401,7 +386,6 @@ erDiagram
   điểm (mọi lớp, mọi game) của các thành viên đang hoạt động → **điểm đi theo học sinh** ([ADR 0006](../adr/0006-points-follow-student.md)).
   `class_id` trên bút toán chỉ để báo cáo "điểm phát sinh khi ở lớp nào". Lọc theo `game_id` cho xếp hạng
   theo game.
-- **`last_rank`** nằm trên membership (hạng là khái niệm theo lớp); tính lại sau mỗi bút toán để phát hiện đổi hạng.
 - **Quyền**: catalog chức năng trong code; admin tạo **nhóm quyền** (`permission_groups`) từ catalog và gán cho
   user; override GRANT / REVOKE theo user vẫn có. Hiệu lực = mặc định role ∪ nhóm ∪ GRANT − REVOKE
   ([ADR 0007](../adr/0007-permissions-catalog-in-code.md), [ADR 0013](../adr/0013-permission-groups.md)).
@@ -412,10 +396,9 @@ erDiagram
 - Xoá lớp = `archived_at` (mềm); xoá user là cascade (chỉ admin, hiếm).
 - **Phụ huynh / tài khoản gia đình** ([attendance-design.md §3, §10](attendance-design.md)): `guardians` N–N học sinh
   qua `student_guardians` (partial unique `guardians_email`, `student_guardians_billing` thêm tay trong migration).
-  Phụ huynh có tài khoản = `guardians.user_id` → user `PARENT`; học sinh `login_mode = MANAGED` không email / mật khẩu,
-  chỉ vào qua `auth/switch-profile` (refresh token lưu `actor_id`). Tự đăng ký → `PENDING` (lớp muốn vào ở
-  `requested_class_id`), GV / admin duyệt từng bé. Ba cột `parent_*` cũ đã được migration chuyển sang `guardians`,
-  giữ chỉ đọc một phiên bản rồi xoá.
+  Phụ huynh có tài khoản = `guardians.user_id` → user `PARENT`; học sinh không có email / mật khẩu / Google, phiên của
+  bé chỉ mở qua `auth/switch-profile` (refresh token lưu `actor_id`) — [family-first.md](family-first.md). Phụ huynh
+  tự đăng ký → bé `PENDING` (lớp muốn vào ở `requested_class_id`), GV / admin duyệt từng bé.
 - **Học thêm** ([attendance-design.md §4, §6](attendance-design.md)): `extra_slots` độc lập lớp chính; lịch học sinh
   = các dòng `student_slot_assignments` theo khoảng ngày nửa mở `[effective_from, effective_to)` (chồng ngày cùng ca
   kiểm tra trong service). `extra_rates` có lịch sử theo phạm vi (HS, ca) / (HS) / (ca); CHECK ít nhất một khác null +

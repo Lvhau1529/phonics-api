@@ -1,7 +1,8 @@
 /**
  * Dữ liệu test theo nghiệp vụ (QA) — chạy QUA HTTP API (không ghi thẳng DB) để mọi luật nghiệp vụ được thực thi:
- * quy đổi điểm / trần ngày / khoá game, xếp hạng + thông báo, phân quyền + phạm vi lớp, snapshot phiếu, chấm tự động /
- * chấm tay, nhận xét, audit.
+ * đăng ký gia đình + duyệt, quy đổi điểm / trần ngày / khoá game, xếp hạng, phân quyền + phạm vi lớp, snapshot phiếu,
+ * chấm tự động / chấm tay, nhận xét, audit. Học sinh không tự đăng nhập: phụ huynh đăng nhập rồi chọn bé
+ * (`auth/switch-profile`) — phiên của bé là phiên phụ huynh mở.
  *
  *   pnpm exec tsx scripts/qa-seed.ts                 # API mặc định http://localhost:3000
  *   API_URL=http://localhost:3000 pnpm exec tsx scripts/qa-seed.ts
@@ -23,8 +24,6 @@ const ADMIN_EMAIL = process.env.ADMIN_EMAIL ?? 'admin@phonics.local';
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD ?? '12345678';
 /** Mật khẩu chung của mọi tài khoản QA */
 const PASSWORD = '12345678';
-/** Mạnh đăng ký bằng mật khẩu này rồi được admin reset về PASSWORD (test luồng reset) */
-const MANH_OLD_PASSWORD = 'Old123456';
 const DOMAIN = 'qa.phonics.local';
 const SCHOOL_YEAR = '2026-2027';
 const TZ = process.env.APP_TIMEZONE ?? 'Asia/Ho_Chi_Minh';
@@ -40,6 +39,8 @@ interface Actor {
   ip: string;
   token?: string;
   id?: string;
+  /** Học sinh: phụ huynh mở phiên cho bé (đăng nhập phụ huynh → switch-profile) */
+  parent?: Actor;
 }
 interface Res {
   status: number;
@@ -97,6 +98,13 @@ async function ok(a: Actor | null, method: string, path: string, body?: unknown)
 }
 
 async function login(a: Actor): Promise<Actor> {
+  if (a.parent) {
+    // Bé: phụ huynh đăng nhập rồi mở hồ sơ bé
+    await login(a.parent);
+    const data = await ok(a.parent, 'POST', '/auth/switch-profile', { studentId: a.id });
+    a.token = data.accessToken;
+    return a;
+  }
   const data = await ok(a, 'POST', '/auth/login', { email: a.email, password: a.password });
   a.token = data.accessToken;
   a.id = data.user.id;
@@ -350,33 +358,40 @@ async function main() {
       !pubNames.includes('QA-K2 Old (lưu trữ)'),
   );
 
-  // ------------------------------------------------------------ 2. Học sinh tự đăng ký
-  section('2. Học sinh đăng ký');
+  // ------------------------------------------------------------ 2. Phụ huynh đăng ký gia đình → duyệt
+  section('2. Đăng ký gia đình');
+  let phoneSeq = 0;
+  /** Phụ huynh `ph.<tên bé>` đăng ký một bé vào lớp → admin duyệt → phụ huynh mở hồ sơ bé */
   const register = async (
     key: string,
     name: string,
     classId: string,
     avatar: string,
-    parent?: Json,
-    password = PASSWORD,
+    parent?: { name: string; phone: string },
   ) => {
-    const s = actor(name, `${key}@${DOMAIN}`, password);
-    const data = await ok(s, 'POST', '/auth/register', {
-      email: s.email,
-      password,
-      displayName: name,
-      avatarKey: avatar,
-      classId,
-      ...(parent && { parent }),
+    phoneSeq += 1;
+    const p = actor(`PH ${name}`, `ph.${key.replace(/^hs\./, '')}@${DOMAIN}`);
+    const reg = await ok(p, 'POST', '/auth/register-family', {
+      credentials: { type: 'password', email: p.email, password: PASSWORD },
+      parent: {
+        fullName: parent?.name ?? `Phụ huynh ${name}`,
+        phone: parent?.phone ?? `09${String(10_000_000 + phoneSeq).padStart(8, '0')}`,
+      },
+      children: [{ vietnameseName: name, avatarKey: avatar, classId }],
     });
-    s.token = data.accessToken;
-    s.id = data.user.id;
-    return s;
+    p.token = reg.accessToken;
+    p.id = reg.user.id;
+    const profiles = await ok(p, 'GET', '/auth/profiles');
+    const kidId: string = profiles.items[0].id;
+    await ok(admin, 'POST', `/families/${p.id}/approve`, { children: [{ studentId: kidId, classId }] });
+    const s = actor(name, p.email);
+    s.id = kidId;
+    s.parent = p;
+    return login(s);
   };
   const an = await register('hs.an', 'An', sunflower.id, 'tiger', {
     name: 'Nguyễn Văn Ba',
     phone: '0901 234 567',
-    email: `phuhuynh.an@${DOMAIN}`,
   });
   const binh = await register('hs.binh', 'Bình', sunflower.id, 'elephant');
   const chi = await register('hs.chi', 'Chi', sunflower.id, 'bunny', {
@@ -390,40 +405,52 @@ async function main() {
   const ha = await register('hs.ha', 'Hà', rainbow.id, 'bunny');
   const khang = await register('hs.khang', 'Khang', rainbow.id, 'lion');
   const linh = await register('hs.linh', 'Linh', rainbow.id, 'cat');
-  const manh = await register('hs.manh', 'Mạnh', rainbow.id, 'tiger', undefined, MANH_OLD_PASSWORD);
+  const manh = await register('hs.manh', 'Mạnh', rainbow.id, 'tiger');
   const sunflowerKids = [an, binh, chi, dung, en, phuc];
   const rainbowKids = [giang, ha, khang, linh, manh];
   check(
-    'Đăng ký 11 học sinh (6 Sunflower, 5 Rainbow)',
+    '11 gia đình đăng ký, admin duyệt (6 Sunflower, 5 Rainbow)',
     '11',
     String(sunflowerKids.length + rainbowKids.length),
     true,
   );
 
   await expectError(
-    'Đăng ký vào lớp ẩn (joinVisible=false)',
+    'Đăng ký gia đình vào lớp ẩn (joinVisible=false)',
     null,
     'POST',
-    '/auth/register',
-    { email: `hs.x@${DOMAIN}`, password: PASSWORD, displayName: 'X', classId: star.id },
+    '/auth/register-family',
+    {
+      credentials: { type: 'password', email: `ph.x@${DOMAIN}`, password: PASSWORD },
+      parent: { fullName: 'Phụ huynh X', phone: '0988 000 111' },
+      children: [{ vietnameseName: 'X', classId: star.id }],
+    },
     400,
     'CLASS_NOT_JOINABLE',
   );
   await expectError(
-    'Đăng ký vào lớp đã lưu trữ',
+    'Đăng ký gia đình vào lớp đã lưu trữ',
     null,
     'POST',
-    '/auth/register',
-    { email: `hs.y@${DOMAIN}`, password: PASSWORD, displayName: 'Y', classId: oldClass.id },
+    '/auth/register-family',
+    {
+      credentials: { type: 'password', email: `ph.y@${DOMAIN}`, password: PASSWORD },
+      parent: { fullName: 'Phụ huynh X', phone: '0988 000 111' },
+      children: [{ vietnameseName: 'X', classId: oldClass.id }],
+    },
     400,
     'CLASS_NOT_JOINABLE',
   );
   await expectError(
-    'Đăng ký trùng email',
+    'Đăng ký gia đình trùng email',
     null,
     'POST',
-    '/auth/register',
-    { email: an.email, password: PASSWORD, displayName: 'An 2', classId: sunflower.id },
+    '/auth/register-family',
+    {
+      credentials: { type: 'password', email: an.email, password: PASSWORD },
+      parent: { fullName: 'Phụ huynh X', phone: '0988 000 111' },
+      children: [{ vietnameseName: 'X', classId: sunflower.id }],
+    },
     409,
     'EMAIL_TAKEN',
   );
@@ -436,6 +463,7 @@ async function main() {
     401,
     'INVALID_CREDENTIALS',
   );
+  await expectError('Học sinh tự đăng ký (đã bỏ)', null, 'POST', '/auth/register', {}, 404);
 
   // ------------------------------------------------------------ 3. Catalog game
   section('3. Catalog game');
@@ -595,12 +623,7 @@ async function main() {
     points: 15,
     note: 'Phát biểu xây dựng bài',
   });
-  check(
-    'Cô Lan thưởng Én +15 → Én lên hạng',
-    'hạng hiện tại < hạng trước',
-    bonus.rank,
-    bonus.rank.previous === null || bonus.rank.current < bonus.rank.previous,
-  );
+  check('Cô Lan thưởng Én +15', '+15', bonus.entry.points, bonus.entry.points === 15);
   const batch = await ok(lan, 'POST', `/classes/${sunflower.id}/points/bonus/batch`, {
     entries: sunflowerKids.map((s) => ({ studentId: s.id, points: 2, note: 'Cả lớp giữ trật tự' })),
   });
@@ -691,43 +714,31 @@ async function main() {
     moved.class?.name ?? moved.currentClass?.name ?? JSON.stringify(moved).slice(0, 80),
     JSON.stringify(moved).includes(star.id),
   );
-  const minhSeesParent = await ok(minh, 'GET', `/students/${an.id}`);
-  check(
-    'Thầy Minh xem học sinh: không thấy liên hệ phụ huynh',
-    'parent = null',
-    minhSeesParent.parent ?? null,
-    !minhSeesParent.parent,
-  );
   const lanSeesParent = await ok(lan, 'GET', `/students/${an.id}`);
   check(
-    'Cô Lan (nhóm chủ nhiệm) xem được liên hệ phụ huynh',
-    'có parent',
-    lanSeesParent.parent?.name ?? null,
-    Boolean(lanSeesParent.parent?.name),
+    'Cô Lan (GV lớp, quyền mặc định students.viewParentContact) xem được phụ huynh',
+    'có phụ huynh',
+    lanSeesParent.guardians?.[0]?.guardian?.fullName ?? null,
+    Boolean(lanSeesParent.guardians?.[0]?.guardian?.fullName),
   );
   await ok(admin, 'PATCH', `/students/${linh.id}`, { status: 'DISABLED' });
   await expectError(
-    'Linh bị khoá tài khoản → đăng nhập',
-    null,
+    'Linh bị khoá hồ sơ → phụ huynh không mở hồ sơ bé được',
+    linh.parent!,
     'POST',
-    '/auth/login',
-    { email: linh.email, password: PASSWORD },
+    '/auth/switch-profile',
+    { studentId: linh.id },
     403,
-    'ACCOUNT_DISABLED',
+    'PROFILE_NOT_ACCESSIBLE',
   );
-  await ok(admin, 'POST', `/students/${manh.id}/reset-password`, { newPassword: PASSWORD });
   await expectError(
-    'Mạnh đăng nhập bằng mật khẩu cũ sau khi admin reset',
-    null,
-    'POST',
-    '/auth/login',
-    { email: manh.email, password: MANH_OLD_PASSWORD },
+    'Phiên phụ huynh đã mở cho Linh hết hiệu lực khi bị khoá',
+    linh,
+    'GET',
+    '/me/points',
+    undefined,
     401,
-    'INVALID_CREDENTIALS',
   );
-  manh.password = PASSWORD;
-  await login(manh);
-  check('Mạnh đăng nhập bằng mật khẩu mới', 'OK', 'OK', true);
 
   // ------------------------------------------------------------ 7. Ngân hàng câu hỏi + phiếu
   section('7. Câu hỏi và phiếu bài tập');
@@ -1080,7 +1091,7 @@ async function main() {
   );
 
   section('10. Bài có câu chấm tay, nhận xét');
-  const recording = await uploadMedia(an, 'AUDIO', 'audio/wav', 'an-speak.wav', beepWav(1200), {
+  const recording = await uploadMedia(an, 'AUDIO', 'audio/webm', 'an-speak.webm', beepWav(1200), {
     durationMs: 1200,
   });
   const ansS = (s: Actor, word: string, rec?: string) => [
@@ -1088,7 +1099,7 @@ async function main() {
     { worksheetItemId: itS[qSpeak.id], answer: { type: 'SPEAK', ...(rec && { recordingMediaId: rec }) } },
   ];
   const anS = await doAttempt(an, asS.id, ansS(an, 'sun', recording.id));
-  const chiRec = await uploadMedia(chi, 'AUDIO', 'audio/wav', 'chi-speak.wav', beepWav(800), {
+  const chiRec = await uploadMedia(chi, 'AUDIO', 'audio/webm', 'chi-speak.webm', beepWav(800), {
     durationMs: 800,
   });
   const chiS = await doAttempt(chi, asS.id, ansS(chi, 'sun', chiRec.id));
@@ -1147,17 +1158,20 @@ async function main() {
     body: 'Con luyện lại âm /s/ trong từ sock nhé, cô gửi file mẫu trên lớp.',
     worksheetItemId: itS[qSpeak.id],
   });
-  await ok(chi, 'POST', `/me/submissions/${chiS.id}/comments`, {
-    body: 'Dạ con cảm ơn cô, con sẽ luyện thêm ạ.',
-    parentId: cmt.id,
-  });
+  const chiThread = await ok(chi, 'GET', `/me/submissions/${chiS.id}/comments`);
+  check(
+    'Chi (phiên phụ huynh mở) xem được nhận xét của cô',
+    '1 nhận xét',
+    String(chiThread.items.length),
+    chiThread.items.length === 1 && chiThread.items[0].id === cmt.id,
+  );
   await expectError(
-    'Học sinh tạo nhận xét gốc (không có parentId)',
+    'Bé / phụ huynh không trả lời nhận xét (chỉ xem)',
     chi,
     'POST',
     `/me/submissions/${chiS.id}/comments`,
-    { body: 'abc' },
-    400,
+    { body: 'Dạ con cảm ơn cô', parentId: cmt.id },
+    404,
   );
   await ok(lan, 'POST', `/submissions/${anS.id}/comments`, { body: 'Giỏi lắm An!' });
   check(
@@ -1195,28 +1209,7 @@ async function main() {
   );
 
   // ------------------------------------------------------------ 12. Thông báo, báo cáo, thống kê
-  section('12. Thông báo, báo cáo, thống kê');
-  const notifTypes = async (s: Actor) => {
-    const n = await ok(s, 'GET', '/me/notifications?pageSize=50');
-    return [...new Set(n.items.map((x: Json) => x.type))].sort();
-  };
-  const chiN = await notifTypes(chi);
-  check(
-    'Thông báo của Chi',
-    'có ASSIGNMENT_NEW, SUBMISSION_GRADED, COMMENT_REPLY, BONUS_AWARDED (không có GAME_UNLOCKED vì Chi tự mở khoá trước)',
-    chiN,
-    ['ASSIGNMENT_NEW', 'SUBMISSION_GRADED', 'COMMENT_REPLY', 'BONUS_AWARDED'].every((t) => chiN.includes(t)),
-  );
-  const phucN = await notifTypes(phuc);
-  check('Thông báo của Phúc', 'có CLASS_CHANGED', phucN, phucN.includes('CLASS_CHANGED'));
-  const enN = await notifTypes(en);
-  check(
-    'Thông báo của Én',
-    'có BONUS_AWARDED, RANK_CHANGED',
-    enN,
-    enN.includes('BONUS_AWARDED') && enN.includes('RANK_CHANGED'),
-  );
-
+  section('12. Báo cáo, thống kê');
   const xlsx = await http(lan, 'GET', `/reports/classes/${sunflower.id}/ranking.xlsx`);
   check(
     'Cô Lan xuất bảng xếp hạng xlsx',
@@ -1307,20 +1300,25 @@ function writeReport(ctx: Json) {
   const kids: [string, string, string][] = [
     ['hs.an', 'Sunflower', 'phụ huynh có SĐT + email; điểm phiếu cao nhất'],
     ['hs.binh', 'Sunflower', 'chạm trần 60 điểm / ngày; bị trừ -3; bị thu hồi phonics-ocean'],
-    ['hs.chi', 'Sunflower', 'tự mở khoá phonics-ocean bằng kim cương; có nhận xét + trả lời'],
+    ['hs.chi', 'Sunflower', 'tự mở khoá phonics-ocean bằng kim cương; có nhận xét của cô'],
     ['hs.dung', 'Sunflower', 'đang làm dở phiếu Short a'],
     ['hs.en', 'Sunflower', 'được thưởng +15, chưa làm phiếu (MISSING)'],
-    ['hs.phuc', 'Star (chuyển từ Sunflower)', 'nhận CLASS_CHANGED; điểm cũ đi theo'],
+    ['hs.phuc', 'Star (chuyển từ Sunflower)', 'điểm cũ đi theo khi chuyển lớp'],
     ['hs.giang', 'Rainbow', 'chơi game đang tắt (0 điểm); nộp bài trễ hạn'],
     ['hs.ha', 'Rainbow', 'gửi trùng ván game (duplicate)'],
     ['hs.khang', 'Rainbow', 'gửi kết quả bất hợp lý (bị từ chối)'],
-    ['hs.linh', 'Rainbow', 'DISABLED → không đăng nhập được'],
-    ['hs.manh', 'Rainbow', 'đăng ký bằng `Old123456`, admin reset về mật khẩu chung'],
+    ['hs.linh', 'Rainbow', 'hồ sơ DISABLED → phụ huynh không mở được'],
+    ['hs.manh', 'Rainbow', ''],
   ];
-  for (const [k, cls, note] of kids) L.push(`| STUDENT | ${k}@${DOMAIN} | ${PASSWORD} | ${cls} — ${note} |`);
+  L.push('', 'Học sinh không có tài khoản riêng: đăng nhập tài khoản phụ huynh rồi chọn bé.', '');
+  L.push('| Phụ huynh (đăng nhập) | Mật khẩu | Bé | Ghi chú |', '| --- | --- | --- | --- |');
+  for (const [k, cls, note] of kids)
+    L.push(
+      `| ph.${k.replace(/^hs\./, '')}@${DOMAIN} | ${PASSWORD} | ${k.replace(/^hs\./, '')} (${cls}) | ${note} |`,
+    );
   L.push('');
   L.push(
-    'Ngoài ra seed demo (`SEED_DEMO=true`) có sẵn `teacher1@demo.local`, `teacher2@demo.local`, `k2a.student01@demo.local`… mật khẩu `12345678`.',
+    'Ngoài ra seed demo (`SEED_DEMO=true`) có sẵn `teacher1@demo.local`, `teacher2@demo.local`, phụ huynh `k2a.parent01@demo.local`… mật khẩu `12345678`.',
     '',
   );
 

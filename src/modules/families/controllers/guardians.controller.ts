@@ -5,7 +5,6 @@ import { Roles } from '@/common/decorators/roles.decorator';
 import { API_V1 } from '@/config/api-version';
 import { type AuthUser } from '@/modules/auth/types/auth.types';
 import {
-  ConvertFamilyDto,
   CreateGuardianDto,
   GuardianListQueryDto,
   UpdateGuardianDto,
@@ -55,21 +54,5 @@ export class GuardiansController {
   @Post(':id/family-account')
   familyAccount(@CurrentUser() user: AuthUser, @Param('id', ParseUUIDPipe) id: string) {
     return this.accounts.createAccount(user, id);
-  }
-
-  @HttpCode(200)
-  @Post(':id/convert-preview')
-  convertPreview(@Param('id', ParseUUIDPipe) id: string, @Body() body: ConvertFamilyDto) {
-    return this.accounts.convertPreview(id, body);
-  }
-
-  @HttpCode(200)
-  @Post(':id/convert')
-  convert(
-    @CurrentUser() user: AuthUser,
-    @Param('id', ParseUUIDPipe) id: string,
-    @Body() body: ConvertFamilyDto,
-  ) {
-    return this.accounts.convert(user, id, body);
   }
 }

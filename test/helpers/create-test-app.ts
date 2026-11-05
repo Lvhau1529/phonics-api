@@ -94,7 +94,6 @@ export async function truncateAll(prisma: PrismaService): Promise<void> {
     'user_permission_groups',
     'permission_groups',
     'audit_logs',
-    'notifications',
     'refresh_tokens',
     'attendance_digests',
     'attendance_records',

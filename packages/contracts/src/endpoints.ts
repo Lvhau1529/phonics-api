@@ -15,7 +15,6 @@ export const ENDPOINTS = {
   /** Không có version: `${API_ROOT}/health` */
   health: '/health',
   auth: {
-    register: '/auth/register',
     login: '/auth/login',
     google: '/auth/google',
     /** POST: liên kết Google vào tài khoản đang đăng nhập; DELETE: gỡ (cần còn mật khẩu) */
@@ -39,20 +38,17 @@ export const ENDPOINTS = {
     profile: '/me/profile',
     points: '/me/points',
     pointsHistory: '/me/points/history',
-    ranking: '/me/class/ranking',
     gameResults: '/me/game-results',
     games: '/me/games',
     unlockGame: (gameId: string) => `/me/games/${gameId}/unlock`,
-    notifications: '/me/notifications',
-    notificationsRead: '/me/notifications/read',
     // Phiếu bài tập (học sinh)
     assignments: '/me/assignments',
     assignment: (id: string) => `/me/assignments/${id}`,
     assignmentSubmissions: (id: string) => `/me/assignments/${id}/submissions`,
-    assignmentRanking: (id: string) => `/me/assignments/${id}/ranking`,
     submission: (id: string) => `/me/submissions/${id}`,
     submissionAnswers: (id: string) => `/me/submissions/${id}/answers`,
     submit: (id: string) => `/me/submissions/${id}/submit`,
+    /** GET: nhận xét của GV (chỉ xem — từ 2.0.0 bé không trả lời) */
     submissionComments: (id: string) => `/me/submissions/${id}/comments`,
     worksheetStats: '/me/worksheet-stats',
     // Tài khoản gia đình (PARENT)
@@ -124,7 +120,6 @@ export const ENDPOINTS = {
     create: '/students',
     detail: (id: string) => `/students/${id}`,
     moveClass: (id: string) => `/students/${id}/move-class`,
-    resetPassword: (id: string) => `/students/${id}/reset-password`,
     deletePreview: (id: string) => `/students/${id}/delete-preview`,
     points: (id: string) => `/students/${id}/points`,
     pointsByGame: (id: string) => `/students/${id}/points/by-game`,
@@ -180,8 +175,6 @@ export const ENDPOINTS = {
     list: '/guardians',
     detail: (id: string) => `/guardians/${id}`,
     familyAccount: (id: string) => `/guardians/${id}/family-account`,
-    convertPreview: (id: string) => `/guardians/${id}/convert-preview`,
-    convert: (id: string) => `/guardians/${id}/convert`,
     deletePreview: (id: string) => `/guardians/${id}/delete-preview`,
   },
   families: {

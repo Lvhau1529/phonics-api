@@ -7,7 +7,6 @@ import { type AssignmentStudentService } from '@/modules/assignments/services/as
 import { type AuditService } from '@/modules/audit/services/audit.service';
 import { type AuthUser } from '@/modules/auth/types/auth.types';
 import { type MediaService } from '@/modules/media/services/media.service';
-import { type NotificationsService } from '@/modules/notifications/services/notifications.service';
 import { SubmissionRepository } from '@/modules/submissions/repositories/submission.repository';
 import { SubmissionGradingService } from '@/modules/submissions/services/submission-grading.service';
 import { SubmissionReaderService } from '@/modules/submissions/services/submission-reader.service';
@@ -135,7 +134,6 @@ function setup() {
   const access = mockDeep<AccessService>();
   const audit = mockDeep<AuditService>();
   const media = mockDeep<MediaService>();
-  const notifications = mockDeep<NotificationsService>();
   const assignments = mockDeep<AssignmentStudentService>();
   const ranking = mockDeep<AssignmentRankingService>();
   access.assertClassAccess.mockResolvedValue(undefined);
@@ -147,8 +145,8 @@ function setup() {
   const repo = new SubmissionRepository(prisma);
   const reader = new SubmissionReaderService(repo, access, media);
   const attempts = new SubmissionStudentService(repo, reader, media, assignments, ranking);
-  const grading = new SubmissionGradingService(repo, reader, audit, notifications);
-  return { prisma, audit, media, notifications, assignments, ranking, reader, attempts, grading };
+  const grading = new SubmissionGradingService(repo, reader, audit);
+  return { prisma, audit, media, assignments, ranking, reader, attempts, grading };
 }
 
 describe('Bài nộp: học sinh làm / nộp, giáo viên chấm', () => {
@@ -262,8 +260,8 @@ describe('Bài nộp: học sinh làm / nộp, giáo viên chấm', () => {
     });
   });
 
-  it('grade: finalize đủ điểm → GRADED, totalScore = manual ?? auto, thông báo một lần, audit', async () => {
-    const { prisma, notifications, audit, grading } = setup();
+  it('grade: finalize đủ điểm → GRADED, totalScore = manual ?? auto, audit', async () => {
+    const { prisma, audit, grading } = setup();
     prisma.submission.findUnique.mockResolvedValue(
       submission({ status: 'SUBMITTED', autoScore: 1 }) as never,
     );
@@ -283,11 +281,6 @@ describe('Bài nộp: học sinh làm / nộp, giáo viên chấm', () => {
       totalScore: 2.5,
       manualScore: 1.5,
       gradedById: teacher.id,
-    });
-    expect(notifications.create).toHaveBeenCalledTimes(1);
-    expect(notifications.create.mock.calls[0][0]).toMatchObject({
-      type: 'SUBMISSION_GRADED',
-      userId: student.id,
     });
     expect(audit.record).toHaveBeenCalledWith(
       teacher,
