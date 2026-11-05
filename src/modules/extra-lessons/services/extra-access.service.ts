@@ -49,6 +49,16 @@ export class ExtraAccessService {
     }
   }
 
+  /** Bản batch của `canAccessStudent`: các id trong `studentIds` người dùng được truy cập */
+  async accessibleStudentIds(user: AuthUser, studentIds: readonly string[]): Promise<Set<string>> {
+    const scope = await this.slotScope(user);
+    if (!scope) return new Set(studentIds);
+    const inSlots = await this.schedule.studentsEverInSlots(studentIds, scope);
+    const rest = studentIds.filter((id) => !inSlots.has(id));
+    const inClasses = await this.access.accessibleStudentIds(user, rest);
+    return new Set([...inSlots, ...inClasses]);
+  }
+
   async assertStudentAccess(user: AuthUser, studentId: string): Promise<void> {
     if (!(await this.canAccessStudent(user, studentId))) throw new AppError('FORBIDDEN_SCOPE', 403);
   }

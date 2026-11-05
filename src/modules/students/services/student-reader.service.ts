@@ -73,6 +73,16 @@ export class StudentReaderService {
     return row;
   }
 
+  /** Như `findStudent` cho nhiều id (một truy vấn), giữ đúng thứ tự `ids` */
+  async findStudents(ids: readonly string[]): Promise<StudentRow[]> {
+    const byId = new Map((await this.repo.findByIds(ids)).map((r) => [r.id, r]));
+    return ids.map((id) => {
+      const row = byId.get(id);
+      if (!row || row.role !== 'STUDENT') throw notFound('studentNotFound');
+      return row;
+    });
+  }
+
   /** Tồn tại + trong phạm vi của người gọi */
   async assertStudent(user: AuthUser, id: string): Promise<void> {
     await this.findStudent(id);

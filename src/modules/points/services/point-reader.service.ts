@@ -10,6 +10,7 @@ import {
 } from '@phonics/contracts';
 import { AppError, notFound } from '@/common/errors/app-error';
 import { paginate } from '@/common/utils/paginate';
+import { AccessService } from '@/core/access/access.service';
 import { TimeService } from '@/core/time/time.service';
 import { type Tx } from '@/database/types';
 import { type Prisma } from '@/generated/prisma/client';
@@ -25,6 +26,7 @@ export class PointReaderService {
     private readonly repo: PointRepository,
     private readonly ranking: RankingService,
     private readonly time: TimeService,
+    private readonly access: AccessService,
   ) {}
 
   /** Tổng điểm của học sinh theo khoảng thời gian (+ theo game) */
@@ -66,6 +68,22 @@ export class PointReaderService {
     const classId = await this.repo.currentClassId(user.id);
     if (!classId) throw new AppError('NOT_FOUND', 404, { message: 'noClassYet' });
     return this.classRanking(classId, query, user.id);
+  }
+
+  /** GET /classes/:classId/ranking — kiểm tra phạm vi lớp của người gọi */
+  async classRankingFor(user: AuthUser, classId: string, query: RankingQuery): Promise<RankingResponse> {
+    await this.access.assertClassAccess(user, classId);
+    return this.classRanking(classId, query);
+  }
+
+  /** GET /classes/:classId/points — sổ điểm của lớp, kiểm tra phạm vi lớp của người gọi */
+  async classPoints(
+    user: AuthUser,
+    classId: string,
+    query: PointsListQuery,
+  ): Promise<Paginated<PointEntryView>> {
+    await this.access.assertClassAccess(user, classId);
+    return this.list({ ...query, classId });
   }
 
   async classRanking(classId: string, query: RankingQuery, meId?: string): Promise<RankingResponse> {

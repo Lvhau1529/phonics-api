@@ -15,8 +15,3 @@ export function isActiveOn(range: DateRange, date: string): boolean {
 export function rangesOverlap(a: DateRange, b: DateRange): boolean {
   return (a.to === null || b.from < a.to) && (b.to === null || a.from < b.to);
 }
-
-/** Dòng lịch đang mở tính từ ngày `date` (chưa kết thúc trước hoặc đúng ngày đó) */
-export function isOpenFrom(range: DateRange, date: string): boolean {
-  return range.to === null || range.to > date;
-}

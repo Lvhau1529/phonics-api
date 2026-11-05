@@ -96,9 +96,8 @@ export class StudentCreatorService {
         parent: body.parent,
       });
     }
-    const items = await Promise.all(
-      ids.map(async (id) => this.reader.toDetail(actor, await this.reader.findStudent(id))),
-    );
+    const rows = await this.reader.findStudents(ids);
+    const items = await Promise.all(rows.map((row) => this.reader.toDetail(actor, row)));
     return { items, affectedSessions };
   }
 

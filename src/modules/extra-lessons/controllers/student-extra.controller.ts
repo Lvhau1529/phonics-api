@@ -15,6 +15,7 @@ import { ApiBearerAuth, ApiProduces, ApiTags } from '@nestjs/swagger';
 import { REPORT_MIME } from '@phonics/contracts';
 import { CurrentUser } from '@/common/decorators/current-user.decorator';
 import { RequirePermission, Roles } from '@/common/decorators/roles.decorator';
+import { toStreamable } from '@/common/utils/streamable';
 import { API_V1 } from '@/config/api-version';
 import { type AuthUser } from '@/modules/auth/types/auth.types';
 import {
@@ -33,7 +34,6 @@ import { SlotAssignmentService } from '@/modules/extra-lessons/services/slot-ass
 import { StudentExtraReaderService } from '@/modules/extra-lessons/services/student-extra-reader.service';
 import { TuitionStatementService } from '@/modules/extra-lessons/services/tuition-statement.service';
 import { TuitionService } from '@/modules/extra-lessons/services/tuition.service';
-import { contentDisposition } from '@/modules/reports/utils/report-format';
 
 /** Học thêm của một học sinh: hồ sơ, lịch (extra.manageSchedule), giá riêng (extra.viewPricing / managePricing) */
 @ApiTags('students')
@@ -141,12 +141,7 @@ export class StudentExtraController {
     @Param('id', ParseUUIDPipe) id: string,
     @Query() query: TuitionStatementQueryDto,
   ): Promise<StreamableFile> {
-    const file = await this.statements.pdf(user, id, query);
-    return new StreamableFile(file.buffer, {
-      type: file.mime,
-      disposition: contentDisposition(file.filename),
-      length: file.buffer.length,
-    });
+    return toStreamable(await this.statements.pdf(user, id, query));
   }
 
   @RequirePermission('extra.viewPricing')

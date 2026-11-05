@@ -27,6 +27,14 @@ export class ExtraScheduleRepository {
     });
   }
 
+  /** Như `findStudent` cho nhiều id (một truy vấn) */
+  findStudents(ids: readonly string[]) {
+    return this.prisma.user.findMany({
+      where: { id: { in: [...ids] }, role: 'STUDENT', deletedAt: null },
+      select: { id: true, status: true },
+    });
+  }
+
   // ---------- Lịch ----------
 
   /** Mọi dòng lịch của học sinh, mới nhất trước */
@@ -73,6 +81,17 @@ export class ExtraScheduleRepository {
       where: { studentId, slotId: { in: [...slotIds] } },
       select: { id: true },
     }));
+  }
+
+  /** Bản batch của `everInSlots`: các học sinh trong `studentIds` từng / đang học một trong `slotIds` */
+  async studentsEverInSlots(studentIds: readonly string[], slotIds: readonly string[]): Promise<Set<string>> {
+    if (!studentIds.length || !slotIds.length) return new Set();
+    const rows = await this.prisma.studentSlotAssignment.findMany({
+      where: { studentId: { in: [...studentIds] }, slotId: { in: [...slotIds] } },
+      select: { studentId: true },
+      distinct: ['studentId'],
+    });
+    return new Set(rows.map((r) => r.studentId));
   }
 
   /** Ca học sinh còn học tính từ ngày `date` (chưa kết thúc) */

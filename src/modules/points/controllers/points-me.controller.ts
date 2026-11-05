@@ -10,23 +10,21 @@ import { PointReaderService } from '@/modules/points/services/point-reader.servi
 /** Điểm của chính học sinh */
 @ApiTags('me')
 @ApiBearerAuth()
+@Roles('STUDENT')
 @Controller({ path: 'me', version: API_V1 })
 export class PointsMeController {
   constructor(private readonly points: PointReaderService) {}
 
-  @Roles('STUDENT')
   @Get('points')
   myPoints(@CurrentUser() user: AuthUser, @Query() query: RankingQueryDto) {
     return this.points.myPoints(user, query);
   }
 
-  @Roles('STUDENT')
   @Get('points/history')
   history(@CurrentUser() user: AuthUser, @Query() query: PointsListQueryDto) {
     return this.points.list({ ...query, studentId: user.id, classId: undefined });
   }
 
-  @Roles('STUDENT')
   @Get('class/ranking')
   ranking(@CurrentUser() user: AuthUser, @Query() query: RankingQueryDto) {
     return this.points.myClassRanking(user, query);

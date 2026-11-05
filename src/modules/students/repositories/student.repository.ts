@@ -18,6 +18,14 @@ export class StudentRepository {
     return this.prisma.user.findFirst({ where: { id, deletedAt: null }, include: studentInclude });
   }
 
+  /** Nhiều người dùng theo id (một truy vấn), bỏ tài khoản đã xoá; thứ tự không đảm bảo */
+  findByIds(ids: readonly string[]): Promise<StudentRow[]> {
+    return this.prisma.user.findMany({
+      where: { id: { in: [...ids] }, deletedAt: null },
+      include: studentInclude,
+    });
+  }
+
   findPage(
     where: Prisma.UserWhereInput,
     page: { skip: number; take: number },
@@ -38,8 +46,12 @@ export class StudentRepository {
     return db.user.update({ where: { id }, data, include: studentInclude });
   }
 
-  async setPasswordHash(id: string, passwordHash: string): Promise<void> {
-    await this.prisma.user.update({ where: { id }, data: { passwordHash } });
+  async setPasswordHash(
+    id: string,
+    passwordHash: string,
+    db: Tx | PrismaService = this.prisma,
+  ): Promise<void> {
+    await db.user.update({ where: { id }, data: { passwordHash } });
   }
 
   async isEmailTaken(email: string, exceptId: string): Promise<boolean> {

@@ -57,6 +57,8 @@ function setup() {
     mockDeep<GuardianReaderService>(),
   );
   const audit = mockDeep<AuditService>();
+  const passwords = mockDeep<PasswordService>();
+  const tokens = mockDeep<TokenService>();
   const service = new StudentWriterService(
     repo,
     reader,
@@ -64,15 +66,15 @@ function setup() {
     audit,
     mockDeep<RankingService>(),
     mockDeep<NotificationsService>(),
-    mockDeep<PasswordService>(),
-    mockDeep<TokenService>(),
+    passwords,
+    tokens,
     mockDeep<GuardianWriterService>(),
   );
   prisma.user.findFirst.mockResolvedValue(studentRow as never);
   // Transaction chạy callback với chính Prisma mock
   prisma.$transaction.mockImplementation(((fn: (tx: unknown) => unknown) => fn(prisma)) as never);
   access.assertStudentAccess.mockResolvedValue(undefined);
-  return { prisma, access, audit, reader, service };
+  return { prisma, access, audit, reader, service, passwords, tokens };
 }
 
 describe('StudentWriterService', () => {
@@ -188,6 +190,19 @@ describe('StudentWriterService', () => {
       code: 'STUDENT_IS_MANAGED',
     });
     expect(prisma.user.update).not.toHaveBeenCalled();
+  });
+
+  it('resetPassword: đổi hash + thu hồi phiên trong cùng một transaction', async () => {
+    const { prisma, service, passwords, tokens } = setup();
+    passwords.hash.mockResolvedValue('hashed');
+    await service.resetPassword(admin, 's1', { newPassword: 'secret1' });
+    expect(prisma.$transaction).toHaveBeenCalledTimes(1);
+    expect(prisma.user.update).toHaveBeenCalledWith({
+      where: { id: 's1' },
+      data: { passwordHash: 'hashed' },
+    });
+    // tx của transaction (ở đây là chính Prisma mock) được truyền xuống revokeAll
+    expect(tokens.revokeAll).toHaveBeenCalledWith('s1', prisma);
   });
 
   it('update: cấp email cho học sinh MANAGED → tự đăng nhập (OWN)', async () => {

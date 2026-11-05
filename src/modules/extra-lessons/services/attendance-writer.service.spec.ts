@@ -20,12 +20,14 @@ function setup(row: Record<string, unknown>) {
   const audit = mockDeep<AuditService>();
   const sync = mockDeep<SessionSyncService>();
   const scheduler = mockDeep<ExtraLessonsScheduler>();
+  const schedule = mockDeep<ExtraScheduleRepository>();
+  const access = mockDeep<ExtraAccessService>();
   const service = new AttendanceWriterService(
     repo,
-    mockDeep<ExtraScheduleRepository>(),
+    schedule,
     mockDeep<ExtraSlotRepository>(),
     reader,
-    mockDeep<ExtraAccessService>(),
+    access,
     audit,
     {} as TimeService,
     sync,
@@ -40,7 +42,7 @@ function setup(row: Record<string, unknown>) {
     ...row,
   } as never);
   reader.detail.mockResolvedValue({ id: 's1' } as never);
-  return { repo, reader, audit, sync, scheduler, service };
+  return { repo, reader, audit, sync, scheduler, schedule, access, service };
 }
 
 describe('AttendanceWriterService.restore', () => {
@@ -100,5 +102,53 @@ describe('AttendanceWriterService.restore', () => {
     const { repo, service } = setup({ status: 'PENDING', cancelReason: null, records: [] });
     await expect(service.restore(teacher, 's1')).rejects.toMatchObject({ code: 'CONFLICT' });
     expect(repo.touchSession).not.toHaveBeenCalled();
+  });
+});
+
+describe('AttendanceWriterService.updateRecords — thêm học sinh tay', () => {
+  const body = {
+    records: [
+      { studentId: 'a', mark: 'PRESENT' as const },
+      { studentId: 'b', mark: 'PRESENT' as const },
+    ],
+  };
+
+  it('một truy vấn học sinh + một lần tính phạm vi cho cả danh sách', async () => {
+    const { schedule, access, repo, service } = setup({ status: 'PENDING', records: [] });
+    schedule.findStudents.mockResolvedValue([
+      { id: 'a', status: 'ACTIVE' },
+      { id: 'b', status: 'ACTIVE' },
+    ] as never);
+    access.accessibleStudentIds.mockResolvedValue(new Set(['a', 'b']));
+    schedule.ratesFor.mockResolvedValue([]);
+    await service.updateRecords(teacher, 's1', body);
+    expect(schedule.findStudents).toHaveBeenCalledWith(['a', 'b']);
+    expect(access.accessibleStudentIds).toHaveBeenCalledTimes(1);
+    expect(repo.upsertRecord).toHaveBeenCalledTimes(2);
+  });
+
+  it('lỗi ưu tiên theo thứ tự học sinh: a ngoài phạm vi thắng b không tồn tại', async () => {
+    const { schedule, access, service } = setup({ status: 'PENDING', records: [] });
+    schedule.findStudents.mockResolvedValue([{ id: 'a', status: 'ACTIVE' }] as never);
+    access.accessibleStudentIds.mockResolvedValue(new Set());
+    await expect(service.updateRecords(teacher, 's1', body)).rejects.toMatchObject({
+      code: 'FORBIDDEN_SCOPE',
+    });
+  });
+
+  it('học sinh đầu không tồn tại → studentNotFound, chưa tính phạm vi', async () => {
+    const { schedule, access, service } = setup({ status: 'PENDING', records: [] });
+    schedule.findStudents.mockResolvedValue([{ id: 'b', status: 'DISABLED' }] as never);
+    await expect(service.updateRecords(teacher, 's1', body)).rejects.toMatchObject({ code: 'NOT_FOUND' });
+    expect(access.accessibleStudentIds).not.toHaveBeenCalled();
+  });
+
+  it('học sinh không ACTIVE → 409 CONFLICT', async () => {
+    const { schedule, service } = setup({ status: 'PENDING', records: [] });
+    schedule.findStudents.mockResolvedValue([
+      { id: 'a', status: 'DISABLED' },
+      { id: 'b', status: 'ACTIVE' },
+    ] as never);
+    await expect(service.updateRecords(teacher, 's1', body)).rejects.toMatchObject({ code: 'CONFLICT' });
   });
 });

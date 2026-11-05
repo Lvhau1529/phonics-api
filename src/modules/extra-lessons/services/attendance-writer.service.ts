@@ -284,11 +284,15 @@ export class AttendanceWriterService {
 
   /** Học sinh thêm tay: tồn tại, ACTIVE, trong phạm vi người thao tác */
   private async assertStudents(actor: AuthUser, ids: readonly string[]): Promise<void> {
+    const students = new Map((await this.schedule.findStudents(ids)).map((s) => [s.id, s]));
+    // Phạm vi tính lười (lần đầu cần) để lỗi ưu tiên giữ như kiểm tra tuần tự từng học sinh
+    let accessible: Set<string> | undefined;
     for (const id of ids) {
-      const student = await this.schedule.findStudent(id);
+      const student = students.get(id);
       if (!student) throw notFound('studentNotFound');
       if (student.status !== 'ACTIVE') throw new AppError('CONFLICT', 409, { message: 'studentNotActive' });
-      await this.access.assertStudentAccess(actor, id);
+      accessible ??= await this.access.accessibleStudentIds(actor, ids);
+      if (!accessible.has(id)) throw new AppError('FORBIDDEN_SCOPE', 403);
     }
   }
 }

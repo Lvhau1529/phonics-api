@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { type AffectedRecord, type AffectedSession, BILLING_POLICY } from '@phonics/contracts';
+import { isUniqueViolation } from '@/common/utils/prisma-errors';
 import { EXTRA_LESSONS } from '@/config/constants';
 import { dayjs } from '@/core/time/dayjs';
 import { TimeService } from '@/core/time/time.service';
@@ -149,7 +150,7 @@ export class SessionSyncService {
       return true;
     } catch (err) {
       // Hai tiến trình cùng tạo (unique (slot_id, date)) → bên sau bỏ qua
-      if ((err as { code?: string }).code === 'P2002') return false;
+      if (isUniqueViolation(err)) return false;
       throw err;
     }
   }
