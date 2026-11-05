@@ -3,16 +3,7 @@ import { IsoDateTime } from './common/dates.js';
 import { Id } from './common/ids.js';
 import { PageQuery } from './common/pagination.js';
 import { addValidationIssue, ValidationMessage } from './common/validation-messages.js';
-import {
-  AuthProvider,
-  AvatarKey,
-  DisplayName,
-  Email,
-  LoginMode,
-  Phone,
-  StudentClassRef,
-  UserStatus,
-} from './users.js';
+import { AuthProvider, AvatarKey, DisplayName, Email, Phone, StudentClassRef, UserStatus } from './users.js';
 
 /**
  * Phụ huynh (guardian) N–N với học sinh: anh chị em chung một phụ huynh, một học sinh có thể có nhiều phụ huynh
@@ -68,7 +59,6 @@ export const GuardianChild = GuardianLinkFlags.extend({
   englishName: DisplayName.nullable(),
   avatarKey: AvatarKey,
   status: UserStatus,
-  loginMode: LoginMode,
   class: StudentClassRef.nullable(),
 });
 export type GuardianChild = z.infer<typeof GuardianChild>;
@@ -128,55 +118,3 @@ export type SetStudentGuardiansBody = z.infer<typeof SetStudentGuardiansBody>;
 /** Tạo tài khoản gia đình cho phụ huynh có sẵn → mail mời đặt mật khẩu */
 export const FamilyAccountResponse = z.object({ guardian: GuardianSummary, inviteSent: z.boolean() });
 export type FamilyAccountResponse = z.infer<typeof FamilyAccountResponse>;
-
-/** Chuyển các học sinh (đang tự đăng nhập) sang tài khoản gia đình của phụ huynh */
-export const ConvertFamilyBody = z
-  .strictObject({ studentIds: z.array(Id).min(1).max(10) })
-  .refine((b) => new Set(b.studentIds).size === b.studentIds.length, {
-    message: ValidationMessage.duplicateStudent,
-    path: ['studentIds'],
-  });
-export type ConvertFamilyBody = z.infer<typeof ConvertFamilyBody>;
-
-/**
- * Lý do chặn chuyển đổi: phụ huynh chưa có email; email phụ huynh đang là tài khoản khác (không phải học sinh được
- * chọn); học sinh không tồn tại / không phải STUDENT.
- */
-export const ConvertBlocker = z.enum([
-  'GUARDIAN_NO_EMAIL',
-  'EMAIL_USED_BY_OTHER_ACCOUNT',
-  'STUDENT_NOT_FOUND',
-]);
-export type ConvertBlocker = z.infer<typeof ConvertBlocker>;
-
-export const ConvertPreviewStudent = z.object({
-  studentId: Id,
-  displayName: DisplayName,
-  vietnameseName: DisplayName,
-  englishName: DisplayName.nullable(),
-  email: Email.nullable(),
-  loginMode: LoginMode,
-  alreadyLinked: z.boolean(),
-  /** Email đăng nhập của học sinh trùng email phụ huynh → chuyển email / mật khẩu / Google sang tài khoản gia đình */
-  movesCredentials: z.boolean(),
-  /** Học sinh có email riêng (khác email phụ huynh) sẽ không tự đăng nhập được nữa */
-  losesOwnLogin: z.boolean(),
-});
-export type ConvertPreviewStudent = z.infer<typeof ConvertPreviewStudent>;
-
-export const ConvertPreview = z.object({
-  guardian: Guardian,
-  /** existing: phụ huynh đã có tài khoản; create: tạo mới + mail mời; move: lấy thông tin đăng nhập của học sinh */
-  account: z.enum(['existing', 'create', 'move']),
-  students: z.array(ConvertPreviewStudent),
-  blockers: z.array(ConvertBlocker),
-});
-export type ConvertPreview = z.infer<typeof ConvertPreview>;
-
-export const ConvertResult = z.object({
-  guardian: GuardianSummary,
-  inviteSent: z.boolean(),
-  /** Học sinh có thông tin đăng nhập được chuyển sang phụ huynh */
-  movedCredentialsFrom: Id.nullable(),
-});
-export type ConvertResult = z.infer<typeof ConvertResult>;

@@ -27,7 +27,6 @@ import {
   type PendingGroup,
 } from '@/modules/families/utils/family-rules';
 import { MailOutboxService } from '@/modules/mail/services/mail-outbox.service';
-import { RankingService } from '@/modules/points/services/ranking.service';
 
 /**
  * Duyệt tài khoản tự đăng ký (theo từng bé). ADMIN: mọi đơn; GV: bé đăng ký vào lớp mình dạy, chỉ xếp vào lớp mình.
@@ -39,7 +38,6 @@ export class FamilyApprovalService {
     private readonly repo: FamilyRepository,
     private readonly access: AccessService,
     private readonly audit: AuditService,
-    private readonly ranking: RankingService,
     private readonly mail: MailOutboxService,
     @Inject(ENV) private readonly env: Env,
   ) {}
@@ -47,17 +45,17 @@ export class FamilyApprovalService {
   async pending(user: AuthUser): Promise<PendingFamiliesResponse> {
     const scope = await this.scopeOf(user);
     const groups = groupPendingChildren(await this.repo.pendingChildren(scope));
-    const guardianIds = groups.flatMap((g) => (g.parent ? [g.parent.guardianId] : []));
+    const guardianIds = groups.map((g) => g.parent.guardianId);
     const siblings = await this.repo.childrenOfGuardians(guardianIds);
     const items = await Promise.all(
       groups.map(async (group): Promise<PendingFamily> => {
         const visible = new Set(group.children.map((c) => c.userId));
-        const others = group.parent
-          ? siblings.filter((s) => s.guardianId === group.parent!.guardianId && !visible.has(s.studentId))
-          : [];
+        const others = siblings.filter(
+          (s) => s.guardianId === group.parent.guardianId && !visible.has(s.studentId),
+        );
         return {
           id: group.id,
-          parent: group.parent && {
+          parent: {
             userId: group.parent.userId,
             guardianId: group.parent.guardianId,
             fullName: group.parent.fullName,
@@ -68,7 +66,7 @@ export class FamilyApprovalService {
           children: group.children.map(toPendingChild),
           otherChildren: others.length,
           duplicates: await this.duplicatesOf(group, scope),
-          createdAt: (group.parent?.createdAt ?? group.children[0].createdAt).toISOString(),
+          createdAt: group.parent.createdAt.toISOString(),
         };
       }),
     );
@@ -97,6 +95,8 @@ export class FamilyApprovalService {
     }
 
     const parent = familyParentOf(rows[0]);
+    const parentUser = parent?.user;
+    if (!parent || !parentUser) throw notFound('familyNotFound');
     const now = new Date();
     const ids = body.children.map((c) => c.studentId);
     const parentStatus = await this.repo.transaction(async (tx) => {
@@ -108,17 +108,13 @@ export class FamilyApprovalService {
       for (const { studentId, classId } of body.children) {
         await this.repo.createMembership(tx, studentId, classId, now);
       }
-      for (const classId of new Set(body.children.map((c) => c.classId))) {
-        await this.ranking.recomputeAndNotify(tx, classId);
-      }
-      if (!parent?.user) return null;
-      await this.repo.setUserStatus(tx, parent.user.id, ['PENDING', 'REJECTED'], 'ACTIVE');
+      await this.repo.setUserStatus(tx, parentUser.id, ['PENDING', 'REJECTED'], 'ACTIVE');
       const pendingLeft = await this.pendingLeft(parent.id, ids);
       await this.mail.enqueueTemplate(
         [
           {
             key: 'family.approved',
-            to: parent.email ?? (await this.repo.findUserStatus(parent.user.id, tx))?.email,
+            to: parent.email ?? (await this.repo.findUserStatus(parentUser.id, tx))?.email,
             dedupeKey: `familyApproved:${accountId}:${now.getTime()}`,
             refType: 'User',
             refId: accountId,
@@ -137,7 +133,7 @@ export class FamilyApprovalService {
       );
       return 'ACTIVE' as const;
     });
-    if (parent?.user) this.mail.flush();
+    this.mail.flush();
 
     await this.audit.record(user, 'family.approve', 'User', accountId, null, { children: body.children });
     return { approved: ids, rejected: [], parentStatus };
@@ -152,6 +148,8 @@ export class FamilyApprovalService {
     if (!rows.length) throw new AppError('CONFLICT', 409, { message: 'noPendingChildren' });
 
     const parent = familyParentOf(rows[0]);
+    const parentUser = parent?.user;
+    if (!parent || !parentUser) throw notFound('familyNotFound');
     const ids = rows.map((r) => r.userId);
     const now = new Date();
     const parentStatus = await this.repo.transaction(async (tx) => {
@@ -161,9 +159,7 @@ export class FamilyApprovalService {
         rejectReason: body.reason,
       });
       if (changed !== ids.length) throw new AppError('CONFLICT', 409, { message: 'alreadyReviewed' });
-      const to = parent?.user
-        ? (parent.email ?? (await this.repo.findUserStatus(parent.user.id, tx))?.email)
-        : (await this.repo.findUserStatus(accountId, tx))?.email;
+      const to = parent.email ?? (await this.repo.findUserStatus(parentUser.id, tx))?.email;
       await this.mail.enqueueTemplate(
         [
           {
@@ -173,7 +169,7 @@ export class FamilyApprovalService {
             refType: 'User',
             refId: accountId,
             context: {
-              parentName: parent?.fullName ?? studentFullName(rows[0]),
+              parentName: parent.fullName,
               childrenText: rows.map((r) => studentFullName(r)).join(', '),
               reason: body.reason,
             },
@@ -181,15 +177,14 @@ export class FamilyApprovalService {
         ],
         tx,
       );
-      if (!parent?.user) return null;
       // Còn bé chờ / đã duyệt thì giữ trạng thái tài khoản phụ huynh
       const remaining = await this.repo.childrenOfGuardians([parent.id]);
       const allRejected = remaining.every(
         (c) => ids.includes(c.studentId) || c.student.user.status === 'REJECTED',
       );
-      if (!allRejected) return parent.user.status;
-      await this.repo.setUserStatus(tx, parent.user.id, ['PENDING'], 'REJECTED');
-      return parent.user.status === 'PENDING' ? ('REJECTED' as const) : parent.user.status;
+      if (!allRejected) return parentUser.status;
+      await this.repo.setUserStatus(tx, parentUser.id, ['PENDING'], 'REJECTED');
+      return parentUser.status === 'PENDING' ? ('REJECTED' as const) : parentUser.status;
     });
     this.mail.flush();
 
@@ -231,7 +226,7 @@ export class FamilyApprovalService {
       await this.repo.deleteGuardian(tx, source.id);
       if (target.userId) {
         await this.repo.deleteUser(parentUserId, tx);
-        return (await this.repo.findUserStatus(target.userId, tx))?.status ?? null;
+        return (await this.repo.findUserStatus(target.userId, tx))?.status ?? source.user!.status;
       }
       await this.repo.attachUser(tx, target.id, parentUserId);
       return source.user!.status;

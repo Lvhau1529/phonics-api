@@ -19,7 +19,6 @@ import { ExtraLessonsModule } from '@/modules/extra-lessons/extra-lessons.module
 import { FamiliesModule } from '@/modules/families/families.module';
 import { MailModule } from '@/modules/mail/mail.module';
 import { MediaModule } from '@/modules/media/media.module';
-import { NotificationsModule } from '@/modules/notifications/notifications.module';
 import { PermissionsModule } from '@/modules/permissions/permissions.module';
 import { PointsModule } from '@/modules/points/points.module';
 import { QuestionsModule } from '@/modules/questions/questions.module';
@@ -44,7 +43,6 @@ import { WorksheetsModule } from '@/modules/worksheets/worksheets.module';
   imports: [
     CoreModule,
     AuditModule,
-    NotificationsModule,
     MailModule,
     FamiliesModule,
     ExtraLessonsModule,

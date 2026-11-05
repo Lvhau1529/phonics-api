@@ -4,7 +4,6 @@ import { type AccessService } from '@/core/access/access.service';
 import { type PrismaService } from '@/database/prisma.service';
 import { type AuditService } from '@/modules/audit/services/audit.service';
 import { type AuthUser } from '@/modules/auth/types/auth.types';
-import { type NotificationsService } from '@/modules/notifications/services/notifications.service';
 import { buildThread } from '@/modules/comments/dto/responses/comment.view';
 import { CommentsService } from '@/modules/comments/services/comments.service';
 
@@ -53,11 +52,10 @@ function setup() {
   const prisma = mockDeep<PrismaService>();
   const access = mockDeep<AccessService>();
   const audit = mockDeep<AuditService>();
-  const notifications = mockDeep<NotificationsService>();
   access.assertClassAccess.mockResolvedValue(undefined);
   prisma.$transaction.mockImplementation((async (fn: (tx: unknown) => unknown) => fn(prisma)) as never);
-  const service = new CommentsService(prisma, access, audit, notifications);
-  return { prisma, access, notifications, service };
+  const service = new CommentsService(prisma, access, audit);
+  return { prisma, access, service };
 }
 
 describe('CommentsService', () => {
@@ -79,14 +77,6 @@ describe('CommentsService', () => {
     expect(thread[1]).toMatchObject({ deleted: true, body: '' });
   });
 
-  it('học sinh không được tạo nhận xét gốc', async () => {
-    const { prisma, service } = setup();
-    prisma.submission.findUnique.mockResolvedValue(submissionRow() as never);
-    await expect(service.create(student, SUB, { body: 'hi' })).rejects.toMatchObject({
-      code: 'VALIDATION_ERROR',
-    });
-  });
-
   it('học sinh chỉ xem bài của mình', async () => {
     const { prisma, service } = setup();
     prisma.submission.findUnique.mockResolvedValue({
@@ -96,44 +86,35 @@ describe('CommentsService', () => {
     await expect(service.list(student, SUB)).rejects.toMatchObject({ code: 'NOT_FOUND' });
   });
 
-  it('GV nhận xét theo câu → thông báo học sinh; câu không có trong bài → 400', async () => {
-    const { prisma, notifications, service } = setup();
+  it('GV nhận xét theo câu; câu không có trong bài → 400', async () => {
+    const { prisma, service } = setup();
     prisma.submission.findUnique.mockResolvedValue(submissionRow() as never);
     prisma.comment.create.mockResolvedValue(commentRow({}) as never);
     const view = await service.create(teacher, SUB, { body: 'Great job!', worksheetItemId: ITEM });
     expect(view.replies).toEqual([]);
-    expect(notifications.create).toHaveBeenCalledWith(
-      expect.objectContaining({ userId: student.id, type: 'COMMENT_REPLY' }),
-      prisma,
-    );
+    expect(prisma.comment.create.mock.calls[0][0].data).toMatchObject({
+      authorId: teacher.id,
+      worksheetItemId: ITEM,
+      parentId: null,
+    });
     await expect(
       service.create(teacher, SUB, { body: 'x', worksheetItemId: 'ffffffff-ffff-4fff-8fff-ffffffffffff' }),
     ).rejects.toMatchObject({ code: 'VALIDATION_ERROR' });
   });
 
-  it('học sinh trả lời → gắn vào gốc, thông báo tác giả gốc', async () => {
-    const { prisma, notifications, service } = setup();
+  it('GV trả lời một reply → gắn vào gốc (một cấp), theo câu của gốc', async () => {
+    const { prisma, service } = setup();
     prisma.submission.findUnique.mockResolvedValue(submissionRow() as never);
     prisma.comment.findFirst.mockResolvedValue(commentRow({ id: 'c-reply', parentId: 'c-root' }) as never);
     prisma.comment.findUniqueOrThrow.mockResolvedValue(commentRow({}) as never);
     prisma.comment.create.mockResolvedValue(
-      commentRow({
-        id: 'c-new',
-        parentId: 'c-root',
-        authorId: student.id,
-        author: author(student, 'Bé Na'),
-        body: 'Thanks',
-      }) as never,
+      commentRow({ id: 'c-new', parentId: 'c-root', body: 'Keep it up' }) as never,
     );
-    await service.create(student, SUB, { body: 'Thanks', parentId: 'c-reply' });
+    await service.create(teacher, SUB, { body: 'Keep it up', parentId: 'c-reply' });
     expect(prisma.comment.create.mock.calls[0][0].data).toMatchObject({
       parentId: 'c-root',
       worksheetItemId: ITEM,
     });
-    expect(notifications.create).toHaveBeenCalledWith(
-      expect.objectContaining({ userId: teacher.id }),
-      prisma,
-    );
   });
 
   it('chỉ tác giả sửa; admin xoá được', async () => {

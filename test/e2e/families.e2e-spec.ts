@@ -162,7 +162,6 @@ describe.skipIf(!enabled)('families (e2e)', () => {
       id: an.id,
       role: 'STUDENT',
       email: null,
-      loginMode: 'MANAGED',
       class: { id: classA },
     });
     const kidMe = await request(t.server)
@@ -211,66 +210,6 @@ describe.skipIf(!enabled)('families (e2e)', () => {
       ['family.rejected', 'lan.fam@e2e.local'],
     ]);
     expect(mails[0].text).toContain('Nguyễn Văn An (Andy)');
-  });
-
-  it('chuyển học sinh đăng nhập bằng email phụ huynh sang tài khoản gia đình', async () => {
-    const passwordHash = await new PasswordService().hash('OldKid123!');
-    const student = await t.prisma.user.create({
-      data: {
-        email: 'mai.fam@e2e.local',
-        passwordHash,
-        role: 'STUDENT',
-        displayName: 'Minh',
-        studentProfile: {
-          create: { vietnameseName: 'Trần Minh', memberships: { create: { classId: classA } } },
-        },
-      },
-    });
-    const created = await request(t.server)
-      .post(`${API_PREFIX}/guardians`)
-      .set(auth(adminToken))
-      .send({ fullName: 'Trần Thị Mai', email: 'mai.fam@e2e.local', phone: '0987654321' })
-      .expect(201);
-    const guardianId: string = created.body.id;
-
-    const preview = await request(t.server)
-      .post(`${API_PREFIX}/guardians/${guardianId}/convert-preview`)
-      .set(auth(adminToken))
-      .send({ studentIds: [student.id] })
-      .expect(200);
-    expect(preview.body).toMatchObject({
-      account: 'move',
-      blockers: [],
-      students: [
-        { studentId: student.id, movesCredentials: true, losesOwnLogin: false, alreadyLinked: false },
-      ],
-    });
-
-    const converted = await request(t.server)
-      .post(`${API_PREFIX}/guardians/${guardianId}/convert`)
-      .set(auth(adminToken))
-      .send({ studentIds: [student.id] })
-      .expect(200);
-    expect(converted.body).toMatchObject({ inviteSent: false, movedCredentialsFrom: student.id });
-    expect(converted.body.guardian.children).toMatchObject([
-      { studentId: student.id, loginMode: 'MANAGED', isBillingContact: true, canAccess: true },
-    ]);
-
-    // Phụ huynh đăng nhập bằng đúng email / mật khẩu cũ của bé, rồi chọn bé
-    const parent = await login('mai.fam@e2e.local', 'OldKid123!').expect(200);
-    expect(parent.body.user).toMatchObject({ role: 'PARENT', status: 'ACTIVE' });
-    const profiles = await request(t.server)
-      .get(`${API_PREFIX}/auth/profiles`)
-      .set(auth(parent.body.accessToken))
-      .expect(200);
-    expect(profiles.body.items).toMatchObject([{ id: student.id, status: 'ACTIVE', class: { id: classA } }]);
-
-    const reset = await request(t.server)
-      .post(`${API_PREFIX}/students/${student.id}/reset-password`)
-      .set(auth(adminToken))
-      .send({ newPassword: 'whatever1' })
-      .expect(409);
-    expect(reset.body.code).toBe('STUDENT_IS_MANAGED');
   });
 
   it('tạo tài khoản gia đình → mail mời → đặt mật khẩu (link dùng một lần)', async () => {

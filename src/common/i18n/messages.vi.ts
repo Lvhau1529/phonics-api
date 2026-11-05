@@ -53,7 +53,7 @@ const codeMessages = {
   PROFILE_NOT_ACCESSIBLE: 'Bạn không được vào hồ sơ này',
   PROFILE_NOT_APPROVED: 'Hồ sơ của bé đang chờ trung tâm duyệt',
   GUARDIAN_EMAIL_TAKEN: 'Email đã thuộc về một phụ huynh khác',
-  STUDENT_IS_MANAGED: 'Học sinh vào qua tài khoản gia đình — hãy thao tác trên tài khoản phụ huynh',
+  STUDENT_LOGIN_DISABLED: 'Học sinh không tự đăng nhập — phụ huynh đăng nhập tài khoản gia đình rồi chọn bé',
   INVITE_TOKEN_INVALID: 'Link đặt mật khẩu không hợp lệ hoặc đã hết hạn',
   SLOT_ASSIGNMENT_OVERLAP: 'Học sinh đã học ca này trong khoảng ngày trùng',
   RATE_SCOPE_FORBIDDEN:
@@ -103,7 +103,6 @@ export const vi = {
 
   // Tài khoản gia đình / duyệt tài khoản
   accountCreatedPending: 'Đã tạo tài khoản, đang chờ trung tâm duyệt',
-  managedNoPassword: 'Học sinh vào qua tài khoản gia đình — hãy đặt lại mật khẩu cho phụ huynh',
   alreadyReviewed: 'Bé đã được người khác duyệt hoặc từ chối',
   childNotPending: 'Chỉ sửa / huỷ được bé đang chờ duyệt',
   noPendingChildren: 'Không có bé nào đang chờ duyệt trong phạm vi của bạn',
@@ -129,7 +128,6 @@ export const vi = {
   // Bài giao / bài làm / nhận xét
   dueAfterOpen: 'Hạn nộp phải sau thời điểm mở',
   assignmentHasSubmissions: 'Đã có bài nộp — hãy đóng bài thay vì xoá',
-  studentRepliesOnly: 'Học sinh chỉ trả lời nhận xét của giáo viên',
   itemNotInSubmission: 'Không có câu này trong bài',
   overMaxScore: (p: { id: string }) => `${p.id}: vượt điểm tối đa`,
 

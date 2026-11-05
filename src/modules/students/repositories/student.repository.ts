@@ -46,21 +46,6 @@ export class StudentRepository {
     return db.user.update({ where: { id }, data, include: studentInclude });
   }
 
-  async setPasswordHash(
-    id: string,
-    passwordHash: string,
-    db: Tx | PrismaService = this.prisma,
-  ): Promise<void> {
-    await db.user.update({ where: { id }, data: { passwordHash } });
-  }
-
-  async isEmailTaken(email: string, exceptId: string): Promise<boolean> {
-    return !!(await this.prisma.user.findFirst({
-      where: { email, NOT: { id: exceptId } },
-      select: { id: true },
-    }));
-  }
-
   findClass(id: string) {
     return this.prisma.class.findUnique({
       where: { id },

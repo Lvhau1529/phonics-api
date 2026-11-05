@@ -54,7 +54,6 @@ export const GameResultResponse = z.object({
   pointsAwarded: z.int().min(0),
   pointsReason: PointsReason.optional(),
   totals: z.object({ all: z.int(), today: z.int(), game: z.int() }),
-  rank: z.object({ previous: z.int().min(1).nullable(), current: z.int().min(1).nullable() }),
 });
 export type GameResultResponse = z.infer<typeof GameResultResponse>;
 

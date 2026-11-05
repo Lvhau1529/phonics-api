@@ -15,7 +15,7 @@ import { type AuthUser } from '@/modules/auth/types/auth.types';
 import { GuardianReaderService } from '@/modules/families/services/guardian-reader.service';
 import { PointReaderService } from '@/modules/points/services/point-reader.service';
 import { RankingService } from '@/modules/points/services/ranking.service';
-import { toParentContact, toStudentSummary } from '@/modules/students/dto/responses/student.view';
+import { toStudentSummary } from '@/modules/students/dto/responses/student.view';
 import { StudentRepository } from '@/modules/students/repositories/student.repository';
 import { STUDENT_SORT_FIELDS, studentOrderBy, type StudentRow } from '@/modules/students/types/student.types';
 
@@ -38,14 +38,8 @@ export class StudentReaderService {
       role: 'STUDENT',
       deletedAt: null,
       status: query.status,
-      loginMode: query.loginMode,
-      // Tìm không dấu theo tên tiếng Việt + tiếng Anh ("nguyen an" ra "Nguyễn Văn An"), hoặc theo email
-      OR: query.q
-        ? [
-            { studentProfile: { nameSearch: { contains: foldName(query.q) } } },
-            { email: { contains: query.q, mode: 'insensitive' } },
-          ]
-        : undefined,
+      // Tìm không dấu theo tên tiếng Việt + tiếng Anh ("nguyen an" ra "Nguyễn Văn An")
+      OR: query.q ? [{ studentProfile: { nameSearch: { contains: foldName(query.q) } } }] : undefined,
       studentProfile: classIds
         ? { memberships: { some: { leftAt: null, classId: { in: classIds } } } }
         : undefined,
@@ -106,7 +100,7 @@ export class StudentReaderService {
     );
   }
 
-  /** Chi tiết: phụ huynh chỉ khi được phép xem liên hệ, ghi chú chỉ ADMIN */
+  /** Chi tiết: danh sách phụ huynh chỉ khi được phép xem liên hệ, ghi chú chỉ ADMIN */
   async toDetail(viewer: AuthUser, row: StudentRow): Promise<StudentDetail> {
     const [[summary], totals, gamesPlayed, canSeeParent] = await Promise.all([
       this.toSummaries([row]),
@@ -117,7 +111,6 @@ export class StudentReaderService {
     const guardians = canSeeParent ? await this.guardians.forStudent(row.id) : null;
     return {
       ...summary,
-      parent: guardians ? toParentContact(guardians) : null,
       guardians,
       notes: viewer.role === 'ADMIN' ? (row.studentProfile?.notes ?? null) : null,
       pointsByKind: totals.byKind,

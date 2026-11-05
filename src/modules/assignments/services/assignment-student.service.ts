@@ -1,6 +1,5 @@
 import { Injectable } from '@nestjs/common';
 import {
-  type AssignmentRankingResponse,
   type MyAssignmentDetail,
   type MyAssignmentListQuery,
   type MyAssignmentSummary,
@@ -20,14 +19,12 @@ import { toMyAssignmentSummary } from '@/modules/assignments/dto/responses/assig
 import { AssignmentRepository } from '@/modules/assignments/repositories/assignment.repository';
 import { type AssignmentRow } from '@/modules/assignments/types/assignment.types';
 import { AssignmentRankingService } from '@/modules/assignments/services/assignment-ranking.service';
-import { AssignmentReaderService } from '@/modules/assignments/services/assignment-reader.service';
 
 /** Bài giao nhìn từ học sinh (/me/assignments): chỉ bài của lớp đang học, SCHEDULED coi như chưa tồn tại */
 @Injectable()
 export class AssignmentStudentService {
   constructor(
     private readonly repo: AssignmentRepository,
-    private readonly reader: AssignmentReaderService,
     private readonly media: MediaService,
     private readonly rankingService: AssignmentRankingService,
   ) {}
@@ -75,11 +72,6 @@ export class AssignmentStudentService {
       this.repo.studentSubmissions(id, user.id),
     ]);
     return { ...summary, worksheet, media, submissions: submissions.map(toSubmissionSummary) };
-  }
-
-  /** Xếp hạng theo bài, đánh dấu dòng của chính học sinh */
-  async ranking(user: AuthUser, id: string): Promise<AssignmentRankingResponse> {
-    return this.reader.rankingOf(await this.loadForStudent(user, id), user.id);
   }
 
   private async summaries(user: AuthUser, rows: AssignmentRow[]): Promise<MyAssignmentSummary[]> {

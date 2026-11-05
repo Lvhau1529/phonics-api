@@ -96,11 +96,11 @@ export class GoogleLinkService {
 
   // ---- helpers ----
 
-  /** Chỉ chủ tài khoản tự đăng nhập; phụ huynh đang mở hồ sơ bé / bé MANAGED không có đăng nhập riêng */
+  /** Chỉ chủ tài khoản tự đăng nhập; phiên hồ sơ bé (phụ huynh mở) / học sinh không có đăng nhập riêng */
   private async findSelf(actor: AuthUser) {
     if (actor.actorId) throw new AppError('FORBIDDEN', 403);
     const row = await this.prisma.user.findUniqueOrThrow({ where: { id: actor.id } });
-    if (row.loginMode === 'MANAGED') throw new AppError('STUDENT_IS_MANAGED', 409);
+    if (row.role === 'STUDENT') throw new AppError('STUDENT_LOGIN_DISABLED', 403);
     return row;
   }
 

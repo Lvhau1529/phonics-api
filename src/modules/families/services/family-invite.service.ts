@@ -46,7 +46,7 @@ export class FamilyInviteService {
           context: {
             parentName: input.parentName,
             childrenText: input.children.map(studentFullName).join(', '),
-            link: `${this.env.GAME_APP_URL}/set-password?token=${token}`,
+            link: `${this.env.GAME_APP_URL}/#/set-password?token=${token}`,
             expiresHours: INVITE_TTL_HOURS,
             email: input.email,
           },

@@ -100,7 +100,6 @@ export function toGuardianSummary(row: GuardianRow): GuardianSummary {
       englishName: link.student.englishName,
       avatarKey: avatarOf(link.student.user.avatarKey),
       status: link.student.user.status,
-      loginMode: link.student.user.loginMode,
       class: toClassRef(link.student),
     })),
   };

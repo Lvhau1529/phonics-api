@@ -8,7 +8,6 @@ import { type Prisma } from '@/generated/prisma/client';
 import { EventsService } from '@/modules/events/services/events.service';
 import { GameUnlockService } from '@/modules/games/services/game-unlock.service';
 import { PointReaderService } from '@/modules/points/services/point-reader.service';
-import { type RankChange, RankingService } from '@/modules/points/services/ranking.service';
 import { GameResultRepository } from '@/modules/game-results/repositories/game-result.repository';
 import { type ResultRow } from '@/modules/game-results/types/game-result.types';
 import { assertResultPlausible, computePoints } from '@/modules/game-results/utils/game-result-rules';
@@ -23,7 +22,6 @@ export class GameResultWriterService {
   constructor(
     private readonly repo: GameResultRepository,
     private readonly games: GameUnlockService,
-    private readonly ranking: RankingService,
     private readonly points: PointReaderService,
     private readonly events: EventsService,
     private readonly time: TimeService,
@@ -35,12 +33,12 @@ export class GameResultWriterService {
 
     // 1. Idempotency: ván đã ghi → trả lại, không cộng thêm
     const existing = await this.repo.findBySession(studentId, body.clientSessionId);
-    if (existing) return this.respond(existing, true, null);
+    if (existing) return this.respond(existing, true);
 
-    // 2. Ghi kết quả + điểm + hạng + PLAY event trong một transaction
-    let outcome: { row: ResultRow; rank: RankChange | null };
+    // 2. Ghi kết quả + điểm + PLAY event trong một transaction
+    let row: ResultRow;
     try {
-      outcome = await this.repo.transaction(async (tx) => {
+      row = await this.repo.transaction(async (tx) => {
         const classId = await this.repo.currentClassId(tx, studentId);
 
         const game = await this.games.isUnlockedFor(tx, studentId, body.gameId);
@@ -52,7 +50,7 @@ export class GameResultWriterService {
         }
         const { points, reason } = computePoints(body.correct, game, classId, usedToday);
 
-        const row = await this.repo.create(tx, {
+        const created = await this.repo.create(tx, {
           studentId,
           classId,
           gameId: body.gameId,
@@ -71,17 +69,15 @@ export class GameResultWriterService {
           details: body.details as Prisma.InputJsonValue,
         });
 
-        let rank: RankChange | null = null;
         if (points > 0 && classId) {
           await this.repo.createGamePoints(tx, {
             studentId,
             classId,
             gameId: body.gameId,
             points,
-            gameResultId: row.id,
+            gameResultId: created.id,
             note: `${body.gameId} · ${body.levelId} · ${body.correct}/${body.total}`,
           });
-          rank = await this.ranking.recomputeAndNotify(tx, classId, studentId);
         }
 
         await this.events.recordPlay(tx, {
@@ -90,7 +86,7 @@ export class GameResultWriterService {
           mode: 'solo',
           occurredAt: new Date(body.playedAt),
         });
-        return { row, rank };
+        return created;
       });
     } catch (e) {
       // Hai request cùng clientSessionId chạy song song: request thua unique → coi như gửi lại.
@@ -98,28 +94,18 @@ export class GameResultWriterService {
       if (!isUniqueViolation(e)) throw e;
       const winner = await this.repo.findBySession(studentId, body.clientSessionId);
       if (!winner) throw e;
-      return this.respond(winner, true, null);
+      return this.respond(winner, true);
     }
 
-    return this.respond(outcome.row, false, outcome.rank);
+    return this.respond(row, false);
   }
 
-  /** Dựng response: tổng điểm (mọi thời gian / hôm nay / game này) + hạng hiện tại */
-  private async respond(
-    row: ResultRow,
-    duplicate: boolean,
-    rank: RankChange | null,
-  ): Promise<GameResultResponse> {
+  /** Dựng response: tổng điểm (mọi thời gian / hôm nay / game này) */
+  private async respond(row: ResultRow, duplicate: boolean): Promise<GameResultResponse> {
     const [all, today] = await Promise.all([
       this.points.totals(row.studentId, null),
       this.points.totals(row.studentId, this.time.dayRange()),
     ]);
-    let change = rank;
-    if (!change) {
-      // Không có bút toán mới (0 điểm / gửi lại) → hạng không đổi
-      const current = (await this.ranking.currentRank(row.studentId))?.rank ?? null;
-      change = { previous: current, current };
-    }
     return {
       resultId: row.id,
       duplicate,
@@ -130,7 +116,6 @@ export class GameResultWriterService {
         today: today.total,
         game: all.byGame.find((g) => g.gameId === row.gameId)?.points ?? 0,
       },
-      rank: change,
     };
   }
 }

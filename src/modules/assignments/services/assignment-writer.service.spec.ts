@@ -6,12 +6,10 @@ import { type TimeService } from '@/core/time/time.service';
 import { type AuditService } from '@/modules/audit/services/audit.service';
 import { type AuthUser } from '@/modules/auth/types/auth.types';
 import { type MediaService } from '@/modules/media/services/media.service';
-import { type NotificationsService } from '@/modules/notifications/services/notifications.service';
 import { type WorksheetReaderService } from '@/modules/worksheets/services/worksheet-reader.service';
 import { AssignmentRepository } from '@/modules/assignments/repositories/assignment.repository';
 import { type AssignmentsScheduler } from '@/modules/assignments/jobs/assignments.scheduler';
 import { dateOnly } from '@/modules/assignments/utils/assignment-dates';
-import { AssignmentLifecycleService } from '@/modules/assignments/services/assignment-lifecycle.service';
 import { type AssignmentRankingService } from '@/modules/assignments/services/assignment-ranking.service';
 import { AssignmentReaderService } from '@/modules/assignments/services/assignment-reader.service';
 import { AssignmentWriterService } from '@/modules/assignments/services/assignment-writer.service';
@@ -76,7 +74,6 @@ function setup() {
   const audit = mockDeep<AuditService>();
   const time = mockDeep<TimeService>();
   const media = mockDeep<MediaService>();
-  const notifications = mockDeep<NotificationsService>();
   const worksheets = mockDeep<WorksheetReaderService>();
   const ranking = mockDeep<AssignmentRankingService>();
   access.assertClassAccess.mockResolvedValue(undefined);
@@ -90,19 +87,9 @@ function setup() {
   // Repository thật bọc Prisma mock: assert trên lời gọi Prisma như trước khi tách service
   const repo = new AssignmentRepository(prisma);
   const reader = new AssignmentReaderService(repo, access, time, media, ranking);
-  const lifecycle = new AssignmentLifecycleService(repo, time, notifications);
   const scheduler = mockDeep<AssignmentsScheduler>();
-  const service = new AssignmentWriterService(
-    repo,
-    reader,
-    lifecycle,
-    access,
-    audit,
-    time,
-    worksheets,
-    scheduler,
-  );
-  return { prisma, access, audit, notifications, worksheets, scheduler, service };
+  const service = new AssignmentWriterService(repo, reader, access, audit, time, worksheets, scheduler);
+  return { prisma, access, audit, worksheets, scheduler, service };
 }
 
 const createdRow = (status: 'OPEN' | 'SCHEDULED') => ({
@@ -145,10 +132,9 @@ describe('AssignmentWriterService.create', () => {
     ).rejects.toMatchObject({ code: 'WORKSHEET_NOT_PUBLISHED' });
   });
 
-  it('availableFrom trong quá khứ → OPEN ngay + thông báo cả lớp; snapshot có answerKey', async () => {
-    const { prisma, notifications, audit, service } = setup();
+  it('availableFrom trong quá khứ → OPEN ngay; snapshot có answerKey', async () => {
+    const { prisma, audit, service } = setup();
     prisma.assignment.create.mockResolvedValue(createdRow('OPEN') as never);
-    prisma.classMembership.findMany.mockResolvedValue([{ studentId: 's1' }, { studentId: 's2' }] as never);
     await service.create(teacher, {
       worksheetId: WS,
       classId: CLASS,
@@ -171,10 +157,6 @@ describe('AssignmentWriterService.create', () => {
       type: 'MULTIPLE_CHOICE',
       optionId: 'a',
     });
-    expect(notifications.createMany).toHaveBeenCalledTimes(1);
-    const inputs = notifications.createMany.mock.calls[0][0];
-    expect(inputs).toHaveLength(2);
-    expect(inputs[0]).toMatchObject({ type: 'ASSIGNMENT_NEW', userId: 's1' });
     expect(audit.record).toHaveBeenCalledWith(
       teacher,
       'assignment.create',
@@ -185,8 +167,8 @@ describe('AssignmentWriterService.create', () => {
     );
   });
 
-  it('availableFrom tương lai → SCHEDULED, chưa thông báo', async () => {
-    const { prisma, notifications, service } = setup();
+  it('availableFrom tương lai → SCHEDULED', async () => {
+    const { prisma, service } = setup();
     prisma.assignment.create.mockResolvedValue(createdRow('SCHEDULED') as never);
     await service.create(teacher, {
       worksheetId: WS,
@@ -197,7 +179,6 @@ describe('AssignmentWriterService.create', () => {
       showAnswersAfterSubmit: false,
     });
     expect((prisma.assignment.create.mock.calls[0][0].data as { status: string }).status).toBe('SCHEDULED');
-    expect(notifications.createMany).not.toHaveBeenCalled();
   });
 
   it('dueAt trước availableFrom → VALIDATION_ERROR', async () => {

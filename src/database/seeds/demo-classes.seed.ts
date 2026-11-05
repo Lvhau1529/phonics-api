@@ -13,26 +13,9 @@ import { nameColumns, profileNameData } from '@/common/utils/student-names';
 import { dayjs } from '@/core/time/dayjs';
 import { createRandom, hashPassword } from '@/database/seeds/seed-helpers';
 
-/** SQL xếp hạng — bản sao của src/modules/points/services/ranking.service.ts (rankClass, không lọc thời gian / game) */
-async function rankClass(
-  tx: Prisma.TransactionClient,
-  classId: string,
-): Promise<{ studentId: string; rank: number }[]> {
-  return tx.$queryRaw<{ studentId: string; rank: number }[]>`
-    SELECT m.student_id                                   AS "studentId",
-           COALESCE(SUM(p.points), 0)::int                AS points,
-           RANK() OVER (ORDER BY COALESCE(SUM(p.points), 0) DESC)::int AS rank
-    FROM   class_memberships m
-    LEFT JOIN point_entries p
-           ON p.student_id = m.student_id
-    WHERE  m.class_id = ${classId}::uuid AND m.left_at IS NULL
-    GROUP  BY m.student_id, m.joined_at
-    ORDER  BY points DESC, m.joined_at ASC`;
-}
-
 /**
- * Demo lớp / học sinh (bỏ qua nếu đã có teacher1@demo.local): 2 giáo viên, 3 lớp, 24 học sinh, kết quả chơi 14 ngày,
- * điểm thưởng, sự kiện xem / chơi, hạng hiện tại.
+ * Demo lớp / học sinh (bỏ qua nếu đã có teacher1@demo.local): 2 giáo viên, 3 lớp, 24 học sinh (mỗi bé một phụ huynh có
+ * tài khoản gia đình `<lớp>.parentNN@demo.local`), kết quả chơi 14 ngày, điểm thưởng, sự kiện xem / chơi.
  */
 export async function seedDemoClasses(prisma: PrismaClient): Promise<void> {
   if (await prisma.user.findUnique({ where: { email: DEMO_TEACHER1 }, select: { id: true } })) {
@@ -100,26 +83,34 @@ export async function seedDemoClasses(prisma: PrismaClient): Promise<void> {
           const { displayName } = names;
           nameIndex += 1;
           const joinedAt = dayjs(now).subtract(random.int(15, 40), 'day').toDate();
+          // Học sinh không có thông tin đăng nhập; phụ huynh có tài khoản gia đình (đăng nhập game → chọn bé)
+          const parentEmail = `${slug}.parent${String(i).padStart(2, '0')}@demo.local`;
           const student = await tx.user.create({
             data: {
-              email: `${slug}.student${String(i).padStart(2, '0')}@demo.local`,
-              emailVerified: true,
-              passwordHash,
               role: 'STUDENT',
               displayName,
               avatarKey: AVATARS[(nameIndex - 1) % AVATARS.length].key,
               studentProfile: {
                 create: {
                   ...profileNameData(names),
-                  // Phụ huynh nhận học phí (chưa có tài khoản gia đình)
+                  // Phụ huynh nhận học phí + tài khoản gia đình
                   guardians: {
                     create: {
                       isBillingContact: true,
                       guardian: {
                         create: {
                           fullName: `${displayName}'s parent`,
-                          email: `${slug}.parent${String(i).padStart(2, '0')}@demo.local`,
+                          email: parentEmail,
                           phone: `+849${String(random.int(10_000_000, 99_999_999))}`,
+                          user: {
+                            create: {
+                              email: parentEmail,
+                              emailVerified: true,
+                              passwordHash,
+                              role: 'PARENT',
+                              displayName: `${displayName}'s parent`.slice(0, 30),
+                            },
+                          },
                         },
                       },
                     },
@@ -283,15 +274,6 @@ export async function seedDemoClasses(prisma: PrismaClient): Promise<void> {
             createdById: teacherId,
           },
         });
-
-        // Hạng hiện tại (last_rank) — cùng SQL với RankingService
-        const ranks = await rankClass(tx, cls.id);
-        for (const row of ranks) {
-          await tx.classMembership.updateMany({
-            where: { classId: cls.id, studentId: row.studentId, leftAt: null },
-            data: { lastRank: row.rank, lastRankAt: now },
-          });
-        }
       }
     },
     { timeout: 120_000 },
@@ -303,6 +285,6 @@ export async function seedDemoClasses(prisma: PrismaClient): Promise<void> {
       `${summary.extraSlots} ca học thêm`,
   );
   console.log(
-    `[seed] demo: mật khẩu chung ${DEMO_PASSWORD} (teacher1@demo.local, k2a.student01@demo.local…)`,
+    `[seed] demo: mật khẩu chung ${DEMO_PASSWORD} (teacher1@demo.local, phụ huynh k2a.parent01@demo.local…)`,
   );
 }

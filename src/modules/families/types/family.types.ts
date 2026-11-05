@@ -18,7 +18,7 @@ export const childProfileSelect = {
   rejectReason: true,
   createdAt: true,
   user: {
-    select: { id: true, displayName: true, avatarKey: true, status: true, loginMode: true, email: true },
+    select: { id: true, displayName: true, avatarKey: true, status: true, email: true },
   },
   memberships: activeMembershipSelect,
   requestedClass: { select: classRefSelect },

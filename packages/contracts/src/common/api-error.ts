@@ -54,7 +54,8 @@ export const ErrorCode = z.enum([
   'PROFILE_NOT_ACCESSIBLE',
   'PROFILE_NOT_APPROVED',
   'GUARDIAN_EMAIL_TAKEN',
-  'STUDENT_IS_MANAGED',
+  /** Học sinh không tự đăng nhập — vào qua tài khoản gia đình (từ 2.0.0) */
+  'STUDENT_LOGIN_DISABLED',
   'INVITE_TOKEN_INVALID',
   // Học thêm
   'SLOT_ASSIGNMENT_OVERLAP',

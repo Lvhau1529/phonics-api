@@ -172,7 +172,6 @@ export class FamilyRegistrationService {
     const child = await this.repo.createUser(tx, {
       role: 'STUDENT',
       status: 'PENDING',
-      loginMode: 'MANAGED',
       displayName: names.displayName,
       avatarKey: input.avatarKey ?? DEFAULT_AVATAR,
       studentProfile: {

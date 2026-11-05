@@ -28,9 +28,8 @@ import {
   DEFAULT_AVATAR,
   EventBatchBody,
   GameResultBody,
-  MarkReadBody,
   PageQuery,
-  RegisterBody,
+  LoginBody,
   RegisterFamilyBody,
   StudentAttendanceQuery,
   UpdateAttendanceRecordsBody,
@@ -104,16 +103,10 @@ describe('GameResultBody', () => {
   });
 });
 
-describe('RegisterBody', () => {
+describe('LoginBody', () => {
   it('chuẩn hoá email về chữ thường', () => {
-    const r = RegisterBody.parse({
-      email: ' Kid@Example.com ',
-      password: 'secret1',
-      displayName: ' Bé Na ',
-      classId: '3f1d0f2a-0c2a-4e2b-9f0e-6a7b8c9d0e1f',
-    });
-    expect(r.email).toBe('kid@example.com');
-    expect(r.displayName).toBe('Bé Na');
+    const r = LoginBody.parse({ email: ' Parent@Example.com ', password: 'secret1' });
+    expect(r.email).toBe('parent@example.com');
   });
 });
 
@@ -131,10 +124,11 @@ describe('UpdateStudentBody (tên tiếng Việt / tiếng Anh)', () => {
     });
   });
 
-  it('từ chối tên rỗng / quá 30 ký tự; vẫn nhận displayName của client cũ', () => {
+  it('từ chối tên rỗng / quá 30 ký tự; không còn email / displayName / parent (2.0.0)', () => {
     expect(UpdateStudentBody.safeParse({ vietnameseName: '  ' }).success).toBe(false);
     expect(UpdateStudentBody.safeParse({ englishName: 'x'.repeat(31) }).success).toBe(false);
-    expect(UpdateStudentBody.parse({ displayName: 'Bin' })).toEqual({ displayName: 'Bin' });
+    expect(UpdateStudentBody.safeParse({ displayName: 'Bin' }).success).toBe(false);
+    expect(UpdateStudentBody.safeParse({ email: 'kid@example.com' }).success).toBe(false);
   });
 });
 
@@ -144,15 +138,6 @@ describe('studentFullName', () => {
       'Nguyễn Văn An (Andy)',
     );
     expect(studentFullName({ vietnameseName: 'Nguyễn Văn An', englishName: null })).toBe('Nguyễn Văn An');
-  });
-});
-
-describe('MarkReadBody', () => {
-  it('cho phép không có ids (đọc tất cả)', () => {
-    expect(MarkReadBody.parse({})).toEqual({});
-  });
-  it('từ chối ids rỗng', () => {
-    expect(MarkReadBody.safeParse({ ids: [] }).success).toBe(false);
   });
 });
 

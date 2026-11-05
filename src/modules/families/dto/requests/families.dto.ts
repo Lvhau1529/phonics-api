@@ -1,7 +1,6 @@
 import {
   ApproveFamilyBody,
   ChildInput,
-  ConvertFamilyBody,
   CreateGuardianBody,
   GuardianListQuery,
   MergeFamilyBody,
@@ -29,4 +28,3 @@ export class GuardianListQueryDto extends createZodDto(GuardianListQuery) {}
 export class CreateGuardianDto extends createZodDto(CreateGuardianBody) {}
 export class UpdateGuardianDto extends createZodDto(UpdateGuardianBody) {}
 export class SetStudentGuardiansDto extends createZodDto(SetStudentGuardiansBody) {}
-export class ConvertFamilyDto extends createZodDto(ConvertFamilyBody) {}

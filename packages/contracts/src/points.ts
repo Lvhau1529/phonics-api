@@ -93,10 +93,7 @@ export type AwardBonusBody = z.infer<typeof AwardBonusBody>;
 export const AwardBonusBatchBody = z.strictObject({ entries: z.array(AwardBonusBody).min(1).max(100) });
 export type AwardBonusBatchBody = z.infer<typeof AwardBonusBatchBody>;
 
-export const AwardBonusResponse = z.object({
-  entry: PointEntryView,
-  rank: z.object({ previous: z.int().min(1).nullable(), current: z.int().min(1).nullable() }),
-});
+export const AwardBonusResponse = z.object({ entry: PointEntryView });
 export type AwardBonusResponse = z.infer<typeof AwardBonusResponse>;
 
 export const AwardBonusBatchResponse = z.object({ entries: z.array(PointEntryView) });

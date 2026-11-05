@@ -1,20 +1,11 @@
 import { Injectable } from '@nestjs/common';
-import {
-  type MoveClassBody,
-  type ResetPasswordBody,
-  type StudentDetail,
-  type UpdateStudentBody,
-} from '@phonics/contracts';
+import { type MoveClassBody, type StudentDetail, type UpdateStudentBody } from '@phonics/contracts';
 import { AppError, notFound } from '@/common/errors/app-error';
 import { AccessService } from '@/core/access/access.service';
 import { type Prisma } from '@/generated/prisma/client';
 import { AuditService } from '@/modules/audit/services/audit.service';
-import { PasswordService } from '@/modules/auth/services/password.service';
 import { TokenService } from '@/modules/auth/services/token.service';
 import { type AuthUser } from '@/modules/auth/types/auth.types';
-import { GuardianWriterService } from '@/modules/families/services/guardian-writer.service';
-import { NotificationsService } from '@/modules/notifications/services/notifications.service';
-import { RankingService } from '@/modules/points/services/ranking.service';
 import { StudentRepository } from '@/modules/students/repositories/student.repository';
 import { type StudentRow } from '@/modules/students/types/student.types';
 import {
@@ -32,7 +23,7 @@ import {
 } from '@/modules/students/utils/student-rules';
 import { StudentReaderService } from '@/modules/students/services/student-reader.service';
 
-/** Sửa học sinh, đổi lớp, đặt lại mật khẩu (kèm audit; khoá tài khoản → thu hồi phiên) */
+/** Sửa học sinh, đổi lớp (kèm audit; khoá hồ sơ → thu hồi phiên phụ huynh đang mở cho bé) */
 @Injectable()
 export class StudentWriterService {
   constructor(
@@ -40,11 +31,7 @@ export class StudentWriterService {
     private readonly reader: StudentReaderService,
     private readonly access: AccessService,
     private readonly audit: AuditService,
-    private readonly ranking: RankingService,
-    private readonly notifications: NotificationsService,
-    private readonly passwords: PasswordService,
     private readonly tokens: TokenService,
-    private readonly guardians: GuardianWriterService,
   ) {}
 
   /** ADMIN: mọi trường; TEACHER (students.edit): chỉ tên / avatarKey */
@@ -52,9 +39,6 @@ export class StudentWriterService {
     const current = await this.reader.findStudent(id);
     await this.access.assertStudentAccess(actor, id);
     assertCanEditFields(actor, body);
-    const emailChanged = !!body.email && body.email !== current.email;
-    if (emailChanged && (await this.repo.isEmailTaken(body.email!, id)))
-      throw new AppError('EMAIL_TAKEN', 409, { fieldErrors: { email: ['EMAIL_TAKEN'] } });
 
     const currentNames = studentNamesOf(current);
     const nextNames = applyNameChange(currentNames, body);
@@ -72,18 +56,15 @@ export class StudentWriterService {
     ) {
       throw new AppError('CONFLICT', 409, { fieldErrors: { status: ['statusViaApproval'] } });
     }
-    const updated = await this.repo.transaction(async (tx) => {
-      if (body.parent !== undefined) {
-        await this.guardians.setBillingContact(tx, id, body.parent, currentNames.vietnameseName);
-      }
-      return this.repo.update(id, this.userUpdateOf(body, current, names, nextNames, profileData), tx);
-    });
+    const updated = await this.repo.update(
+      id,
+      this.userUpdateOf(body, current, names, nextNames, profileData),
+    );
 
     // Vô hiệu phiên đang đăng nhập khi khoá tài khoản
     if (body.status === 'DISABLED' && current.status !== 'DISABLED') await this.tokens.revokeAll(id);
 
     const { before, after } = studentAuditDiff(body, current, updated);
-    if (body.parent !== undefined) after.parent = body.parent;
     if (Object.keys(after).length)
       await this.audit.record(actor, 'student.update', 'User', id, before, after);
     return this.reader.toDetail(actor, updated);
@@ -96,17 +77,11 @@ export class StudentWriterService {
     nextNames: StudentNames | null,
     profileData: Prisma.StudentProfileUpdateInput,
   ): Prisma.UserUpdateInput {
-    const emailChanged = !!body.email && body.email !== current.email;
     const currentNames = studentNamesOf(current);
     return {
       // Tên hiển thị luôn suy ra từ hai tên (không ghi thẳng body.displayName)
       displayName: names?.displayName,
       avatarKey: body.avatarKey,
-      email: body.email,
-      // Admin đổi email tay → chưa xác thực lại
-      emailVerified: emailChanged ? false : undefined,
-      // Cấp email riêng cho bé đang vào qua tài khoản gia đình → bé tự đăng nhập được (phụ huynh vẫn vào được)
-      loginMode: emailChanged && current.loginMode === 'MANAGED' ? 'OWN' : undefined,
       status: body.status,
       studentProfile: Object.keys(profileData).length
         ? {
@@ -122,7 +97,7 @@ export class StudentWriterService {
     };
   }
 
-  /** Chuyển lớp: đóng membership cũ, mở membership mới, tính lại hạng hai lớp, báo cho học sinh */
+  /** Chuyển lớp: đóng membership cũ, mở membership mới */
   async moveClass(actor: AuthUser, id: string, body: MoveClassBody): Promise<StudentDetail> {
     const student = await this.reader.findStudent(id);
     const current = student.studentProfile?.memberships[0]?.class ?? null;
@@ -136,21 +111,7 @@ export class StudentWriterService {
     if (current) await this.access.assertClassAccess(actor, current.id);
     await this.access.assertClassAccess(actor, target.id);
 
-    await this.repo.transaction(async (tx) => {
-      await this.repo.moveMembership(tx, id, target.id, new Date());
-      if (current) await this.ranking.recomputeAndNotify(tx, current.id);
-      await this.ranking.recomputeAndNotify(tx, target.id, id);
-      await this.notifications.create(
-        {
-          userId: id,
-          type: 'CLASS_CHANGED',
-          title: `You joined ${target.name}`,
-          body: `You are now in ${target.name} (${target.grade}). Keep playing to climb the ranking!`,
-          data: { classId: target.id, previousClassId: current?.id ?? null, byUserId: actor.id },
-        },
-        tx,
-      );
-    });
+    await this.repo.transaction((tx) => this.repo.moveMembership(tx, id, target.id, new Date()));
     await this.audit.record(
       actor,
       'student.moveClass',
@@ -160,19 +121,5 @@ export class StudentWriterService {
       { classId: target.id, note: body.note ?? null },
     );
     return this.reader.detail(actor, id);
-  }
-
-  /** Admin đặt lại mật khẩu: băm mới + đăng xuất mọi thiết bị */
-  async resetPassword(actor: AuthUser, id: string, body: ResetPasswordBody): Promise<void> {
-    const student = await this.reader.findStudent(id);
-    if (student.loginMode === 'MANAGED') {
-      throw new AppError('STUDENT_IS_MANAGED', 409, { message: 'managedNoPassword' });
-    }
-    const passwordHash = await this.passwords.hash(body.newPassword);
-    await this.repo.transaction(async (tx) => {
-      await this.repo.setPasswordHash(id, passwordHash, tx);
-      await this.tokens.revokeAll(id, tx);
-    });
-    await this.audit.record(actor, 'student.resetPassword', 'User', id, null, null);
   }
 }

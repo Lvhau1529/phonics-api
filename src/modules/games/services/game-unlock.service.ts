@@ -13,8 +13,7 @@ import { AccessService } from '@/core/access/access.service';
 import { type Tx } from '@/database/types';
 import { AuditService } from '@/modules/audit/services/audit.service';
 import { type AuthUser } from '@/modules/auth/types/auth.types';
-import { NotificationsService } from '@/modules/notifications/services/notifications.service';
-import { gameUnlockedNotification, toStudentGameStatus } from '@/modules/games/dto/responses/game.view';
+import { toStudentGameStatus } from '@/modules/games/dto/responses/game.view';
 import { GameRepository } from '@/modules/games/repositories/game.repository';
 import { type GameGate, type GameRow, NO_STATS } from '@/modules/games/types/game.types';
 import { GameCatalogService } from '@/modules/games/services/game-catalog.service';
@@ -26,7 +25,6 @@ export class GameUnlockService {
     private readonly repo: GameRepository,
     private readonly catalog: GameCatalogService,
     private readonly access: AccessService,
-    private readonly notifications: NotificationsService,
     private readonly audit: AuditService,
   ) {}
 
@@ -78,13 +76,10 @@ export class GameUnlockService {
     if (!(await this.repo.studentExists(studentId))) throw notFound('studentNotFound');
 
     const before = await this.statusOf(studentId, game);
-    // Chỉ thông báo khi trước đó chưa có dòng unlock đang hoạt động (FREE không tính)
-    const wasActive = before.source === 'GEMS' || before.source === 'ADMIN';
     const now = new Date();
     await this.repo.transaction(async (tx) => {
       if (body.unlocked) {
         await this.repo.grant(tx, studentId, gameId, { grantedById: actor.id, note: body.note }, now);
-        if (!wasActive) await this.notifications.create(gameUnlockedNotification(studentId, game), tx);
       } else {
         await this.repo.revoke(tx, studentId, gameId, now);
       }
@@ -132,10 +127,6 @@ export class GameUnlockService {
     await this.repo.transaction(async (tx) => {
       await this.repo.grantMany(tx, gameId, newIds, grant);
       await this.repo.reviveMany(tx, gameId, revivedIds, grant, now);
-      await this.notifications.createMany(
-        [...newIds, ...revivedIds].map((id) => gameUnlockedNotification(id, game)),
-        tx,
-      );
     });
 
     const result = { unlocked: newIds.length + revivedIds.length, alreadyUnlocked: activeCount };

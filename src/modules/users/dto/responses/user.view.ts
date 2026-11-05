@@ -15,7 +15,6 @@ export function toUserView(row: UserRow): User {
     avatarKey: AvatarKey.safeParse(row.avatarKey).data ?? DEFAULT_AVATAR,
     class: membership ? { ...membership.class, joinedAt: membership.joinedAt.toISOString() } : null,
     createdAt: row.createdAt.toISOString(),
-    loginMode: row.loginMode,
     loginMethods: { password: row.passwordHash !== null, google: row.googleSub !== null },
   };
 }

@@ -5,11 +5,8 @@ import { type AccessService } from '@/core/access/access.service';
 import { type PrismaService } from '@/database/prisma.service';
 import { type AuditService } from '@/modules/audit/services/audit.service';
 import { type AuthUser } from '@/modules/auth/types/auth.types';
-import { type PasswordService } from '@/modules/auth/services/password.service';
 import { type TokenService } from '@/modules/auth/services/token.service';
 import { type GuardianReaderService } from '@/modules/families/services/guardian-reader.service';
-import { type GuardianWriterService } from '@/modules/families/services/guardian-writer.service';
-import { type NotificationsService } from '@/modules/notifications/services/notifications.service';
 import { type PointReaderService } from '@/modules/points/services/point-reader.service';
 import { type RankingService } from '@/modules/points/services/ranking.service';
 import { StudentRepository } from '@/modules/students/repositories/student.repository';
@@ -21,10 +18,9 @@ const admin: AuthUser = { id: 'a1', role: 'ADMIN', status: 'ACTIVE', tokenVersio
 
 const studentRow = {
   id: 's1',
-  email: 'kid@example.com',
+  email: null,
   role: 'STUDENT',
   status: 'ACTIVE',
-  loginMode: 'OWN',
   provider: 'LOCAL',
   displayName: 'Kid',
   avatarKey: 'pip',
@@ -57,38 +53,27 @@ function setup() {
     mockDeep<GuardianReaderService>(),
   );
   const audit = mockDeep<AuditService>();
-  const passwords = mockDeep<PasswordService>();
   const tokens = mockDeep<TokenService>();
-  const service = new StudentWriterService(
-    repo,
-    reader,
-    access,
-    audit,
-    mockDeep<RankingService>(),
-    mockDeep<NotificationsService>(),
-    passwords,
-    tokens,
-    mockDeep<GuardianWriterService>(),
-  );
+  const service = new StudentWriterService(repo, reader, access, audit, tokens);
   prisma.user.findFirst.mockResolvedValue(studentRow as never);
   // Transaction chạy callback với chính Prisma mock
   prisma.$transaction.mockImplementation(((fn: (tx: unknown) => unknown) => fn(prisma)) as never);
   access.assertStudentAccess.mockResolvedValue(undefined);
-  return { prisma, access, audit, reader, service, passwords, tokens };
+  return { prisma, access, audit, reader, service, tokens };
 }
 
 describe('StudentWriterService', () => {
-  it('update: TEACHER gửi trường ngoài displayName / avatarKey → 403 FORBIDDEN_PERMISSION', async () => {
+  it('update: TEACHER gửi trường ngoài tên / avatarKey → 403 FORBIDDEN_PERMISSION', async () => {
     const { prisma, service } = setup();
 
     const err = await service
-      .update(teacher, 's1', { displayName: 'New', email: 'x@example.com' })
+      .update(teacher, 's1', { englishName: 'New', status: 'DISABLED' })
       .catch((e: unknown) => e);
 
     expect(err).toBeInstanceOf(AppError);
     expect((err as AppError).code).toBe('FORBIDDEN_PERMISSION');
     expect((err as AppError).getStatus()).toBe(403);
-    expect((err as AppError).details?.fields).toEqual(['email']);
+    expect((err as AppError).details?.fields).toEqual(['status']);
     expect(prisma.user.update).not.toHaveBeenCalled();
   });
 
@@ -121,21 +106,6 @@ describe('StudentWriterService', () => {
     );
   });
 
-  it('update: displayName của client cũ sửa tên đang hiển thị (tên tiếng Anh), không đụng tên tiếng Việt', async () => {
-    const { prisma, reader, service } = setup();
-    vi.spyOn(reader, 'toDetail').mockResolvedValue({} as never);
-    prisma.user.update.mockResolvedValue(studentRow as never);
-
-    await service.update(admin, 's1', { displayName: 'Kiddo' });
-
-    const data = prisma.user.update.mock.calls[0][0].data;
-    expect(data.displayName).toBe('Kiddo');
-    expect((data.studentProfile as { upsert: { update: unknown } }).upsert.update).toMatchObject({
-      vietnameseName: 'Nguyễn Văn Kid',
-      englishName: 'Kiddo',
-    });
-  });
-
   it('update: không đổi tên → không ghi display_name / cột tên', async () => {
     const { prisma, reader, service } = setup();
     vi.spyOn(reader, 'toDetail').mockResolvedValue({} as never);
@@ -152,7 +122,7 @@ describe('StudentWriterService', () => {
     const { prisma, service } = setup();
     prisma.user.findFirst.mockResolvedValue(null);
 
-    const err = await service.update(admin, 'nope', { displayName: 'New' }).catch((e: unknown) => e);
+    const err = await service.update(admin, 'nope', { avatarKey: 'cat' }).catch((e: unknown) => e);
 
     expect((err as AppError).code).toBe('NOT_FOUND');
   });
@@ -183,41 +153,14 @@ describe('StudentWriterService', () => {
     expect(prisma.$transaction).not.toHaveBeenCalled();
   });
 
-  it('resetPassword: học sinh MANAGED → 409 STUDENT_IS_MANAGED, không đổi mật khẩu', async () => {
-    const { prisma, service } = setup();
-    prisma.user.findFirst.mockResolvedValue({ ...studentRow, loginMode: 'MANAGED', email: null } as never);
-    await expect(service.resetPassword(admin, 's1', { newPassword: 'secret1' })).rejects.toMatchObject({
-      code: 'STUDENT_IS_MANAGED',
-    });
-    expect(prisma.user.update).not.toHaveBeenCalled();
-  });
-
-  it('resetPassword: đổi hash + thu hồi phiên trong cùng một transaction', async () => {
-    const { prisma, service, passwords, tokens } = setup();
-    passwords.hash.mockResolvedValue('hashed');
-    await service.resetPassword(admin, 's1', { newPassword: 'secret1' });
-    expect(prisma.$transaction).toHaveBeenCalledTimes(1);
-    expect(prisma.user.update).toHaveBeenCalledWith({
-      where: { id: 's1' },
-      data: { passwordHash: 'hashed' },
-    });
-    // tx của transaction (ở đây là chính Prisma mock) được truyền xuống revokeAll
-    expect(tokens.revokeAll).toHaveBeenCalledWith('s1', prisma);
-  });
-
-  it('update: cấp email cho học sinh MANAGED → tự đăng nhập (OWN)', async () => {
-    const { prisma, service, reader } = setup();
-    prisma.user.findFirst
-      .mockResolvedValueOnce({ ...studentRow, loginMode: 'MANAGED', email: null } as never)
-      .mockResolvedValueOnce(null);
-    prisma.user.update.mockResolvedValue(studentRow as never);
+  it('update: khoá hồ sơ bé → thu hồi phiên (phụ huynh đang mở cho bé)', async () => {
+    const { prisma, reader, service, tokens } = setup();
     vi.spyOn(reader, 'toDetail').mockResolvedValue({} as never);
+    prisma.user.update.mockResolvedValue({ ...studentRow, status: 'DISABLED' } as never);
 
-    await service.update(admin, 's1', { email: 'big.kid@example.com' });
-    expect(prisma.user.update.mock.calls[0][0].data).toMatchObject({
-      email: 'big.kid@example.com',
-      loginMode: 'OWN',
-    });
+    await service.update(admin, 's1', { status: 'DISABLED' });
+
+    expect(tokens.revokeAll).toHaveBeenCalledWith('s1');
   });
 
   it('update: không đổi tay trạng thái học sinh đang chờ duyệt', async () => {
