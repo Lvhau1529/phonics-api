@@ -28,6 +28,7 @@ import {
 } from '@/modules/auth/utils/refresh-transport';
 
 const authThrottle = { default: { limit: THROTTLE.auth.limit, ttl: THROTTLE.auth.ttl } };
+const refreshThrottle = { default: { limit: THROTTLE.refresh.limit, ttl: THROTTLE.refresh.ttl } };
 
 @ApiTags('auth')
 @Controller({ path: 'auth', version: API_V1 })
@@ -63,7 +64,7 @@ export class AuthController {
   }
 
   @Public()
-  @Throttle(authThrottle)
+  @Throttle(refreshThrottle)
   @HttpCode(200)
   @Post('refresh')
   async refresh(@Body() body: RefreshDto, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
