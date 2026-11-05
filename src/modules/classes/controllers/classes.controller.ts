@@ -91,7 +91,7 @@ export class ClassesController {
     @Param('id', ParseUUIDPipe) id: string,
     @Query() query: ClassStudentsQueryDto,
   ) {
-    // 404 nếu lớp không tồn tại, 403 nếu GV không dạy lớp này
+    // 403 nếu GV không dạy lớp này (kể cả id không tồn tại), 404 nếu admin hỏi lớp không tồn tại
     await this.classes.get(user, id);
     return this.students.list(user, { ...query, classId: id });
   }

@@ -99,4 +99,11 @@ describe('ClassesService', () => {
     expect((err as AppError).code).toBe('CONFLICT');
     expect((err as AppError).getStatus()).toBe(409);
   });
+  it('get: kiểm tra phạm vi trước khi tra lớp (GV không dò được id lớp tồn tại)', async () => {
+    const { prisma, access, service } = setup();
+    const teacher: AuthUser = { id: 't1', role: 'TEACHER', status: 'ACTIVE', tokenVersion: 0 };
+    access.assertClassAccess.mockRejectedValue(new AppError('FORBIDDEN_SCOPE', 403));
+    await expect(service.get(teacher, 'missing')).rejects.toMatchObject({ code: 'FORBIDDEN_SCOPE' });
+    expect(prisma.class.findUnique).not.toHaveBeenCalled();
+  });
 });
