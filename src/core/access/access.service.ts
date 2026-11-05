@@ -43,6 +43,21 @@ export class AccessService {
     if (!row) throw new AppError('FORBIDDEN_SCOPE', 403);
   }
 
+  /** Bản batch của `assertStudentAccess`: các id trong `studentIds` người dùng được truy cập (không phải GV / ADMIN → rỗng) */
+  async accessibleStudentIds(user: AuthUser, studentIds: readonly string[]): Promise<Set<string>> {
+    if (user.role === 'ADMIN') return new Set(studentIds);
+    if (user.role !== 'TEACHER' || !studentIds.length) return new Set();
+    const rows = await this.prisma.classMembership.findMany({
+      where: {
+        studentId: { in: [...studentIds] },
+        leftAt: null,
+        class: { teachers: { some: { teacherId: user.id } } },
+      },
+      select: { studentId: true },
+    });
+    return new Set(rows.map((r) => r.studentId));
+  }
+
   /** Lọc classId cho danh sách: ADMIN → tuỳ chọn; TEACHER → phải thuộc lớp mình (hoặc toàn bộ lớp mình) */
   async scopedClassIds(user: AuthUser, classId?: string): Promise<string[] | undefined> {
     if (user.role === 'ADMIN') return classId ? [classId] : undefined;

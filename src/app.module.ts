@@ -24,6 +24,7 @@ import { PermissionsModule } from '@/modules/permissions/permissions.module';
 import { PointsModule } from '@/modules/points/points.module';
 import { QuestionsModule } from '@/modules/questions/questions.module';
 import { ReportsModule } from '@/modules/reports/reports.module';
+import { SettingsModule } from '@/modules/settings/settings.module';
 import { StatsModule } from '@/modules/stats/stats.module';
 import { StudentsModule } from '@/modules/students/students.module';
 import { SubmissionsModule } from '@/modules/submissions/submissions.module';
@@ -59,6 +60,7 @@ import { WorksheetsModule } from '@/modules/worksheets/worksheets.module';
     GameResultsModule,
     ReportsModule,
     StatsModule,
+    SettingsModule,
     // Phiếu bài tập (ADR 0017 / 0018 / 0019)
     MediaModule,
     QuestionsModule,

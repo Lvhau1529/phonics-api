@@ -1,3 +1,15 @@
+import {
+  formatPhone,
+  formatVnd,
+  isValidPhone,
+  isVnMobile,
+  localPhone,
+  normalizePhone,
+  Phone,
+  renderTuitionNotice,
+  TuitionNoticeQuery,
+  zaloChatUrl,
+} from './index.js';
 import { describe, expect, it } from 'vitest';
 import {
   AVATARS,
@@ -9,6 +21,7 @@ import {
   AwardBonusBody,
   BILLING_POLICY,
   CancelAttendanceSessionsBody,
+  CancelDigestBody,
   CreateExtraSlotBody,
   CreateSlotAssignmentBody,
   CreateStudentsBody,
@@ -26,6 +39,7 @@ import {
   UpdateExtraRateBody,
   CreateStudentRateBody,
   TuitionQuery,
+  UpdateTuitionSettings,
   monthSpan,
   UpdateExtraSlotBody,
   UpdateProfileBody,
@@ -370,6 +384,7 @@ describe('ROLE_DEFAULT_PERMISSIONS (worksheets)', () => {
 });
 
 import {
+  PermissionCode,
   UpdateClassBody,
   VALIDATION_MESSAGES,
   ValidationMessage,
@@ -506,7 +521,8 @@ describe('tài khoản gia đình', () => {
     expect(ROLE_DEFAULT_PERMISSIONS.TEACHER).toEqual(
       expect.arrayContaining(['families.approve', 'students.viewParentContact']),
     );
-    expect(ROLE_DEFAULT_PERMISSIONS.TEACHER).not.toContain('guardians.manage');
+    // Quản lý phụ huynh là việc của admin (route @Roles('ADMIN')), không còn là quyền cấp được
+    expect(PermissionCode.safeParse('guardians.manage').success).toBe(false);
     expect(ROLE_DEFAULT_PERMISSIONS.PARENT).toEqual([]);
   });
 });
@@ -544,6 +560,18 @@ describe('học thêm', () => {
     expect(TuitionQuery.safeParse({ from: '2024-01', to: '2026-01' }).success).toBe(false);
     expect(TuitionQuery.safeParse({ from: '2026-13', to: '2026-12' }).success).toBe(false);
     expect(monthSpan('2025-11', '2026-02')).toBe(4);
+  });
+
+  it('cài đặt học phí: mọi trường tuỳ chọn, BIN 6 số, hạn đóng 1-28, bật cột ca', () => {
+    expect(UpdateTuitionSettings.safeParse({ showSlot: true }).success).toBe(true);
+    expect(UpdateTuitionSettings.safeParse({}).success).toBe(true);
+    expect(UpdateTuitionSettings.safeParse({ accountNo: '0123456789', dueDay: 10 }).success).toBe(true);
+    expect(UpdateTuitionSettings.safeParse({ bankBin: '97043' }).error?.issues[0]?.message).toBe(
+      'bankBinFormat',
+    );
+    expect(UpdateTuitionSettings.safeParse({ accountNo: '01-23' }).success).toBe(false);
+    expect(UpdateTuitionSettings.safeParse({ dueDay: 31 }).success).toBe(false);
+    expect(UpdateTuitionSettings.safeParse({ orgName: 'x', extra: 1 }).success).toBe(false);
   });
 
   it('lịch: ngày kết thúc phải sau ngày bắt đầu; null = học tiếp', () => {
@@ -643,6 +671,12 @@ describe('điểm danh', () => {
     ).toBe('slotsNeedDate');
   });
 
+  it('báo nghỉ qua mail: cần buổi và lý do', () => {
+    expect(CancelDigestBody.safeParse({ sessionIds: [id], reason: 'GV ốm' }).success).toBe(true);
+    expect(CancelDigestBody.safeParse({ sessionIds: [id], reason: '  ' }).success).toBe(false);
+    expect(CancelDigestBody.safeParse({ sessionIds: [], reason: 'x' }).success).toBe(false);
+  });
+
   it('sửa điểm danh: cần ít nhất một thay đổi, không trùng học sinh', () => {
     expect(UpdateAttendanceRecordsBody.safeParse({}).success).toBe(false);
     expect(UpdateAttendanceRecordsBody.safeParse({ note: null }).success).toBe(true);
@@ -661,5 +695,101 @@ describe('điểm danh', () => {
     expect(StudentAttendanceQuery.safeParse({ month: '2026-13' }).error?.issues[0]?.message).toBe(
       'monthFormat',
     );
+  });
+});
+
+describe('số điện thoại', () => {
+  it('chuẩn hoá về E.164', () => {
+    expect(normalizePhone('0912 345 678')).toBe('+84912345678');
+    expect(normalizePhone('(091) 234-5678')).toBe('+84912345678');
+    expect(normalizePhone('84912345678')).toBe('+84912345678');
+    expect(normalizePhone('+84 912.345.678')).toBe('+84912345678');
+    expect(normalizePhone('0084912345678')).toBe('+84912345678');
+    expect(normalizePhone('912345678')).toBe('+84912345678');
+    expect(normalizePhone('+84 0912 345 678')).toBe('+84912345678');
+    expect(normalizePhone('+84+912345678')).toBe('+84912345678');
+    expect(normalizePhone('+1 (415) 555-0100')).toBe('+14155550100');
+    expect(normalizePhone(' - ')).toBeNull();
+  });
+
+  it('đổi đầu số 11 số cũ sang đầu số mới', () => {
+    expect(normalizePhone('0166 234 5678')).toBe('+84362345678');
+    expect(normalizePhone('01202345678')).toBe('+84702345678');
+    expect(normalizePhone('+84 123 234 5678')).toBe('+84832345678');
+    expect(normalizePhone('01992345678')).toBe('+84592345678');
+  });
+
+  it('kiểm tra hợp lệ', () => {
+    expect(isValidPhone('0912345678')).toBe(true);
+    expect(isValidPhone('024 3826 1234')).toBe(true);
+    expect(isValidPhone('+14155550100')).toBe(true);
+    expect(isValidPhone('091234567')).toBe(false);
+    expect(isValidPhone('09123456789')).toBe(false);
+    expect(isValidPhone('0112345678')).toBe(false);
+    expect(isValidPhone('123456')).toBe(false);
+    expect(isVnMobile('024 3826 1234')).toBe(false);
+    expect(Phone.safeParse('0912 345 678').success).toBe(true);
+    expect(Phone.safeParse('0912 345').success).toBe(false);
+  });
+
+  it('hiển thị và link Zalo', () => {
+    expect(localPhone('+84912345678')).toBe('0912345678');
+    expect(formatPhone('+84912345678')).toBe('0912 345 678');
+    expect(formatPhone('+842438261234')).toBe('024 3826 1234');
+    expect(formatPhone(null)).toBe('');
+    expect(zaloChatUrl('+84912345678')).toBe('https://zalo.me/0912345678');
+    expect(zaloChatUrl('01662345678')).toBe('https://zalo.me/0362345678');
+    expect(zaloChatUrl('+14155550100')).toBeNull();
+    expect(zaloChatUrl(null)).toBeNull();
+  });
+});
+
+describe('thông báo học phí', () => {
+  const vars = {
+    students: [
+      { vietnameseName: 'Nguyễn Văn An', englishName: 'Andy' },
+      { vietnameseName: 'Nguyễn Thị Bình', englishName: null },
+    ],
+    parent: 'Chị Lan',
+    month: '2026-11',
+    amount: 800_000,
+    dueDate: '2026-12-10',
+    bank: 'Vietcombank',
+    accountNo: '0123456789',
+    accountName: 'NGUYEN THI HOA',
+    transferContent: 'HP T11 2026 ANDY BINH',
+    orgName: null,
+  };
+
+  it('định dạng tiền', () => {
+    expect(formatVnd(800_000)).toBe('800.000đ');
+    expect(formatVnd(1_250_000)).toBe('1.250.000đ');
+    expect(formatVnd(0)).toBe('0đ');
+  });
+
+  it('mẫu mặc định điền đủ biến', () => {
+    expect(renderTuitionNotice(null, vars)).toBe(
+      [
+        'Kính gửi phụ huynh bé Nguyễn Văn An (Andy), Nguyễn Thị Bình, học phí tháng 11/2026 là 800.000đ.',
+        'Vui lòng chuyển khoản trước ngày 10/12/2026.',
+        'STK: 0123456789 - Vietcombank - NGUYEN THI HOA',
+        'Nội dung CK: HP T11 2026 ANDY BINH',
+        'Cảm ơn quý phụ huynh!',
+      ].join('\n'),
+    );
+  });
+
+  it('bỏ dòng có biến rỗng, giữ biến lạ', () => {
+    const text = renderTuitionNotice('Gửi {parent}\nHạn {dueDate}\nTừ {orgName}\n{foo} {amount}', {
+      ...vars,
+      dueDate: null,
+    });
+    expect(text).toBe('Gửi Chị Lan\n{foo} 800.000đ');
+  });
+
+  it('query + cài đặt mẫu', () => {
+    expect(TuitionNoticeQuery.safeParse({ month: '2026-11' }).success).toBe(true);
+    expect(TuitionNoticeQuery.safeParse({ month: '2026-13' }).success).toBe(false);
+    expect(UpdateTuitionSettings.safeParse({ noticeTemplate: 'x'.repeat(1001) }).success).toBe(false);
   });
 });

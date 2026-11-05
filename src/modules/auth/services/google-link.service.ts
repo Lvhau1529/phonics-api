@@ -1,8 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { type User, type UserStatus } from '@phonics/contracts';
 import { AppError } from '@/common/errors/app-error';
+import { isUniqueViolation } from '@/common/utils/prisma-errors';
 import { PrismaService } from '@/database/prisma.service';
-import { Prisma } from '@/generated/prisma/client';
+import { type Prisma } from '@/generated/prisma/client';
 import { AuditService } from '@/modules/audit/services/audit.service';
 import { type GoogleIdentity, GoogleService } from '@/modules/auth/services/google.service';
 import { TokenService } from '@/modules/auth/services/token.service';
@@ -108,7 +109,7 @@ export class GoogleLinkService {
     try {
       await this.prisma.user.update({ where: { id: userId }, data });
     } catch (err) {
-      if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
+      if (isUniqueViolation(err)) {
         throw new AppError('GOOGLE_ALREADY_LINKED', 409);
       }
       throw err;

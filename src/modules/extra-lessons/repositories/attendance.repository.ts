@@ -97,6 +97,7 @@ export class AttendanceRepository {
       },
       select: {
         id: true,
+        kind: true,
         startTime: true,
         endTime: true,
         teachers: { select: { teacherId: true } },
@@ -244,6 +245,27 @@ export class AttendanceRepository {
     await tx.attendanceSession.updateMany({
       where: { id: { in: [...ids] } },
       data: { status: 'CANCELLED', cancelReason: reason },
+    });
+  }
+
+  /** Huỷ có điều kiện (còn PENDING) — false nếu buổi đã được xác nhận / huỷ trước */
+  async cancelIfPending(id: string, reason: string): Promise<boolean> {
+    const { count } = await this.prisma.attendanceSession.updateMany({
+      where: { id, status: 'PENDING' },
+      data: { status: 'CANCELLED', cancelReason: reason },
+    });
+    return count === 1;
+  }
+
+  /** Thêm bản ghi chụp từ lịch (khôi phục buổi huỷ chưa có danh sách) */
+  async createRecords(
+    tx: Tx,
+    sessionId: string,
+    records: readonly Omit<Prisma.AttendanceRecordCreateManyInput, 'sessionId'>[],
+  ): Promise<void> {
+    await tx.attendanceRecord.createMany({
+      data: records.map((r) => ({ ...r, sessionId })),
+      skipDuplicates: true,
     });
   }
 

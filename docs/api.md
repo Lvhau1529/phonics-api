@@ -95,22 +95,27 @@ Tài khoản `PENDING` (phụ huynh chờ duyệt) chỉ gọi được `auth/me
 | POST | `/attendance/sessions/:id/confirm` | A, T (perm:`attendance.confirm`) | `{}` → detail (đã xác nhận → ghi lại người / lúc) |
 | POST | `/attendance/sessions/resend-digest` | A | `ResendDigestBody { sessionIds }` → `ResendDigestResponse` (mỗi GV của các buổi còn PENDING một mail `teacher.digest` mới, token mới — link cũ vẫn dùng được; không tính vào số lần nhắc tự động; GV thiếu email → `noEmail`) |
 | GET | `/attendance/tuition` | A | `?from=YYYY-MM&to=YYYY-MM` (≤ 24 tháng) → `TuitionOverview` (tạm tính từ điểm danh: theo tháng, theo ca, top 10 học sinh, buổi còn chờ xác nhận, bản ghi tính phí giá 0; không gồm buổi huỷ) |
+| GET / PUT | `/admin/settings/tuition` | A | Cài đặt phiếu học phí `TuitionSettings` / body `UpdateTuitionSettings` (1.20.0: thêm `noticeTemplate` — mẫu tin nhắn Zalo) (PUT thay cả bản, trường không gửi = null = không in; audit `settings.updateTuition`) |
+| GET | `/attendance/tuition/notices` | A | `TuitionNoticeQuery { month, classId? }` → `TuitionNoticesResponse` (1.20.0): mỗi phụ huynh nhận học phí một dòng (anh chị em gộp; bé chưa có phụ huynh nhận học phí = dòng riêng) kèm SĐT E.164, tiền học thêm tạm tính `confirmedTotal` / `pendingTotal`, nội dung CK, hạn đóng. `classId` = mọi bé đang học lớp (kể cả không học thêm); không có = bé có điểm danh trong tháng. Admin soạn tin bằng `renderTuitionNotice` rồi gửi tay qua Zalo (`zaloChatUrl`). 404 `classNotFound` |
 | POST | `/attendance/sessions` | A, T (perm:`extra.manageSlots`) | `CreateAttendanceSessionBody` → detail (201) — buổi bù (GV phải có trong `teacherIds`) |
 | POST | `/attendance/sessions/cancel` | A, T (perm:`extra.manageSlots`) | `CancelAttendanceSessionsBody { sessionIds \| date + dateTo? + slotIds?, reason }` → `{ cancelled }` (nghỉ nhiều ngày tối đa 62 ngày, ca chưa có buổi được tạo sẵn buổi huỷ; GV: chỉ buổi / ca mình phụ trách) |
+| POST | `/attendance/sessions/:id/restore` | A, T (perm:`extra.manageSlots`) | → `AttendanceSessionDetail` (buổi CANCELLED → PENDING; chưa có HS thì chụp từ lịch; 409 `CONFLICT` khi buổi chưa huỷ) |
 | GET | `/attendance/public/digests/:token` | pub | → `AttendanceDigestView` (link mail 21:00; 404 `ATTENDANCE_TOKEN_INVALID`, 410 `ATTENDANCE_TOKEN_EXPIRED`) |
 | POST | `/attendance/public/digests/:token/confirm` | pub | `{ sessionIds }` → `ConfirmDigestResponse` (chỉ buổi trong mail, còn PENDING, danh sách chưa đổi) |
+| POST | `/attendance/public/digests/:token/cancel` | pub | `CancelDigestBody { sessionIds, reason }` → `CancelDigestResponse` (GV báo nghỉ; chỉ buổi trong mail còn PENDING) |
 | POST | `/students/:id/slot-assignments/apply` | A, T (perm:`extra.manageSchedule`) | `{ sessionIds }` → `{ updated }` — áp lịch vào buổi đã xác nhận (`affectedSessions`) |
 | PATCH | `/extra-rates/:id` | A, T (perm:`extra.managePricing`, cùng phạm vi như đặt giá) | `UpdateExtraRateBody { pricePerSession?, note?, effectiveTo? }` → `ExtraRate` kèm `affectedRecords`. `effectiveTo` (1.16.0, chỉ giá riêng học sinh): kết thúc ưu đãi từ ngày đó, `null` = bỏ hạn; 409 nếu đè lên dòng cùng phạm vi sau. 409 nếu dòng đã bị thay thế từ đầu |
 | POST | `/extra-rates/:id/apply` | A, T (perm:`extra.managePricing`) | `{ sessionIds }` → `{ updated }` — áp giá vào buổi đã xác nhận (`affectedRecords`) |
 | GET | `/students/:id/attendance` | A, T | `?month=YYYY-MM` → `StudentAttendanceResponse` |
 | GET | `/students/:id/tuition` | A, T (perm:`extra.viewPricing`, phạm vi học sinh) | `?from=YYYY-MM&to=YYYY-MM` → `StudentTuitionResponse` (học phí tạm tính theo tháng) |
+| GET | `/students/:id/tuition-statement.pdf` | A, T (perm:`extra.viewPricing` + `reports.export`, phạm vi học sinh) | `?month=YYYY-MM` → PDF phiếu báo học phí gửi phụ huynh: gộp các bé cùng phụ huynh nhận học phí (GV chỉ thấy bé trong phạm vi), mỗi loại ca một bảng (kèm cuối buổi `TUTORING`: chỉ buổi có học, không cột điểm danh), thông tin chuyển khoản + VietQR theo cài đặt (trường trống không in) |
 
 Hẹn giờ (`ExtraLessonsScheduler`, theo APP_TIMEZONE): **00:05** tạo buổi của ngày cho mọi ca (học sinh theo lịch, mặc
 định có mặt, chốt đơn giá; idempotent theo (ca, ngày), tạo bù `catchUpDays` ngày khi API tắt qua mốc); **21:00** mỗi
 GV một mail `teacher.digest` các buổi PENDING (tối đa 3 lần nhắc / buổi). Sửa lịch / đặt giá: buổi PENDING tự đồng
 bộ, buổi CONFIRMED trả trong `affectedSessions` / `affectedRecords` để hỏi người dùng.
 
-## guardians (A, perm:`guardians.manage`)
+## guardians (A)
 
 | Method | Path | Ai | Request → Response |
 | --- | --- | --- | --- |
@@ -179,7 +184,7 @@ bộ, buổi CONFIRMED trả trong `affectedSessions` / `affectedRecords` để 
 | POST | `/students/:id/move-class` | A, T perm:`class.changeStudentClass` | `MoveClassBody` → `StudentDetail` |
 | POST | `/students/:id/reset-password` | A | `ResetPasswordBody` → 204. 409 `STUDENT_IS_MANAGED` (bé vào qua phụ huynh) |
 | GET | `/students/:id/guardians` | A, T (perm:`students.viewParentContact`) | → `StudentGuardiansResponse` |
-| PUT | `/students/:id/guardians` | A (perm:`guardians.manage`) | `SetStudentGuardiansBody` → `StudentGuardiansResponse` (thôi `canAccess` → phiên phụ huynh mở cho bé hết hiệu lực) |
+| PUT | `/students/:id/guardians` | A | `SetStudentGuardiansBody` → `StudentGuardiansResponse` (thôi `canAccess` → phiên phụ huynh mở cho bé hết hiệu lực) |
 | GET | `/students/:id/points` | A, T | `PointsListQuery` → `Paginated<PointEntryView>` |
 | GET | `/students/:id/points/by-game` | A, T | `?range` → `{ items: PointsByGame[] }` |
 | GET | `/students/:id/game-results` | A, T | → `Paginated<GameResultView>` |

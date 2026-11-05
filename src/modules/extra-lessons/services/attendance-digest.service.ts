@@ -2,6 +2,8 @@ import { randomBytes } from 'node:crypto';
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import {
   type AttendanceDigestView,
+  type CancelDigestBody,
+  type CancelDigestResponse,
   type ConfirmDigestBody,
   type ConfirmDigestResponse,
   type ResendDigestResponse,
@@ -158,6 +160,40 @@ export class AttendanceDigestService {
     return { ...result, digest: await this.toView(digest) };
   }
 
+  /**
+   * Báo nghỉ qua link: chỉ buổi trong mail còn PENDING (không cần danh sách chưa đổi — huỷ không phụ thuộc điểm
+   * danh). Buổi đã xác nhận phải đăng nhập để huỷ.
+   */
+  async cancel(token: string, body: CancelDigestBody): Promise<CancelDigestResponse> {
+    const digest = await this.findDigest(token);
+    const inDigest = new Set(this.itemsOf(digest).map((i) => i.sessionId));
+    const sessions = new Map((await this.repo.digestSessions([...inDigest])).map((s) => [s.id, s]));
+    const result = { cancelled: [] as string[], alreadyCancelled: [] as string[], rejected: [] as string[] };
+    for (const id of new Set(body.sessionIds)) {
+      const session = sessions.get(id);
+      if (!session || !inDigest.has(id)) result.rejected.push(id);
+      else if (session.status === 'CANCELLED') result.alreadyCancelled.push(id);
+      else if (session.status === 'PENDING' && (await this.repo.cancelIfPending(id, body.reason))) {
+        result.cancelled.push(id);
+      } else result.rejected.push(id);
+    }
+    for (const id of result.cancelled) {
+      await this.audit.record(
+        { id: digest.teacherId },
+        'attendance.cancelSession',
+        'AttendanceSession',
+        id,
+        null,
+        {
+          status: 'CANCELLED',
+          reason: body.reason,
+          via: 'EMAIL',
+        },
+      );
+    }
+    return { ...result, digest: await this.toView(digest) };
+  }
+
   // ---- helpers ----
 
   /** Tạo digest (token mới) + xếp hàng mail `teacher.digest` trong transaction — trả id digest */
@@ -202,6 +238,7 @@ export class AttendanceDigestService {
               presentCount: s.presentCount,
               absentCount: s._count.records - s.presentCount,
               confirmLink: `${confirmBase}?session=${s.id}`,
+              cancelLink: `${confirmBase}?session=${s.id}&action=cancel`,
               editLink: `${this.env.ADMIN_APP_URL}/attendance/sessions/${s.id}`,
             })),
             confirmAllLink: confirmBase,

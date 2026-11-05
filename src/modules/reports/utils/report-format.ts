@@ -33,9 +33,3 @@ export function slugify(text: string): string {
     .replace(/^-+|-+$/g, '');
   return ascii || 'class';
 }
-
-/** `attachment; filename="ascii.xlsx"; filename*=UTF-8''...` (RFC 6266 / 5987) */
-export function contentDisposition(filename: string): string {
-  const ascii = filename.replace(/[^\x20-\x7e]/g, '_').replace(/["\\]/g, '_');
-  return `attachment; filename="${ascii}"; filename*=UTF-8''${encodeURIComponent(filename)}`;
-}

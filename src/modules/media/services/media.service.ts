@@ -14,6 +14,7 @@ import {
 } from '@phonics/contracts';
 import { AppError, notFound } from '@/common/errors/app-error';
 import { ENV } from '@/config/env.module';
+import { AccessService } from '@/core/access/access.service';
 import { type Env } from '@/config/env.schema';
 import { PrismaService } from '@/database/prisma.service';
 import { type Tx } from '@/database/types';
@@ -38,6 +39,7 @@ export class MediaService {
     private readonly prisma: PrismaService,
     @Inject(ENV) private readonly env: Env,
     private readonly storage: MediaStorage,
+    private readonly access: AccessService,
   ) {}
 
   /** URL public của một key (đĩa: API tự phục vụ / CDN; R2: domain public của bucket) */
@@ -168,12 +170,25 @@ export class MediaService {
     return toMediaView(updated);
   }
 
-  /** GV / admin xem bất kỳ; học sinh chỉ file của mình */
+  /**
+   * Ai xem được file:
+   *  - ADMIN: mọi file; chủ file: file của mình;
+   *  - TEACHER: file do GV / admin tải (ảnh, audio câu hỏi dùng chung) + file của học sinh thuộc lớp mình dạy
+   *    (bài ghi âm…) — không xem được bài của học sinh lớp khác;
+   *  - còn lại (học sinh, phụ huynh): chỉ file của mình.
+   */
   async get(user: AuthUser, id: string): Promise<MediaView> {
-    const row = await this.prisma.mediaAsset.findUnique({ where: { id } });
+    const row = await this.prisma.mediaAsset.findUnique({
+      where: { id },
+      include: { owner: { select: { role: true } } },
+    });
     if (!row) throw notFound('fileNotFound');
-    if (user.role === 'STUDENT' && row.ownerId !== user.id) throw new AppError('FORBIDDEN_SCOPE', 403);
-    return toMediaView(row);
+    const { owner, ...asset } = row;
+    if (user.role === 'ADMIN' || asset.ownerId === user.id) return toMediaView(asset);
+    if (user.role !== 'TEACHER') throw new AppError('FORBIDDEN_SCOPE', 403);
+    if (owner.role === 'STUDENT') await this.access.assertStudentAccess(user, asset.ownerId);
+    else if (owner.role !== 'TEACHER' && owner.role !== 'ADMIN') throw new AppError('FORBIDDEN_SCOPE', 403);
+    return toMediaView(asset);
   }
 
   /** Map id → MediaRef của các file READY (file thiếu / PENDING bị bỏ qua) */

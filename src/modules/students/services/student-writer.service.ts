@@ -168,8 +168,11 @@ export class StudentWriterService {
     if (student.loginMode === 'MANAGED') {
       throw new AppError('STUDENT_IS_MANAGED', 409, { message: 'managedNoPassword' });
     }
-    await this.repo.setPasswordHash(id, await this.passwords.hash(body.newPassword));
-    await this.tokens.revokeAll(id);
+    const passwordHash = await this.passwords.hash(body.newPassword);
+    await this.repo.transaction(async (tx) => {
+      await this.repo.setPasswordHash(id, passwordHash, tx);
+      await this.tokens.revokeAll(id, tx);
+    });
     await this.audit.record(actor, 'student.resetPassword', 'User', id, null, null);
   }
 }

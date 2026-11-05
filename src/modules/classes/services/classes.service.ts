@@ -64,11 +64,14 @@ export class ClassesService {
     );
   }
 
-  /** Một lớp (TEACHER phải là giáo viên của lớp) */
+  /**
+   * Một lớp (TEACHER phải là giáo viên của lớp). Kiểm tra phạm vi **trước** khi tra tồn tại: GV hỏi lớp không dạy
+   * luôn nhận 403 dù lớp có hay không → không dò được id lớp nào tồn tại.
+   */
   async get(user: AuthUser, id: string): Promise<ClassSummary> {
+    await this.access.assertClassAccess(user, id);
     const row = await this.prisma.class.findUnique({ where: { id }, include: classSummaryInclude });
     if (!row) throw notFound('classNotFound');
-    await this.access.assertClassAccess(user, id);
     return toClassSummary(row);
   }
 

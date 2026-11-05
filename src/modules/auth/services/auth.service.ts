@@ -154,12 +154,12 @@ export class AuthService {
         throw new AppError('INVALID_CREDENTIALS', 401, { message: 'wrongCurrentPassword' });
       }
     }
-    await this.prisma.user.update({
-      where: { id: user.id },
-      data: { passwordHash: await this.passwords.hash(body.newPassword) },
+    const passwordHash = await this.passwords.hash(body.newPassword);
+    // Mật khẩu đổi → mọi phiên khác phải đăng nhập lại (cùng transaction)
+    await this.prisma.$transaction(async (tx) => {
+      await tx.user.update({ where: { id: user.id }, data: { passwordHash } });
+      await this.tokens.revokeAll(user.id, tx);
     });
-    // Mật khẩu đổi → mọi phiên khác phải đăng nhập lại
-    await this.tokens.revokeAll(user.id);
   }
 
   // ---- helpers ----

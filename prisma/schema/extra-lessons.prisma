@@ -1,28 +1,36 @@
 // Học thêm: ca định kỳ hằng tuần (độc lập lớp chính), lịch từng học sinh, đơn giá có lịch sử
 // (docs/attendance-design.md §4, §6). Ngày lưu 'YYYY-MM-DD' theo APP_TIMEZONE, khoảng nửa mở [from, to).
 
+/// Loại ca: học thêm (lớp riêng) / kèm cuối buổi (GV kèm sau giờ học chính). Điểm danh như nhau; phiếu học phí của
+/// kèm cuối buổi chỉ liệt kê buổi có học, không cột điểm danh
+enum ExtraSlotKind {
+  EXTRA_CLASS
+  TUTORING
+}
+
 /// Ca học thêm định kỳ hằng tuần
 model ExtraSlot {
-  id         String    @id @default(uuid()) @db.Uuid
+  id         String        @id @default(uuid()) @db.Uuid
   /// "Phonics nâng cao — T3 18:00"
   name       String
+  kind       ExtraSlotKind @default(EXTRA_CLASS)
   /// ISO weekday 1 = Thứ Hai … 7 = Chủ nhật
   weekday    Int
   /// 'HH:mm' theo APP_TIMEZONE. Sửa giờ áp cho buổi đã tạo từ ngày chọn (mặc định hôm nay)
-  startTime  String    @map("start_time")
-  endTime    String    @map("end_time")
+  startTime  String        @map("start_time")
+  endTime    String        @map("end_time")
   room       String?
   capacity   Int?
   /// Lớp chính tham khảo (để lọc), không bắt buộc
-  classId    String?   @map("class_id") @db.Uuid
+  classId    String?       @map("class_id") @db.Uuid
   /// 'YYYY-MM-DD' ngày đầu tiên có buổi; null = ngay từ lúc tạo ca
-  startsOn   String?   @map("starts_on")
+  startsOn   String?       @map("starts_on")
   /// 'YYYY-MM-DD' ngừng ca từ ngày này (không còn buổi); tới ngày → 00:05 tự đặt archived_at
-  endsOn     String?   @map("ends_on")
+  endsOn     String?       @map("ends_on")
   /// Ca đã ngừng (ẩn khỏi danh sách mặc định); dữ liệu cũ giữ nguyên
-  archivedAt DateTime? @map("archived_at")
-  createdAt  DateTime  @default(now()) @map("created_at")
-  updatedAt  DateTime  @updatedAt @map("updated_at")
+  archivedAt DateTime?     @map("archived_at")
+  createdAt  DateTime      @default(now()) @map("created_at")
+  updatedAt  DateTime      @updatedAt @map("updated_at")
 
   class       Class?                  @relation(fields: [classId], references: [id], onDelete: SetNull)
   teachers    ExtraSlotTeacher[]
@@ -121,6 +129,8 @@ model AttendanceSession {
   endsAt         DateTime                @map("ends_at")
   /// GV phụ trách lúc tạo buổi (chép từ ca; buổi bù chọn tay)
   teacherIds     String[]                @map("teacher_ids") @db.Uuid
+  /// Chép từ ca lúc tạo (buổi bù chọn tay); đổi loại ca cập nhật buổi từ ngày chọn
+  kind           ExtraSlotKind           @default(EXTRA_CLASS)
   status         AttendanceSessionStatus @default(PENDING)
   presentCount   Int                     @default(0) @map("present_count")
   /// Tăng mỗi lần sửa danh sách — duyệt qua mail chỉ hợp lệ khi bằng giá trị lúc gửi

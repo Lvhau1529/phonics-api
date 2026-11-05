@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { mockDeep } from 'vitest-mock-extended';
 import { AppError } from '@/common/errors/app-error';
 import { type Env } from '@/config/env.schema';
+import { type AccessService } from '@/core/access/access.service';
 import { type PrismaService } from '@/database/prisma.service';
 import { FileTooLargeError, type MediaStorage } from '@/infrastructure/storage/media-storage';
 import { type AuthUser } from '@/modules/auth/types/auth.types';
@@ -51,8 +52,9 @@ function setup() {
   const storage = mockDeep<MediaStorage>();
   Object.assign(storage, { publicBaseUrl: 'https://api.example/files' });
   storage.presignPut.mockResolvedValue(null);
-  const service = new MediaService(prisma, env, storage);
-  return { prisma, storage, service };
+  const access = mockDeep<AccessService>();
+  const service = new MediaService(prisma, env, storage, access);
+  return { prisma, storage, access, service };
 }
 
 const inFuture = () => Math.floor(Date.now() / 1000) + 600;
@@ -276,5 +278,51 @@ describe('MediaService', () => {
     ] as never);
     const map = await service.hydrate(['a', 'a', 'b']);
     expect(map).toEqual({ a: { id: 'a', url: 'https://x/a.png', kind: 'IMAGE' } });
+  });
+  describe('get: phạm vi xem file', () => {
+    const readyRow = (
+      ownerRole: 'ADMIN' | 'TEACHER' | 'STUDENT',
+      ownerId = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
+    ) => ({
+      ...pendingRow,
+      ownerId,
+      status: 'READY' as const,
+      url: 'https://api.example/files/x.png',
+      readyAt: new Date('2026-10-01T00:00:00Z'),
+      owner: { role: ownerRole },
+    });
+    const admin: AuthUser = { ...teacher, id: 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee', role: 'ADMIN' };
+    const student: AuthUser = { ...teacher, id: 'ffffffff-ffff-4fff-8fff-ffffffffffff', role: 'STUDENT' };
+
+    it('admin xem mọi file, chủ file xem file của mình', async () => {
+      const { prisma, access, service } = setup();
+      prisma.mediaAsset.findUnique.mockResolvedValue(readyRow('STUDENT') as never);
+      await expect(service.get(admin, pendingRow.id)).resolves.toMatchObject({ id: pendingRow.id });
+      prisma.mediaAsset.findUnique.mockResolvedValue(readyRow('STUDENT', student.id) as never);
+      await expect(service.get(student, pendingRow.id)).resolves.toMatchObject({ id: pendingRow.id });
+      expect(access.assertStudentAccess).not.toHaveBeenCalled();
+    });
+
+    it('GV xem file của GV khác (nội dung câu hỏi dùng chung)', async () => {
+      const { prisma, access, service } = setup();
+      prisma.mediaAsset.findUnique.mockResolvedValue(readyRow('TEACHER', other.id) as never);
+      await expect(service.get(teacher, pendingRow.id)).resolves.toMatchObject({ id: pendingRow.id });
+      expect(access.assertStudentAccess).not.toHaveBeenCalled();
+    });
+
+    it('GV xem file học sinh: phải thuộc lớp mình (sai lớp → 403)', async () => {
+      const { prisma, access, service } = setup();
+      prisma.mediaAsset.findUnique.mockResolvedValue(readyRow('STUDENT', student.id) as never);
+      await expect(service.get(teacher, pendingRow.id)).resolves.toMatchObject({ id: pendingRow.id });
+      expect(access.assertStudentAccess).toHaveBeenCalledWith(teacher, student.id);
+      access.assertStudentAccess.mockRejectedValue(new AppError('FORBIDDEN_SCOPE', 403));
+      await expect(service.get(teacher, pendingRow.id)).rejects.toMatchObject({ code: 'FORBIDDEN_SCOPE' });
+    });
+
+    it('học sinh không xem được file của người khác', async () => {
+      const { prisma, service } = setup();
+      prisma.mediaAsset.findUnique.mockResolvedValue(readyRow('TEACHER', teacher.id) as never);
+      await expect(service.get(student, pendingRow.id)).rejects.toMatchObject({ code: 'FORBIDDEN_SCOPE' });
+    });
   });
 });

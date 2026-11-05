@@ -32,6 +32,11 @@ export const AUTH = {
 export const THROTTLE = {
   default: { ttl: 60_000, limit: 120 },
   auth: { ttl: 60_000, limit: 10 },
+  /**
+   * Refresh không phải chỗ dò mật khẩu (token ngẫu nhiên, xoay vòng) nhưng chạy mỗi lần tải lại trang; cả trường dùng
+   * chung một IP (NAT) → giới hạn 10 / phút như login làm GV bị đăng xuất hàng loạt.
+   */
+  refresh: { ttl: 60_000, limit: 60 },
   gameResults: { ttl: 60_000, limit: 30 },
   events: { ttl: 60_000, limit: 60 },
   /** Presign upload media (ảnh / ghi âm) */

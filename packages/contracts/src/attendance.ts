@@ -7,6 +7,7 @@ import { addValidationIssue, ValidationMessage } from './common/validation-messa
 import {
   AffectedRecordRef,
   AffectedSessionRef,
+  ExtraSlotKind,
   ExtraSlotRef,
   PricePerSession,
   TimeOfDay,
@@ -61,6 +62,8 @@ export const AttendanceSessionSummary = z.object({
   id: Id,
   /** null = buổi bù tạo tay */
   slot: ExtraSlotRef.nullable(),
+  /** Chép từ ca lúc tạo; buổi bù chọn tay (từ 1.17.0) */
+  kind: ExtraSlotKind,
   date: IsoDate,
   startTime: TimeOfDay,
   endTime: TimeOfDay,
@@ -134,6 +137,8 @@ export const CreateAttendanceSessionBody = z
     startTime: TimeOfDay,
     endTime: TimeOfDay,
     teacherIds: z.array(Id).min(1).max(5),
+    /** Mặc định học thêm */
+    kind: ExtraSlotKind.optional(),
     note: z.string().trim().max(500).optional(),
   })
   .superRefine((b, ctx) => {
@@ -210,6 +215,23 @@ export const ConfirmDigestResponse = z.object({
   digest: AttendanceDigestView,
 });
 export type ConfirmDigestResponse = z.infer<typeof ConfirmDigestResponse>;
+
+/** Báo nghỉ qua link mail (từ 1.18.0): chỉ buổi trong mail còn PENDING; buổi đã xác nhận phải đăng nhập để huỷ */
+export const CancelDigestBody = z.strictObject({
+  sessionIds: z.array(Id).min(1).max(50),
+  reason: z.string().trim().min(1).max(200),
+});
+export type CancelDigestBody = z.infer<typeof CancelDigestBody>;
+
+export const CancelDigestResponse = z.object({
+  cancelled: z.array(Id),
+  /** Đã huỷ trước đó */
+  alreadyCancelled: z.array(Id),
+  /** Đã xác nhận (đăng nhập để huỷ) hoặc không thuộc mail này */
+  rejected: z.array(Id),
+  digest: AttendanceDigestView,
+});
+export type CancelDigestResponse = z.infer<typeof CancelDigestResponse>;
 
 /** ADMIN gửi lại mail xác nhận: mỗi GV của các buổi (còn PENDING) một mail mới, link cũ vẫn dùng được */
 export const ResendDigestBody = z.strictObject({ sessionIds: z.array(Id).min(1).max(200) });

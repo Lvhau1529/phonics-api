@@ -57,6 +57,14 @@ export class AttendanceController {
     return this.writer.cancel(user, body);
   }
 
+  /** Khôi phục buổi đã huỷ về chờ xác nhận */
+  @RequirePermission('extra.manageSlots')
+  @HttpCode(200)
+  @Post(':id/restore')
+  restore(@CurrentUser() user: AuthUser, @Param('id', ParseUUIDPipe) id: string) {
+    return this.writer.restore(user, id);
+  }
+
   /** Gửi lại mail xác nhận cho GV các buổi chọn (chỉ ADMIN) */
   @Roles('ADMIN')
   @HttpCode(200)

@@ -47,7 +47,7 @@ export class ReportsService {
   async assignmentResults(user: AuthUser, assignmentId: string): Promise<ReportFile> {
     const assignment = await this.assignments.load(user, assignmentId);
     const snapshot = assignment.snapshot as unknown as WorksheetSnapshot;
-    const roster = await this.assignments.roster(user, assignmentId);
+    const roster = await this.assignments.rosterOf(assignment);
     const columns: AssignmentResultColumn[] = snapshot.sections.flatMap((s, si) =>
       s.items.map((it, ii) => ({
         worksheetItemId: it.worksheetItemId,

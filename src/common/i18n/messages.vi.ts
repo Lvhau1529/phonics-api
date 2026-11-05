@@ -161,6 +161,7 @@ export const vi = {
   extraRateSuperseded: 'Dòng giá đã bị thay thế từ đầu, không sửa được',
   billingFieldsAdminOnly: 'Chỉ admin sửa được đơn giá / tính phí từng buổi',
   removeManualOnly: 'Chỉ bỏ được học sinh thêm tay — học sinh theo lịch thì đánh vắng hoặc sửa lịch',
+  sessionNotCancelled: 'Buổi chưa bị huỷ nên không cần khôi phục',
   sessionAlreadyConfirmed: 'Buổi đã được người khác xác nhận',
   slotEndsAfterStart: 'Ngày ngừng ca phải sau ngày bắt đầu',
   slotEndInPast: 'Ngày ngừng ca phải sau hôm nay',

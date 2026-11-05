@@ -53,6 +53,19 @@ describe('TokenService', () => {
     );
   });
 
+  it('revokeAll(tx): ghi qua tx của caller, không mở transaction riêng', async () => {
+    const tx = mockDeep<PrismaService>();
+    await svc.revokeAll('u1', tx);
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+    expect(tx.refreshToken.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { userId: 'u1', revokedAt: null } }),
+    );
+    expect(tx.user.update).toHaveBeenCalledWith({
+      where: { id: 'u1' },
+      data: { tokenVersion: { increment: 1 } },
+    });
+  });
+
   it('rotate: token không tồn tại → INVALID_REFRESH', async () => {
     prisma.refreshToken.findUnique.mockResolvedValue(null);
     await expect(svc.rotate('nope')).rejects.toMatchObject({ code: 'INVALID_REFRESH' });

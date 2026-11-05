@@ -1,6 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '@/database/prisma.service';
 import { Prisma } from '@/generated/prisma/client';
+import {
+  type StatementRecordRow,
+  type StatementStudentRow,
+} from '@/modules/extra-lessons/utils/tuition-statement';
+import { type NoticeStudentRow, type NoticeTotalRow } from '@/modules/extra-lessons/utils/tuition-notice';
 
 /** Số liệu tiền học của một nhóm bản ghi (chưa có tháng / ca / học sinh) */
 export interface TuitionAgg {
@@ -89,5 +94,132 @@ export class TuitionRepository {
         (SELECT COUNT(*) FROM attendance_records r JOIN attendance_sessions s ON s.id = r.session_id
           ${this.where(scope)} AND r.charged AND r.unit_price = 0 AND r.rate_id IS NULL)::int AS "zeroPriceRecords"`;
     return row;
+  }
+
+  // ----- Phiếu báo học phí (gộp các bé cùng phụ huynh nhận học phí) -----
+
+  /** Phụ huynh nhận học phí của bé (chưa xoá) */
+  async billingGuardian(
+    studentId: string,
+  ): Promise<{ id: string; fullName: string; phone: string | null } | null> {
+    const link = await this.prisma.studentGuardian.findFirst({
+      where: { studentId, isBillingContact: true, guardian: { deletedAt: null } },
+      select: { guardian: { select: { id: true, fullName: true, phone: true } } },
+    });
+    return link?.guardian ?? null;
+  }
+
+  /** Các bé (chưa xoá) mà phụ huynh này nhận học phí, sắp theo tên */
+  async billedStudents(guardianId: string): Promise<StatementStudentRow[]> {
+    const links = await this.prisma.studentGuardian.findMany({
+      where: { guardianId, isBillingContact: true, student: { user: { deletedAt: null } } },
+      select: { student: { select: { userId: true, vietnameseName: true, englishName: true } } },
+      orderBy: { student: { nameSortKey: 'asc' } },
+    });
+    return links.map(({ student: s }) => ({
+      id: s.userId,
+      vietnameseName: s.vietnameseName,
+      englishName: s.englishName,
+    }));
+  }
+
+  async statementStudent(studentId: string): Promise<StatementStudentRow | null> {
+    const s = await this.prisma.studentProfile.findFirst({
+      where: { userId: studentId, user: { deletedAt: null } },
+      select: { userId: true, vietnameseName: true, englishName: true },
+    });
+    return s && { id: s.userId, vietnameseName: s.vietnameseName, englishName: s.englishName };
+  }
+
+  /** Bản ghi điểm danh của các bé trong khoảng ngày nửa mở (không tính buổi huỷ) */
+  statementRecords(
+    studentIds: readonly string[],
+    range: { from: string; to: string },
+  ): Promise<StatementRecordRow[]> {
+    return this.prisma.attendanceRecord.findMany({
+      where: {
+        studentId: { in: [...studentIds] },
+        session: { status: { not: 'CANCELLED' }, date: { gte: range.from, lt: range.to } },
+      },
+      select: {
+        studentId: true,
+        mark: true,
+        charged: true,
+        unitPrice: true,
+        session: {
+          select: {
+            date: true,
+            startTime: true,
+            endTime: true,
+            status: true,
+            kind: true,
+            slot: { select: { name: true, kind: true, startTime: true, endTime: true } },
+          },
+        },
+      },
+    });
+  }
+
+  // ----- Thông báo học phí qua Zalo -----
+
+  /** Tiền học thêm theo bé trong khoảng ngày (không tính buổi huỷ); không truyền `studentIds` = mọi bé có điểm danh */
+  noticeTotals(
+    range: { from: string; to: string },
+    studentIds?: readonly string[],
+  ): Promise<NoticeTotalRow[]> {
+    const only = studentIds ? Prisma.sql`AND r.student_id = ANY(${[...studentIds]}::uuid[])` : Prisma.empty;
+    return this.prisma.$queryRaw`
+      SELECT r.student_id AS "studentId",
+        COALESCE(SUM(r.unit_price) FILTER (WHERE r.charged AND s.status = 'CONFIRMED'), 0)::float8 AS "confirmedTotal",
+        COALESCE(SUM(r.unit_price) FILTER (WHERE r.charged AND s.status = 'PENDING'), 0)::float8   AS "pendingTotal"
+      FROM attendance_records r JOIN attendance_sessions s ON s.id = r.session_id
+      WHERE s.status <> 'CANCELLED' AND s.date >= ${range.from} AND s.date < ${range.to} ${only}
+      GROUP BY r.student_id`;
+  }
+
+  async classExists(classId: string): Promise<boolean> {
+    return !!(await this.prisma.class.findUnique({ where: { id: classId }, select: { id: true } }));
+  }
+
+  /**
+   * Bé (chưa xoá) kèm lớp đang học + phụ huynh nhận học phí, sắp theo tên. `classId`: bé đang học lớp đó và tài
+   * khoản đang hoạt động; `studentIds`: đúng các bé này.
+   */
+  async noticeStudents(
+    filter: { classId: string } | { studentIds: readonly string[] },
+  ): Promise<NoticeStudentRow[]> {
+    const rows = await this.prisma.studentProfile.findMany({
+      where:
+        'classId' in filter
+          ? {
+              user: { deletedAt: null, status: 'ACTIVE' },
+              memberships: { some: { classId: filter.classId, leftAt: null } },
+            }
+          : { user: { deletedAt: null }, userId: { in: [...filter.studentIds] } },
+      select: {
+        userId: true,
+        vietnameseName: true,
+        englishName: true,
+        memberships: {
+          where: { leftAt: null },
+          select: { class: { select: { name: true } } },
+          orderBy: { joinedAt: 'desc' },
+          take: 1,
+        },
+        guardians: {
+          where: { isBillingContact: true, guardian: { deletedAt: null } },
+          select: { guardian: { select: { id: true, fullName: true, phone: true } } },
+          take: 1,
+        },
+      },
+      orderBy: { nameSortKey: 'asc' },
+    });
+    return rows.map((r) => ({
+      id: r.userId,
+      vietnameseName: r.vietnameseName,
+      englishName: r.englishName,
+      className: r.memberships[0]?.class.name ?? null,
+      guardian: r.guardians[0]?.guardian ?? null,
+    }));
   }
 }

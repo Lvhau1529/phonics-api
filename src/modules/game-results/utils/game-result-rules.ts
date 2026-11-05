@@ -2,15 +2,9 @@
 import { type GameResultBody, type PointsReason } from '@phonics/contracts';
 import { AppError } from '@/common/errors/app-error';
 import { GAME_REGISTRY, POINT_RULES } from '@/config/constants';
-import { Prisma } from '@/generated/prisma/client';
 
 /** playedAt được phép đi trước đồng hồ server tối đa chừng này (lệch giờ client) */
 const PLAYED_AT_MAX_FUTURE_MS = 60_000;
-
-/** Vi phạm unique (studentId, clientSessionId) → hai request cùng ván chạy song song */
-export function isUniqueViolation(e: unknown): boolean {
-  return e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002';
-}
 
 /**
  * rawPoints = min(maxPerRound, correct × perCorrect), rồi giảm theo trạng thái game / lớp / trần ngày.

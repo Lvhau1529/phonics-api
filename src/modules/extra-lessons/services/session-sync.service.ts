@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { type AffectedRecord, type AffectedSession, BILLING_POLICY } from '@phonics/contracts';
+import { isUniqueViolation } from '@/common/utils/prisma-errors';
 import { EXTRA_LESSONS } from '@/config/constants';
 import { dayjs } from '@/core/time/dayjs';
 import { TimeService } from '@/core/time/time.service';
@@ -104,16 +105,16 @@ export class SessionSyncService {
 
   // ---- tạo buổi ----
 
-  private async createSlotSession(
-    slot: Awaited<ReturnType<AttendanceRepository['slotsOn']>>[number],
-    date: string,
-  ): Promise<boolean> {
-    const studentIds = await this.repo.rosterOf(slot.id, date);
-    // Ca không còn học sinh nào hôm đó: không tạo buổi trống (cần thì GV tạo buổi bù)
-    if (studentIds.length === 0) return false;
-    const rates = await this.schedule.ratesFor(studentIds, [slot.id]);
-    const records = studentIds.map((studentId) => {
-      const rate = resolveRate(rates, studentId, slot.id, date);
+  /**
+   * Bản ghi chụp từ lịch học sinh của ca `slotId` ngày `date`: mặc định có mặt, chốt đơn giá. Dùng khi tạo buổi 00:05
+   * và khi khôi phục buổi huỷ chưa có danh sách (buổi tạo sẵn ở trạng thái huỷ lúc nghỉ lễ).
+   */
+  async rosterRecords(slotId: string, date: string) {
+    const studentIds = await this.repo.rosterOf(slotId, date);
+    if (studentIds.length === 0) return [];
+    const rates = await this.schedule.ratesFor(studentIds, [slotId]);
+    return studentIds.map((studentId) => {
+      const rate = resolveRate(rates, studentId, slotId, date);
       return {
         studentId,
         mark: 'PRESENT' as const,
@@ -123,6 +124,15 @@ export class SessionSyncService {
         source: 'SNAPSHOT',
       };
     });
+  }
+
+  private async createSlotSession(
+    slot: Awaited<ReturnType<AttendanceRepository['slotsOn']>>[number],
+    date: string,
+  ): Promise<boolean> {
+    const records = await this.rosterRecords(slot.id, date);
+    // Ca không còn học sinh nào hôm đó: không tạo buổi trống (cần thì GV tạo buổi bù)
+    if (records.length === 0) return false;
     try {
       await this.repo.transaction((tx) =>
         this.repo.createSession(tx, {
@@ -132,6 +142,7 @@ export class SessionSyncService {
           endTime: slot.endTime,
           ...sessionTimes(date, slot.startTime, slot.endTime, this.time.timeZone),
           teacherIds: slot.teachers.map((t) => t.teacherId),
+          kind: slot.kind,
           presentCount: records.length,
           records: { createMany: { data: records } },
         }),
@@ -139,7 +150,7 @@ export class SessionSyncService {
       return true;
     } catch (err) {
       // Hai tiến trình cùng tạo (unique (slot_id, date)) → bên sau bỏ qua
-      if ((err as { code?: string }).code === 'P2002') return false;
+      if (isUniqueViolation(err)) return false;
       throw err;
     }
   }

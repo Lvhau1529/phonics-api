@@ -1,6 +1,7 @@
 import { Workbook } from 'exceljs';
 import { describe, expect, it } from 'vitest';
-import { contentDisposition, rangeLabel, rangeSlug, slugify } from '@/modules/reports/utils/report-format';
+import { contentDisposition } from '@/common/utils/streamable';
+import { rangeLabel, rangeSlug, slugify } from '@/modules/reports/utils/report-format';
 import { buildRankingPdf } from '@/modules/reports/writers/pdf.writer';
 import {
   buildPointsWorkbook,

@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { type ExtraSlotKind } from '@phonics/contracts';
 import { PrismaService } from '@/database/prisma.service';
 import { type Tx } from '@/database/types';
 import { type Prisma } from '@/generated/prisma/client';
@@ -46,6 +47,15 @@ export class ExtraSlotRepository {
       where: { slotId, date: { gte: from } },
       select: { id: true, date: true },
     });
+  }
+
+  /** Đổi loại ca của mọi buổi đã tạo của ca (kể cả đã xác nhận — loại ca không ảnh hưởng tiền) → số buổi đổi */
+  async updateSessionKind(tx: Tx, slotId: string, kind: ExtraSlotKind): Promise<number> {
+    const { count } = await tx.attendanceSession.updateMany({
+      where: { slotId, kind: { not: kind } },
+      data: { kind },
+    });
+    return count;
   }
 
   async updateSessionTime(

@@ -142,6 +142,8 @@ export const ENDPOINTS = {
     attendance: (id: string) => `/students/${id}/attendance`,
     /** GET: học phí theo tháng (từ 1.13.0) */
     tuition: (id: string) => `/students/${id}/tuition`,
+    /** GET: phiếu báo học phí một tháng (PDF, gộp các bé cùng phụ huynh nhận học phí) — từ 1.17.0 */
+    tuitionStatement: (id: string) => `/students/${id}/tuition-statement.pdf`,
   },
   extraRates: {
     detail: (id: string) => `/extra-rates/${id}`,
@@ -153,13 +155,19 @@ export const ENDPOINTS = {
     records: (id: string) => `/attendance/sessions/${id}/records`,
     confirm: (id: string) => `/attendance/sessions/${id}/confirm`,
     cancel: '/attendance/sessions/cancel',
+    /** POST: khôi phục buổi đã huỷ về chờ xác nhận (từ 1.18.0) */
+    restore: (id: string) => `/attendance/sessions/${id}/restore`,
     pendingCount: '/attendance/sessions/pending/count',
     /** POST ADMIN: gửi lại mail xác nhận cho GV các buổi đã chọn (từ 1.13.0) */
     resendDigest: '/attendance/sessions/resend-digest',
     /** GET ADMIN: thống kê học phí tổng quát theo tháng (từ 1.13.0) */
     tuitionOverview: '/attendance/tuition',
+    /** GET ADMIN: soạn tin nhắn thông báo học phí từng phụ huynh (Zalo) (từ 1.20.0) */
+    tuitionNotices: '/attendance/tuition/notices',
     digest: (token: string) => `/attendance/public/digests/${token}`,
     confirmDigest: (token: string) => `/attendance/public/digests/${token}/confirm`,
+    /** POST public: GV báo nghỉ buổi trong mail (từ 1.18.0) */
+    cancelDigest: (token: string) => `/attendance/public/digests/${token}/cancel`,
   },
   extraSlots: {
     list: '/extra-slots',
@@ -194,6 +202,8 @@ export const ENDPOINTS = {
     permissionGroups: '/admin/permission-groups',
     permissionGroup: (id: string) => `/admin/permission-groups/${id}`,
     audit: '/admin/audit',
+    /** GET / PUT ADMIN: cài đặt phiếu học phí (từ 1.17.0) */
+    tuitionSettings: '/admin/settings/tuition',
     games: '/admin/games',
     game: (id: string) => `/admin/games/${id}`,
   },
