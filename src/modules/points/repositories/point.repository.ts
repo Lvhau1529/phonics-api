@@ -75,9 +75,4 @@ export class PointRepository {
     });
     return new Set(rows.map((m) => m.studentId));
   }
-
-  async displayName(tx: Tx, userId: string): Promise<string | null> {
-    const row = await tx.user.findUnique({ where: { id: userId }, select: { displayName: true } });
-    return row?.displayName ?? null;
-  }
 }

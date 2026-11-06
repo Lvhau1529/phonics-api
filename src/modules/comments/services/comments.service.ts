@@ -11,14 +11,13 @@ import { AccessService } from '@/core/access/access.service';
 import { PrismaService } from '@/database/prisma.service';
 import { AuditService } from '@/modules/audit/services/audit.service';
 import { type AuthUser } from '@/modules/auth/types/auth.types';
-import { NotificationsService } from '@/modules/notifications/services/notifications.service';
 import { itemsOf } from '@/modules/worksheets/utils/worksheet-snapshot';
 import { buildThread, toCommentReply } from '@/modules/comments/dto/responses/comment.view';
 import { commentInclude, CommentRow } from '@/modules/comments/types/comment.types';
 
 /**
- * Nhận xét trên bài nộp (theo bài hoặc theo câu). GV (lớp mình) tạo gốc / trả lời; học sinh chỉ trả lời trên bài của
- * mình. Thông báo COMMENT_REPLY cho đối phương. Xoá mềm.
+ * Nhận xét trên bài nộp (theo bài hoặc theo câu). GV (lớp mình) tạo gốc / trả lời; học sinh (phiên phụ huynh mở) chỉ
+ * xem nhận xét trên bài của mình. Xoá mềm.
  */
 @Injectable()
 export class CommentsService {
@@ -26,7 +25,6 @@ export class CommentsService {
     private readonly prisma: PrismaService,
     private readonly access: AccessService,
     private readonly audit: AuditService,
-    private readonly notifications: NotificationsService,
   ) {}
 
   async list(user: AuthUser, submissionId: string): Promise<CommentsResponse> {
@@ -40,13 +38,9 @@ export class CommentsService {
   }
 
   async create(user: AuthUser, submissionId: string, body: CreateCommentBody): Promise<CommentView> {
+    // Chỉ giáo viên / admin viết nhận xét (bé / phụ huynh chỉ xem) — chặn cả khi route khác gọi nhầm
+    if (user.role === 'STUDENT' || user.role === 'PARENT') throw new AppError('FORBIDDEN', 403);
     const submission = await this.loadSubmission(user, submissionId);
-    const isStudent = user.role === 'STUDENT';
-    if (isStudent && !body.parentId)
-      throw new AppError('VALIDATION_ERROR', 400, {
-        fieldErrors: { parentId: ['studentRepliesOnly'] },
-      });
-    if (isStudent && submission.status === 'IN_PROGRESS') throw new AppError('SUBMISSION_NOT_SUBMITTED', 409);
 
     let parent: CommentRow | null = null;
     let worksheetItemId = body.worksheetItemId ?? null;
@@ -72,50 +66,15 @@ export class CommentsService {
         });
     }
 
-    const row = await this.prisma.$transaction(async (tx) => {
-      const created = await tx.comment.create({
-        data: {
-          submissionId,
-          worksheetItemId,
-          authorId: user.id,
-          parentId: parent?.id ?? null,
-          body: body.body,
-        },
-        include: commentInclude,
-      });
-      const title = (submission.assignment.snapshot as unknown as WorksheetSnapshot).title;
-      const data = {
-        assignmentId: submission.assignmentId,
+    const row = await this.prisma.comment.create({
+      data: {
         submissionId,
-        commentId: created.id,
         worksheetItemId,
-      };
-      if (isStudent) {
-        if (parent && parent.authorId !== user.id) {
-          await this.notifications.create(
-            {
-              userId: parent.authorId,
-              type: 'COMMENT_REPLY',
-              title: 'A student replied',
-              body: `${created.author.displayName}: ${excerpt(body.body)}`,
-              data,
-            },
-            tx,
-          );
-        }
-      } else if (submission.studentId !== user.id) {
-        await this.notifications.create(
-          {
-            userId: submission.studentId,
-            type: 'COMMENT_REPLY',
-            title: 'Your teacher left a comment',
-            body: `${title}: ${excerpt(body.body)}`,
-            data,
-          },
-          tx,
-        );
-      }
-      return created;
+        authorId: user.id,
+        parentId: parent?.id ?? null,
+        body: body.body,
+      },
+      include: commentInclude,
     });
     return { ...toCommentReply(row), replies: [] };
   }
@@ -175,8 +134,4 @@ export class CommentsService {
     }
     return row;
   }
-}
-
-function excerpt(text: string): string {
-  return text.length > 80 ? `${text.slice(0, 77)}…` : text;
 }

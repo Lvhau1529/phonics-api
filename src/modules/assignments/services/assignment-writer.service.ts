@@ -16,7 +16,6 @@ import { toAssignmentAudit } from '@/modules/assignments/dto/responses/assignmen
 import { AssignmentsScheduler } from '@/modules/assignments/jobs/assignments.scheduler';
 import { AssignmentRepository } from '@/modules/assignments/repositories/assignment.repository';
 import { dateOnly, isoDateOf, statusByWindow } from '@/modules/assignments/utils/assignment-dates';
-import { AssignmentLifecycleService } from '@/modules/assignments/services/assignment-lifecycle.service';
 import { AssignmentReaderService } from '@/modules/assignments/services/assignment-reader.service';
 
 const dueAfterOpenError = () =>
@@ -31,7 +30,6 @@ export class AssignmentWriterService {
   constructor(
     private readonly repo: AssignmentRepository,
     private readonly reader: AssignmentReaderService,
-    private readonly lifecycle: AssignmentLifecycleService,
     private readonly access: AccessService,
     private readonly audit: AuditService,
     private readonly time: TimeService,
@@ -74,7 +72,6 @@ export class AssignmentWriterService {
         },
         tx,
       );
-      if (open) await this.lifecycle.notifyOpened(tx, created);
       return created;
     });
     await this.audit.record(actor, 'assignment.create', 'Assignment', row.id, null, {
@@ -112,7 +109,6 @@ export class AssignmentWriterService {
         },
         tx,
       );
-      if (opensNow) await this.lifecycle.notifyOpened(tx, updated);
       return updated;
     });
     await this.audit.record(

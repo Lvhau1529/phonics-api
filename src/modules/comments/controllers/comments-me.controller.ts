@@ -1,13 +1,12 @@
-import { Body, Controller, Get, Param, ParseUUIDPipe, Post } from '@nestjs/common';
+import { Controller, Get, Param, ParseUUIDPipe } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '@/common/decorators/current-user.decorator';
 import { Roles } from '@/common/decorators/roles.decorator';
 import { API_V1 } from '@/config/api-version';
 import { type AuthUser } from '@/modules/auth/types/auth.types';
-import { CreateCommentDto } from '@/modules/comments/dto/requests/comments.dto';
 import { CommentsService } from '@/modules/comments/services/comments.service';
 
-/** Nhận xét trên bài của chính học sinh (chỉ trả lời) */
+/** Nhận xét của GV trên bài của chính học sinh — chỉ xem (bé / phụ huynh không trả lời) */
 @ApiTags('me')
 @ApiBearerAuth()
 @Roles('STUDENT')
@@ -18,14 +17,5 @@ export class CommentsMeController {
   @Get(':id/comments')
   list(@CurrentUser() user: AuthUser, @Param('id', ParseUUIDPipe) id: string) {
     return this.comments.list(user, id);
-  }
-
-  @Post(':id/comments')
-  reply(
-    @CurrentUser() user: AuthUser,
-    @Param('id', ParseUUIDPipe) id: string,
-    @Body() body: CreateCommentDto,
-  ) {
-    return this.comments.create(user, id, body);
   }
 }

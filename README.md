@@ -54,7 +54,7 @@ phonics-api
 │   │       ├── utils/           hàm thuần (luật nghiệp vụ, tính toán) + .spec.ts
 │   │       └── jobs/ · grading/ · writers/   cron, bộ chấm, writer xlsx / pdf (riêng từng module)
 │   │   auth · users · permissions · classes · teachers · students · games · events · game-results ·
-│   │   points (+ RankingService) · notifications · stats · reports · audit · media · questions · worksheets ·
+│   │   points (+ RankingService) · stats · reports · audit · media · questions · worksheets ·
 │   │   assignments · submissions · comments · worksheet-stats · mail (outbox + mẫu mail) ·
 │   │   health (không version: /api/health)
 │   └── generated/          Prisma client (gitignored, `pnpm prisma:generate`)
@@ -333,8 +333,8 @@ không cần phát hành mỗi lần sửa.
 - Luôn: admin từ `ADMIN_EMAIL` / `ADMIN_PASSWORD` (không đổi mật khẩu admin đã có trừ khi
   `SEED_RESET_ADMIN_PASSWORD=true`); catalog `games` từ contracts `GAME_IDS` (Bread Catcher, Food Stream).
 - Khi `SEED_DEMO=true` và `NODE_ENV` ≠ `production` (bỏ qua nếu `teacher1@demo.local` đã tồn tại):
-  2 giáo viên, 3 lớp, 24 học sinh, 3–8 ván / học sinh trong 14 ngày gần nhất (kèm bút toán GAME,
-  sự kiện VIEW / PLAY), vài điểm thưởng của giáo viên và `last_rank` tính bằng cùng SQL với `RankingService`.
+  2 giáo viên, 3 lớp, 24 học sinh (mỗi bé một phụ huynh có tài khoản gia đình), 3–8 ván / học sinh trong 14 ngày
+  gần nhất (kèm bút toán GAME, sự kiện VIEW / PLAY), vài điểm thưởng của giáo viên.
 
 Tài khoản demo (**chỉ dùng ở môi trường dev**, mật khẩu chung `12345678`):
 
@@ -342,9 +342,11 @@ Tài khoản demo (**chỉ dùng ở môi trường dev**, mật khẩu chung `1
 | ------------------------------------------------------- | ------- | --------------------------------- |
 | `teacher1@demo.local`                                   | TEACHER | dạy K2A, K2B                      |
 | `teacher2@demo.local`                                   | TEACHER | dạy K2B, K1A                      |
-| `k2a.student01@demo.local` … `k2a.student08@demo.local` | STUDENT | lớp K2A (K2, hiện khi đăng ký)    |
-| `k2b.student01@demo.local` … `k2b.student08@demo.local` | STUDENT | lớp K2B (K2, hiện khi đăng ký)    |
-| `k1a.student01@demo.local` … `k1a.student08@demo.local` | STUDENT | lớp K1A (K1, `joinVisible=false`) |
+| `k2a.parent01@demo.local` … `k2a.parent08@demo.local`   | PARENT  | phụ huynh bé lớp K2A (K2, hiện khi đăng ký) |
+| `k2b.parent01@demo.local` … `k2b.parent08@demo.local`   | PARENT  | phụ huynh bé lớp K2B (K2, hiện khi đăng ký) |
+| `k1a.parent01@demo.local` … `k1a.parent08@demo.local`   | PARENT  | phụ huynh bé lớp K1A (K1, `joinVisible=false`) |
+
+Học sinh không có tài khoản riêng: đăng nhập game bằng tài khoản phụ huynh rồi chọn bé (`docs/family-first.md`).
 
 `SEED_DEMO` cũng tạo 4 câu hỏi SHARED đã phát hành + phiếu **"Letter Nn — Demo"** (của teacher1) để giao thử trên admin.
 

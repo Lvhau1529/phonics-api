@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { type UpdateProfileBody, type User } from '@phonics/contracts';
-import { AppError, notFound } from '@/common/errors/app-error';
+import { notFound } from '@/common/errors/app-error';
 import {
   applyNameChange,
   nameColumns,
@@ -21,15 +21,8 @@ export class UsersService {
     return toUserView(row);
   }
 
-  /** Học sinh / GV tự sửa profile (email phải chưa ai dùng) */
+  /** Tự sửa tên / avatar (nhân viên, phụ huynh, hồ sơ bé trong phiên phụ huynh mở) */
   async updateProfile(id: string, body: UpdateProfileBody): Promise<User> {
-    if (body.email) {
-      const taken = await this.prisma.user.findFirst({
-        where: { email: body.email, NOT: { id } },
-        select: { id: true },
-      });
-      if (taken) throw new AppError('EMAIL_TAKEN', 409, { fieldErrors: { email: ['EMAIL_TAKEN'] } });
-    }
     const names = body.displayName !== undefined ? await this.studentNameChange(id, body.displayName) : null;
     const row = await this.prisma.user.update({
       where: { id },
@@ -38,9 +31,6 @@ export class UsersService {
         displayName: names ? names.displayName : body.displayName,
         studentProfile: names ? { update: profileNameData(names) } : undefined,
         avatarKey: body.avatarKey,
-        email: body.email,
-        // Đổi email bằng tay → chưa xác thực lại
-        emailVerified: body.email ? false : undefined,
       },
       include: userViewInclude,
     });
@@ -48,7 +38,7 @@ export class UsersService {
   }
 
   /**
-   * Học sinh đổi tên trong game (một ô tên) = đổi tên đang hiển thị: tên tiếng Anh nếu có, không thì tên tiếng Việt.
+   * Đổi tên của hồ sơ bé (một ô tên) = đổi tên đang hiển thị: tên tiếng Anh nếu có, không thì tên tiếng Việt.
    * null = không phải học sinh (hoặc chưa có profile) → ghi thẳng `display_name`.
    */
   private async studentNameChange(id: string, displayName: string): Promise<StudentNameColumns | null> {

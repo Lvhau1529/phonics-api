@@ -5,6 +5,7 @@ import {
   type StatementRecordRow,
   type StatementStudentRow,
 } from '@/modules/extra-lessons/utils/tuition-statement';
+import { type NoticeStudentRow, type NoticeTotalRow } from '@/modules/extra-lessons/utils/tuition-notice';
 
 /** Số liệu tiền học của một nhóm bản ghi (chưa có tháng / ca / học sinh) */
 export interface TuitionAgg {
@@ -157,5 +158,68 @@ export class TuitionRepository {
         },
       },
     });
+  }
+
+  // ----- Thông báo học phí qua Zalo -----
+
+  /** Tiền học thêm theo bé trong khoảng ngày (không tính buổi huỷ); không truyền `studentIds` = mọi bé có điểm danh */
+  noticeTotals(
+    range: { from: string; to: string },
+    studentIds?: readonly string[],
+  ): Promise<NoticeTotalRow[]> {
+    const only = studentIds ? Prisma.sql`AND r.student_id = ANY(${[...studentIds]}::uuid[])` : Prisma.empty;
+    return this.prisma.$queryRaw`
+      SELECT r.student_id AS "studentId",
+        COALESCE(SUM(r.unit_price) FILTER (WHERE r.charged AND s.status = 'CONFIRMED'), 0)::float8 AS "confirmedTotal",
+        COALESCE(SUM(r.unit_price) FILTER (WHERE r.charged AND s.status = 'PENDING'), 0)::float8   AS "pendingTotal"
+      FROM attendance_records r JOIN attendance_sessions s ON s.id = r.session_id
+      WHERE s.status <> 'CANCELLED' AND s.date >= ${range.from} AND s.date < ${range.to} ${only}
+      GROUP BY r.student_id`;
+  }
+
+  async classExists(classId: string): Promise<boolean> {
+    return !!(await this.prisma.class.findUnique({ where: { id: classId }, select: { id: true } }));
+  }
+
+  /**
+   * Bé (chưa xoá) kèm lớp đang học + phụ huynh nhận học phí, sắp theo tên. `classId`: bé đang học lớp đó và tài
+   * khoản đang hoạt động; `studentIds`: đúng các bé này.
+   */
+  async noticeStudents(
+    filter: { classId: string } | { studentIds: readonly string[] },
+  ): Promise<NoticeStudentRow[]> {
+    const rows = await this.prisma.studentProfile.findMany({
+      where:
+        'classId' in filter
+          ? {
+              user: { deletedAt: null, status: 'ACTIVE' },
+              memberships: { some: { classId: filter.classId, leftAt: null } },
+            }
+          : { user: { deletedAt: null }, userId: { in: [...filter.studentIds] } },
+      select: {
+        userId: true,
+        vietnameseName: true,
+        englishName: true,
+        memberships: {
+          where: { leftAt: null },
+          select: { class: { select: { name: true } } },
+          orderBy: { joinedAt: 'desc' },
+          take: 1,
+        },
+        guardians: {
+          where: { isBillingContact: true, guardian: { deletedAt: null } },
+          select: { guardian: { select: { id: true, fullName: true, phone: true } } },
+          take: 1,
+        },
+      },
+      orderBy: { nameSortKey: 'asc' },
+    });
+    return rows.map((r) => ({
+      id: r.userId,
+      vietnameseName: r.vietnameseName,
+      englishName: r.englishName,
+      className: r.memberships[0]?.class.name ?? null,
+      guardian: r.guardians[0]?.guardian ?? null,
+    }));
   }
 }

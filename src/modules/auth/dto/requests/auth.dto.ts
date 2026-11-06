@@ -5,11 +5,9 @@ import {
   LoginBody,
   LogoutBody,
   RefreshBody,
-  RegisterBody,
 } from '@phonics/contracts';
 import { createZodDto } from 'nestjs-zod';
 
-export class RegisterDto extends createZodDto(RegisterBody) {}
 export class LoginDto extends createZodDto(LoginBody) {}
 export class GoogleDto extends createZodDto(GoogleBody) {}
 export class LinkGoogleDto extends createZodDto(LinkGoogleBody) {}

@@ -18,8 +18,3 @@ export function toEntryView(row: PointEntryRow): PointEntryView {
     createdAt: row.createdAt.toISOString(),
   };
 }
-
-/** Tiêu đề thông báo điểm thưởng cho học sinh (tiếng Anh ngắn) */
-export function bonusTitle(points: number, actorName: string): string {
-  return `${points > 0 ? '+' : ''}${points} points from ${actorName}`;
-}

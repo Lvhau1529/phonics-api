@@ -21,6 +21,7 @@ export const EMPTY_TUITION_SETTINGS: TuitionSettingsValue = {
   dueDay: null,
   note: null,
   showSlot: false,
+  noticeTemplate: null,
 };
 
 // Đọc lỏng (không strict): giá trị lưu từ bản cũ thiếu / thừa trường vẫn dùng được

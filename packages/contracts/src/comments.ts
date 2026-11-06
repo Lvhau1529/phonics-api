@@ -5,7 +5,7 @@ import { AvatarKey, Role } from './users.js';
 
 /**
  * Nhận xét trên bài nộp: theo cả bài (`worksheetItemId` null) hoặc theo từng câu.
- * Giáo viên tạo gốc hoặc trả lời; học sinh chỉ trả lời (cần `parentId`). Một cấp lồng.
+ * Giáo viên tạo gốc hoặc trả lời (một cấp lồng). Học sinh / phụ huynh chỉ xem (từ 2.0.0).
  */
 export const CommentBody = z.string().trim().min(1).max(1000);
 

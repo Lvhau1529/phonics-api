@@ -132,20 +132,18 @@ export const DuplicateMatch = z.object({
 });
 export type DuplicateMatch = z.infer<typeof DuplicateMatch>;
 
-/** Một đơn chờ duyệt = một tài khoản (phụ huynh, hoặc học sinh tự đăng ký kiểu cũ — `parent` null) */
+/** Một đơn chờ duyệt = một tài khoản phụ huynh (từ 2.0.0 không còn đơn học sinh tự đăng ký) */
 export const PendingFamily = z.object({
-  /** Id tài khoản đăng ký (user PARENT, hoặc chính học sinh với đăng ký kiểu cũ) — dùng ở approve / reject / merge */
+  /** Id tài khoản phụ huynh (user PARENT) — dùng ở approve / reject / merge */
   id: Id,
-  parent: z
-    .object({
-      userId: Id,
-      guardianId: Id,
-      fullName: GuardianName,
-      email: Email.nullable(),
-      phone: z.string().nullable(),
-      status: UserStatus,
-    })
-    .nullable(),
+  parent: z.object({
+    userId: Id,
+    guardianId: Id,
+    fullName: GuardianName,
+    email: Email.nullable(),
+    phone: z.string().nullable(),
+    status: UserStatus,
+  }),
   /** Bé chờ duyệt trong phạm vi người xem */
   children: z.array(PendingChild),
   /** Số bé khác của gia đình (đã duyệt, hoặc chờ duyệt vào lớp ngoài phạm vi) */
@@ -193,7 +191,7 @@ export type MergeFamilyBody = z.infer<typeof MergeFamilyBody>;
 export const FamilyReviewResult = z.object({
   approved: z.array(Id),
   rejected: z.array(Id),
-  /** Trạng thái tài khoản phụ huynh sau thao tác (null với đơn kiểu cũ không có phụ huynh) */
-  parentStatus: UserStatus.nullable(),
+  /** Trạng thái tài khoản phụ huynh sau thao tác */
+  parentStatus: UserStatus,
 });
 export type FamilyReviewResult = z.infer<typeof FamilyReviewResult>;

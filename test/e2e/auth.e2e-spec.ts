@@ -1,11 +1,12 @@
 /**
- * Luồng xác thực chính: đăng ký (chờ duyệt) → duyệt → đăng nhập → refresh (body transport) → dùng lại token cũ bị từ
- * chối → /auth/me.
+ * Luồng xác thực chính: phụ huynh đăng nhập → refresh (body transport) → dùng lại token cũ bị từ chối → /auth/me.
+ * Học sinh không tự đăng nhập (403 STUDENT_LOGIN_DISABLED) — phiên của bé mở qua tài khoản gia đình (e2e families).
  * Cần DATABASE_URL_TEST (DB Postgres riêng, bị TRUNCATE); không có thì cả file skip.
  */
 import { API_PREFIX, REFRESH_COOKIE_NAME, REFRESH_TRANSPORT_HEADER } from '@phonics/contracts';
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { hashPassword } from '@/database/seeds/seed-helpers';
 import {
   applyMigrations,
   createTestApp,
@@ -18,50 +19,40 @@ const enabled = useTestDatabase();
 
 describe.skipIf(!enabled)('auth (e2e)', () => {
   let t: TestApp;
-  let classId: string;
-  const email = 'kid.e2e@demo.local';
-  const password = 'Kid12345!';
+  let parentId: string;
+  const email = 'parent.e2e@demo.local';
+  const password = 'Parent12345!';
 
   beforeAll(async () => {
     applyMigrations();
     t = await createTestApp();
     await truncateAll(t.prisma);
-    // Đăng ký cần một lớp đang nhận học sinh (GET /public/classes) — tạo thẳng bằng prisma
-    const cls = await t.prisma.class.create({
-      data: { name: 'E2E-K2', grade: 'K2', schoolYear: '2026-2027', joinVisible: true },
+    const passwordHash = await hashPassword(password);
+    const parent = await t.prisma.user.create({
+      data: { email, passwordHash, emailVerified: true, role: 'PARENT', displayName: 'E2E Parent' },
       select: { id: true },
     });
-    classId = cls.id;
+    parentId = parent.id;
+    // Học sinh còn sót email / mật khẩu (dữ liệu cũ) vẫn không đăng nhập được
+    await t.prisma.user.create({
+      data: { email: 'kid.e2e@demo.local', passwordHash, role: 'STUDENT', displayName: 'E2E Kid' },
+    });
   });
 
   afterAll(async () => {
     await t?.close();
   });
 
-  it('register (chờ duyệt) → login → refresh → reuse (401 REFRESH_REUSED) → me', async () => {
-    // Đăng ký kiểu cũ: tạo học sinh PENDING, chưa vào lớp, không cấp token
-    const reg = await request(t.server)
-      .post(`${API_PREFIX}/auth/register`)
-      .set(REFRESH_TRANSPORT_HEADER, 'body')
-      .send({ email, password, displayName: 'E2E Kid', classId, avatarKey: 'panda' })
-      .expect(403);
-    expect(reg.body).toMatchObject({ code: 'ACCOUNT_PENDING' });
-    const created = await t.prisma.user.findUniqueOrThrow({
-      where: { email },
-      include: { studentProfile: { include: { memberships: true } } },
-    });
-    expect(created).toMatchObject({ role: 'STUDENT', status: 'PENDING', loginMode: 'OWN' });
-    expect(created.studentProfile).toMatchObject({ requestedClassId: classId, memberships: [] });
-
-    const pending = await request(t.server)
+  it('học sinh không tự đăng nhập: 403 STUDENT_LOGIN_DISABLED', async () => {
+    const res = await request(t.server)
       .post(`${API_PREFIX}/auth/login`)
-      .send({ email, password })
+      .send({ email: 'kid.e2e@demo.local', password })
       .expect(403);
-    expect(pending.body.code).toBe('ACCOUNT_PENDING');
+    expect(res.body.code).toBe('STUDENT_LOGIN_DISABLED');
+    await request(t.server).post(`${API_PREFIX}/auth/register`).send({}).expect(404);
+  });
 
-    // Duyệt (màn Duyệt tài khoản có e2e riêng ở families) — ở đây mở thẳng bằng prisma
-    await t.prisma.user.update({ where: { id: created.id }, data: { status: 'ACTIVE' } });
-
+  it('login → refresh → reuse (401 REFRESH_REUSED) → me', async () => {
     const login = await request(t.server)
       .post(`${API_PREFIX}/auth/login`)
       .set(REFRESH_TRANSPORT_HEADER, 'body')
@@ -77,7 +68,7 @@ describe.skipIf(!enabled)('auth (e2e)', () => {
       .expect(200);
     expect(rotated.body.refreshToken).toBeTypeOf('string');
     expect(rotated.body.refreshToken).not.toBe(firstRefresh);
-    expect(rotated.body.user.id).toBe(created.id);
+    expect(rotated.body.user.id).toBe(parentId);
 
     // Dùng lại token đã xoay vòng → nghi bị đánh cắp: 401 REFRESH_REUSED và cả family bị thu hồi
     const reused = await request(t.server)
@@ -98,7 +89,7 @@ describe.skipIf(!enabled)('auth (e2e)', () => {
       .get(`${API_PREFIX}/auth/me`)
       .set('Authorization', `Bearer ${rotated.body.accessToken}`)
       .expect(200);
-    expect(me.body.user).toMatchObject({ id: created.id, email, role: 'STUDENT' });
+    expect(me.body.user).toMatchObject({ id: parentId, email, role: 'PARENT' });
     expect(Array.isArray(me.body.permissions)).toBe(true);
   });
 
@@ -133,10 +124,7 @@ describe.skipIf(!enabled)('auth (e2e)', () => {
     const noToken = await request(t.server).get(`${API_PREFIX}/auth/me`).expect(401);
     expect(noToken.body.code).toBe('UNAUTHORIZED');
 
-    const invalid = await request(t.server)
-      .post(`${API_PREFIX}/auth/register`)
-      .send({ email: 'x' })
-      .expect(400);
+    const invalid = await request(t.server).post(`${API_PREFIX}/auth/login`).send({ email: 'x' }).expect(400);
     expect(invalid.body.code).toBe('VALIDATION_ERROR');
     expect(invalid.body.details).toBeDefined();
   });

@@ -22,6 +22,7 @@ import { ExtraSlotWriterService } from '@/modules/extra-lessons/services/extra-s
 import { SessionSyncService } from '@/modules/extra-lessons/services/session-sync.service';
 import { SlotAssignmentService } from '@/modules/extra-lessons/services/slot-assignment.service';
 import { StudentExtraReaderService } from '@/modules/extra-lessons/services/student-extra-reader.service';
+import { TuitionNoticeService } from '@/modules/extra-lessons/services/tuition-notice.service';
 import { TuitionStatementService } from '@/modules/extra-lessons/services/tuition-statement.service';
 import { TuitionService } from '@/modules/extra-lessons/services/tuition.service';
 import { MailModule } from '@/modules/mail/mail.module';
@@ -59,6 +60,7 @@ import { SettingsModule } from '@/modules/settings/settings.module';
     ExtraEnrollmentService,
     TuitionRepository,
     TuitionService,
+    TuitionNoticeService,
     TuitionStatementService,
   ],
   exports: [ExtraEnrollmentService],

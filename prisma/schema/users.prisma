@@ -16,21 +16,16 @@ enum UserStatus {
   REJECTED
 }
 
-/// OWN: tự đăng nhập; MANAGED: học sinh chỉ vào qua tài khoản gia đình (không email / mật khẩu)
-enum LoginMode {
-  OWN
-  MANAGED
-}
-
 enum AuthProvider {
   LOCAL
   GOOGLE
 }
 
-/// Tài khoản chung cho admin / giáo viên / học sinh
+/// Tài khoản chung cho admin / giáo viên / phụ huynh / học sinh. Học sinh không có thông tin đăng nhập (email,
+/// mật khẩu, Google đều null) — phiên của bé chỉ mở qua tài khoản gia đình (`auth/switch-profile`)
 model User {
   id              String       @id @default(uuid()) @db.Uuid
-  /// Lưu chữ thường, đã trim. null với học sinh MANAGED (Postgres cho phép nhiều null trong unique)
+  /// Lưu chữ thường, đã trim. null với học sinh (Postgres cho phép nhiều null trong unique)
   email           String?      @unique
   emailVerified   Boolean      @default(false) @map("email_verified")
   /// null với tài khoản chỉ đăng nhập Google
@@ -39,12 +34,12 @@ model User {
   provider        AuthProvider @default(LOCAL)
   role            Role
   status          UserStatus   @default(ACTIVE)
-  loginMode       LoginMode    @default(OWN) @map("login_mode")
   displayName     String       @map("display_name")
   /// Key avatar preset (contracts AVATARS)
   avatarKey       String       @default("pip") @map("avatar_key")
   /// Tăng để vô hiệu mọi access token đang có
   tokenVersion    Int          @default(0) @map("token_version")
+  /// Học sinh: lần gần nhất hồ sơ bé được mở (phụ huynh chọn bé)
   lastLoginAt     DateTime?    @map("last_login_at")
   createdAt       DateTime     @default(now()) @map("created_at")
   updatedAt       DateTime     @updatedAt @map("updated_at")
@@ -60,7 +55,6 @@ model User {
   permissionGroups  UserPermissionGroup[]
   grantedPerms      UserPermission[]        @relation("GrantedBy")
   refreshTokens     RefreshToken[]
-  notifications     Notification[]
   pointEntriesMade  PointEntry[]            @relation("PointEntryCreatedBy")
   unlocksGranted    StudentGameUnlock[]     @relation("UnlockGrantedBy")
   auditLogs         AuditLog[]
@@ -99,12 +93,9 @@ model StudentProfile {
   nameSearch       String    @default("") @map("name_search")
   /// Tên (từ cuối) + họ tên, chữ thường bỏ dấu — sắp xếp kiểu Việt Nam theo tên
   nameSortKey      String    @default("") @map("name_sort_key")
-  parentName       String?   @map("parent_name")
-  parentEmail      String?   @map("parent_email")
-  parentPhone      String?   @map("parent_phone")
   /// Ghi chú nội bộ của admin
   notes            String?
-  /// Lớp muốn vào khi tự đăng ký (chờ duyệt); xoá khi được duyệt
+  /// Lớp muốn vào khi phụ huynh đăng ký (chờ duyệt); xoá khi được duyệt
   requestedClassId String?   @map("requested_class_id") @db.Uuid
   reviewedById     String?   @map("reviewed_by_id") @db.Uuid
   reviewedAt       DateTime? @map("reviewed_at")

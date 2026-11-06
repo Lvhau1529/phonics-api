@@ -29,6 +29,7 @@
     "qa:seed": "tsx scripts/qa-seed.ts",
     "media:cors": "tsx scripts/media-cors.ts",
     "mail:test": "tsx scripts/mail-test.ts",
+    "phones:normalize": "tsx scripts/normalize-phones.ts",
     "build:contracts": "pnpm --filter ./packages/contracts run build",
     "format": "prettier --write . && prisma format",
     "format:check": "prettier --check . && prisma format --check"

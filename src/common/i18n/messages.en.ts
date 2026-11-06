@@ -48,7 +48,8 @@ export const en: Messages = {
   PROFILE_NOT_ACCESSIBLE: 'You cannot open this profile',
   PROFILE_NOT_APPROVED: "This child's profile is waiting for approval",
   GUARDIAN_EMAIL_TAKEN: 'This email already belongs to another guardian',
-  STUDENT_IS_MANAGED: "This student signs in through a family account — use the parent's account",
+  STUDENT_LOGIN_DISABLED:
+    "Students don't sign in themselves — a parent signs in to the family account and picks the child",
   INVITE_TOKEN_INVALID: 'The password link is invalid or has expired',
   SLOT_ASSIGNMENT_OVERLAP: 'The student is already in this slot for overlapping dates',
   RATE_SCOPE_FORBIDDEN:
@@ -91,7 +92,6 @@ export const en: Messages = {
   permissionGroupsMissing: 'Some permission groups do not exist',
 
   accountCreatedPending: 'Your account was created and is waiting for approval',
-  managedNoPassword: "This student signs in through a family account — reset the parent's password instead",
   alreadyReviewed: 'This child was already approved or rejected by someone else',
   childNotPending: 'Only children waiting for approval can be changed or removed',
   noPendingChildren: 'No children are waiting for approval within your scope',
@@ -115,7 +115,6 @@ export const en: Messages = {
 
   dueAfterOpen: 'The due date must be after the open time',
   assignmentHasSubmissions: 'This assignment already has submissions — close it instead of deleting',
-  studentRepliesOnly: "Students can only reply to a teacher's comment",
   itemNotInSubmission: 'This question is not in the worksheet',
   overMaxScore: (p) => `${p.id}: exceeds the maximum score`,
 

@@ -60,8 +60,7 @@ Cấu trúc thư mục + versioning: [README > Cấu trúc](README.md#cấu-trú
   - Không có `entities/` (Prisma, không TypeORM): model ở `prisma/schema/*.prisma` (mỗi domain một file).
 - Versioning URI: `@Controller({ path: 'x', version: API_V1 })` (`config/api-version.ts`) → `/api/v1/x`.
   Controller thiếu `version` sẽ không có prefix version — chỉ dùng cho health (`VERSION_NEUTRAL`).
-- Module `@Global()`: Env, Prisma, Time, Access (core) và Notifications, Permissions, Auth — inject thẳng, không
-  cần import. Các module khác phải `imports: [...]` (vd `PointsModule` để dùng `RankingService`).
+- Module `@Global()`: Env, Prisma, Time, Access (core) và Permissions, Auth — inject thẳng, không cần import. Các module khác phải `imports: [...]` (vd `PointsModule` để dùng `RankingService`).
 - Guard toàn cục theo thứ tự: Throttler → `JwtAuthGuard` (gắn `req.user: AuthUser`) → `RolesGuard`
   (`@Roles`) → `PermissionsGuard` (`@RequirePermission`). ADMIN pass mọi permission. **Phạm vi** (GV chỉ lớp mình)
   kiểm tra trong service bằng `AccessService.assertClassAccess / assertStudentAccess / scopedClassIds`.
@@ -81,8 +80,7 @@ Cấu trúc thư mục + versioning: [README > Cấu trúc](README.md#cấu-trú
   Bảng / cột snake_case qua `@@map` — SQL raw (`$queryRaw`) dùng tên snake_case.
 - Thời gian: mọi "hôm nay / tuần / tháng" qua `TimeService` (APP_TIMEZONE), không dùng `new Date()` trần.
 - Điểm: chỉ `GameResultWriterService` và `PointBonusService` (qua repository của module) được tạo `point_entries`;
-  sau mỗi bút toán phải gọi `RankingService.recomputeAndNotify(tx, classId, actorStudentId?)` trong cùng transaction.
-  Luật điểm nằm ở `POINT_RULES` (contracts) + `GAME_REGISTRY` (`config/constants.ts`).
+  xếp hạng tính khi đọc (`RankingService.rankClass`), không lưu. Luật điểm nằm ở `POINT_RULES` (contracts) + `GAME_REGISTRY` (`config/constants.ts`).
 - Audit: gọi `AuditService.record(actor, action, targetType, targetId, before, after)` ở thao tác nhạy cảm;
   `action` phải thuộc `AuditAction` (contracts).
 
@@ -94,7 +92,8 @@ Cấu trúc thư mục + versioning: [README > Cấu trúc](README.md#cấu-trú
    đúng use case (`*-reader` / `*-writer`…); hàm view trong `dto/responses/`; method controller trong `controllers/`
    đúng actor (thin: DTO → service → view đúng shape contracts), decorator `@Roles` / `@RequirePermission` / `@Public`
    phù hợp. Controller mới phải khai báo `version: API_V1` và được đăng ký trong `<module>.module.ts`.
-3. Kiểm tra scope trong service; audit nếu nhạy cảm; thông báo (`NotificationsService`) nếu học sinh cần biết.
+3. Kiểm tra scope trong service; audit nếu nhạy cảm. Không có thông báo trong app (học sinh ~5 tuổi không đọc; xem
+   `docs/family-first.md`).
 4. Unit test cạnh service (`*.spec.ts`, Vitest + `vitest-mock-extended`, khởi tạo service bằng tay — repository thật
    bọc `mockDeep<PrismaService>()` để assert trên lời gọi Prisma); hàm thuần trong `utils/` test riêng; e2e trong
    `test/e2e` nếu là luồng chính.
@@ -113,7 +112,7 @@ sinh ra (index partial / SQL đặc biệt thêm tay vào file migration, không
 - TypeScript 6 (classic) cho app này (Nest cần decorator metadata; TS 7 chưa có compiler API). Build bằng SWC
   (`nest-cli.json`), typecheck bằng `tsc --noEmit`.
 - Import bằng alias `@/` → `src` (ESLint cấm `../`; khai báo ở `tsconfig.json`, `.swcrc`, `vitest.config.ts`), inline `import { type X }`. Comment / JSDoc tiếng Việt, identifier tiếng Anh,
-  chuỗi thông báo cho học sinh (notification title/body) tiếng Anh ngắn gọn, message lỗi qua khoá i18n (vi + en).
+  message lỗi qua khoá i18n (vi + en).
 - Không bao giờ trả `passwordHash`, `googleSub`, `tokenVersion`, token ra ngoài. Không log secret
   (pino đã redact `authorization` / `cookie`).
 - Secret chỉ trong `.env` (gitignored); thêm biến mới = sửa `config/env.schema.ts` + `.env.example` + README.

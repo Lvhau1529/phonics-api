@@ -10,7 +10,6 @@ import { type StudentNames } from '@/common/utils/student-names';
 export const TEACHER_EDITABLE_FIELDS: readonly (keyof UpdateStudentBody)[] = [
   'vietnameseName',
   'englishName',
-  'displayName',
   'avatarKey',
 ];
 
@@ -35,7 +34,7 @@ export function studentNamesOf(row: StudentRow): StudentNames {
   };
 }
 
-/** Dữ liệu profile cần ghi (ghi chú); rỗng = không đụng profile. Phụ huynh (`parent`) ghi vào guardians. */
+/** Dữ liệu profile cần ghi (ghi chú); rỗng = không đụng profile */
 export function profileUpdateOf(body: UpdateStudentBody): Prisma.StudentProfileUpdateInput {
   const data: Prisma.StudentProfileUpdateInput = {};
   if (body.notes !== undefined) data.notes = body.notes;
@@ -50,7 +49,7 @@ export function studentAuditDiff(
 ): { before: Record<string, unknown>; after: Record<string, unknown> } {
   const before: Record<string, unknown> = {};
   const after: Record<string, unknown> = {};
-  for (const key of ['avatarKey', 'email', 'status'] as const) {
+  for (const key of ['avatarKey', 'status'] as const) {
     if (body[key] !== undefined && body[key] !== current[key]) {
       before[key] = current[key];
       after[key] = updated[key];

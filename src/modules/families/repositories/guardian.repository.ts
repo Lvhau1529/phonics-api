@@ -118,24 +118,6 @@ export class GuardianRepository {
     }));
   }
 
-  /** Học sinh theo id (kiểm tra role ở service) — thông tin đăng nhập để chuyển sang tài khoản gia đình */
-  findStudentAccounts(ids: readonly string[], db: Db = this.prisma) {
-    return db.user.findMany({
-      where: { id: { in: [...ids] }, role: 'STUDENT', deletedAt: null },
-      select: {
-        id: true,
-        email: true,
-        emailVerified: true,
-        passwordHash: true,
-        googleSub: true,
-        provider: true,
-        loginMode: true,
-        displayName: true,
-        studentProfile: { select: { vietnameseName: true, englishName: true } },
-      },
-    });
-  }
-
   /** Bé thôi được phụ huynh mở hồ sơ: vô hiệu access token + thu hồi phiên do phụ huynh đó mở */
   async revokeActorSessions(tx: Tx, studentId: string, actorId: string, at: Date): Promise<void> {
     await tx.refreshToken.updateMany({
@@ -143,25 +125,6 @@ export class GuardianRepository {
       data: { revokedAt: at },
     });
     await tx.user.update({ where: { id: studentId }, data: { tokenVersion: { increment: 1 } } });
-  }
-
-  /** Học sinh chuyển sang MANAGED: bỏ thông tin đăng nhập riêng, đăng xuất mọi phiên */
-  async makeManaged(tx: Tx, studentId: string, at: Date): Promise<void> {
-    await tx.user.update({
-      where: { id: studentId },
-      data: {
-        loginMode: 'MANAGED',
-        email: null,
-        emailVerified: false,
-        passwordHash: null,
-        googleSub: null,
-        tokenVersion: { increment: 1 },
-      },
-    });
-    await tx.refreshToken.updateMany({
-      where: { userId: studentId, revokedAt: null },
-      data: { revokedAt: at },
-    });
   }
 
   createParentUser(tx: Tx, data: Omit<Prisma.UserCreateInput, 'role'>) {

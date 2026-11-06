@@ -15,9 +15,6 @@ export const GAME_REGISTRY: Record<string, { maxTotal: number; maxScore: number 
   'halloween-candy-quest': { maxTotal: 30, maxScore: 100 },
 };
 
-/** Khi nào tạo thông báo đổi hạng: 'all' mọi thay đổi, 'improve' chỉ khi lên hạng */
-export const RANK_NOTIFY_POLICY: 'all' | 'improve' = 'all';
-
 export const AUTH = {
   /** Số byte ngẫu nhiên của refresh token (base64url) */
   refreshTokenBytes: 32,

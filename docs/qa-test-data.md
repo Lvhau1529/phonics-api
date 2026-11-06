@@ -1,6 +1,6 @@
 # Dữ liệu test QA (sinh bởi `scripts/qa-seed.ts`)
 
-Sinh lúc 16:10 16/10/26 (Asia/Ho_Chi_Minh) qua API `http://localhost:3000`. Mọi dữ liệu tạo qua HTTP API nên đã đi qua đủ luật nghiệp vụ.
+Sinh lúc 02:17 6/11/26 (Asia/Ho_Chi_Minh) qua API `http://localhost:3000`. Mọi dữ liệu tạo qua HTTP API nên đã đi qua đủ luật nghiệp vụ.
 
 > Lưu ý: ván game / sự kiện chỉ nhận `playedAt` trong 24 giờ, "hôm nay / tuần" tính theo giờ VN — xem bảng xếp hạng với `range=all` nếu chạy script từ hôm trước.
 
@@ -8,23 +8,28 @@ Sinh lúc 16:10 16/10/26 (Asia/Ho_Chi_Minh) qua API `http://localhost:3000`. M�
 
 | Vai trò | Email | Mật khẩu | Ghi chú |
 | --- | --- | --- | --- |
-| ADMIN | admin@phonics.local | 12345678 (ADMIN_PASSWORD trong .env) | |
+| ADMIN | admin@phonics.local | (ADMIN_PASSWORD trong .env) | |
 | TEACHER | gv.lan@qa.phonics.local | 12345678 | dạy Sunflower, Star, Old; nhóm "Giáo viên chủ nhiệm" (chuyển lớp, xem phụ huynh, mở khoá game) |
 | TEACHER | gv.minh@qa.phonics.local | 12345678 | dạy Sunflower, Rainbow; bị REVOKE `reports.export` |
 | TEACHER | gv.nghi@qa.phonics.local | 12345678 | DISABLED → không đăng nhập được |
-| STUDENT | hs.an@qa.phonics.local | 12345678 | Sunflower — phụ huynh có SĐT + email; điểm phiếu cao nhất |
-| STUDENT | hs.binh@qa.phonics.local | 12345678 | Sunflower — chạm trần 60 điểm / ngày; bị trừ -3; bị thu hồi phonics-ocean |
-| STUDENT | hs.chi@qa.phonics.local | 12345678 | Sunflower — tự mở khoá phonics-ocean bằng kim cương; có nhận xét + trả lời |
-| STUDENT | hs.dung@qa.phonics.local | 12345678 | Sunflower — đang làm dở phiếu Short a |
-| STUDENT | hs.en@qa.phonics.local | 12345678 | Sunflower — được thưởng +15, chưa làm phiếu (MISSING) |
-| STUDENT | hs.phuc@qa.phonics.local | 12345678 | Star (chuyển từ Sunflower) — nhận CLASS_CHANGED; điểm cũ đi theo |
-| STUDENT | hs.giang@qa.phonics.local | 12345678 | Rainbow — chơi game đang tắt (0 điểm); nộp bài trễ hạn |
-| STUDENT | hs.ha@qa.phonics.local | 12345678 | Rainbow — gửi trùng ván game (duplicate) |
-| STUDENT | hs.khang@qa.phonics.local | 12345678 | Rainbow — gửi kết quả bất hợp lý (bị từ chối) |
-| STUDENT | hs.linh@qa.phonics.local | 12345678 | Rainbow — DISABLED → không đăng nhập được |
-| STUDENT | hs.manh@qa.phonics.local | 12345678 | Rainbow — đăng ký bằng `Old123456`, admin reset về mật khẩu chung |
 
-Ngoài ra seed demo (`SEED_DEMO=true`) có sẵn `teacher1@demo.local`, `teacher2@demo.local`, `k2a.student01@demo.local`… mật khẩu `12345678`.
+Học sinh không có tài khoản riêng: đăng nhập tài khoản phụ huynh rồi chọn bé.
+
+| Phụ huynh (đăng nhập) | Mật khẩu | Bé | Ghi chú |
+| --- | --- | --- | --- |
+| ph.an@qa.phonics.local | 12345678 | an (Sunflower) | phụ huynh có SĐT + email; điểm phiếu cao nhất |
+| ph.binh@qa.phonics.local | 12345678 | binh (Sunflower) | chạm trần 60 điểm / ngày; bị trừ -3; bị thu hồi phonics-ocean |
+| ph.chi@qa.phonics.local | 12345678 | chi (Sunflower) | tự mở khoá phonics-ocean bằng kim cương; có nhận xét của cô |
+| ph.dung@qa.phonics.local | 12345678 | dung (Sunflower) | đang làm dở phiếu Short a |
+| ph.en@qa.phonics.local | 12345678 | en (Sunflower) | được thưởng +15, chưa làm phiếu (MISSING) |
+| ph.phuc@qa.phonics.local | 12345678 | phuc (Star (chuyển từ Sunflower)) | điểm cũ đi theo khi chuyển lớp |
+| ph.giang@qa.phonics.local | 12345678 | giang (Rainbow) | chơi game đang tắt (0 điểm); nộp bài trễ hạn |
+| ph.ha@qa.phonics.local | 12345678 | ha (Rainbow) | gửi trùng ván game (duplicate) |
+| ph.khang@qa.phonics.local | 12345678 | khang (Rainbow) | gửi kết quả bất hợp lý (bị từ chối) |
+| ph.linh@qa.phonics.local | 12345678 | linh (Rainbow) | hồ sơ DISABLED → phụ huynh không mở được |
+| ph.manh@qa.phonics.local | 12345678 | manh (Rainbow) |  |
+
+Ngoài ra seed demo (`SEED_DEMO=true`) có sẵn `teacher1@demo.local`, `teacher2@demo.local`, phụ huynh `k2a.parent01@demo.local`… mật khẩu `12345678`.
 
 ## Lớp
 
@@ -100,7 +105,7 @@ Ngoài ra seed demo (`SEED_DEMO=true`) có sẵn `teacher1@demo.local`, `teacher
 
 ## Kết quả kiểm tra nghiệp vụ
 
-**68/68 PASS** — audit log hiện có 52 bản ghi.
+**65/65 PASS** — audit log hiện có 62 bản ghi.
 
 
 ### 1. Giáo viên, lớp, phân quyền
@@ -112,15 +117,16 @@ Ngoài ra seed demo (`SEED_DEMO=true`) có sẵn `teacher1@demo.local`, `teacher
 | ✅ | GV bị khoá đăng nhập | 403 ACCOUNT_DISABLED | 403 ACCOUNT_DISABLED — Tài khoản đã bị khoá |
 | ✅ | Form đăng ký chỉ hiện lớp joinVisible và chưa lưu trữ | có Sunflower, Rainbow; không có Star, Old | ["QA-K3 Rainbow","QA-K3 Sunflower"] |
 
-### 2. Học sinh đăng ký
+### 2. Đăng ký gia đình
 
 | | Kịch bản | Mong đợi | Thực tế |
 | --- | --- | --- | --- |
-| ✅ | Đăng ký 11 học sinh (6 Sunflower, 5 Rainbow) | 11 | 11 |
-| ✅ | Đăng ký vào lớp ẩn (joinVisible=false) | 400 CLASS_NOT_JOINABLE | 400 CLASS_NOT_JOINABLE — Lớp này không nhận học sinh mới |
-| ✅ | Đăng ký vào lớp đã lưu trữ | 400 CLASS_NOT_JOINABLE | 400 CLASS_NOT_JOINABLE — Lớp này không nhận học sinh mới |
-| ✅ | Đăng ký trùng email | 409 EMAIL_TAKEN | 409 EMAIL_TAKEN — Email đã được sử dụng |
+| ✅ | 11 gia đình đăng ký, admin duyệt (6 Sunflower, 5 Rainbow) | 11 | 11 |
+| ✅ | Đăng ký gia đình vào lớp ẩn (joinVisible=false) | 400 CLASS_NOT_JOINABLE | 400 CLASS_NOT_JOINABLE — Lớp này không nhận học sinh mới |
+| ✅ | Đăng ký gia đình vào lớp đã lưu trữ | 400 CLASS_NOT_JOINABLE | 400 CLASS_NOT_JOINABLE — Lớp này không nhận học sinh mới |
+| ✅ | Đăng ký gia đình trùng email | 409 EMAIL_TAKEN | 409 EMAIL_TAKEN — Email đã có tài khoản — hãy đăng nhập bằng mật khẩu hoặc Google |
 | ✅ | Đăng nhập sai mật khẩu | 401 INVALID_CREDENTIALS | 401 INVALID_CREDENTIALS — Sai email hoặc mật khẩu |
+| ✅ | Học sinh tự đăng ký (đã bỏ) | 404 | 404 NOT_FOUND — Không tìm thấy |
 
 ### 3. Catalog game
 
@@ -147,7 +153,7 @@ Ngoài ra seed demo (`SEED_DEMO=true`) có sẵn `teacher1@demo.local`, `teacher
 
 | | Kịch bản | Mong đợi | Thực tế |
 | --- | --- | --- | --- |
-| ✅ | Cô Lan thưởng Én +15 → Én lên hạng | hạng hiện tại < hạng trước | {"previous":6,"current":3} |
+| ✅ | Cô Lan thưởng Én +15 | +15 | 15 |
 | ✅ | Cô Lan thưởng cả lớp Sunflower +2 (batch) | 6 bút toán | 6 |
 | ✅ | Cô Lan trừ điểm (-3) khi không có points.revoke | 403 | 403 FORBIDDEN_PERMISSION — Thiếu quyền thực hiện thao tác này |
 | ✅ | Admin trừ Bình -3 (bút toán âm) | points = -3 | -3 |
@@ -162,11 +168,9 @@ Ngoài ra seed demo (`SEED_DEMO=true`) có sẵn `teacher1@demo.local`, `teacher
 | --- | --- | --- | --- |
 | ✅ | Thầy Minh chuyển lớp học sinh (không có class.changeStudentClass) | 403 | 403 FORBIDDEN_PERMISSION — Thiếu quyền thực hiện thao tác này |
 | ✅ | Cô Lan chuyển Phúc Sunflower → Star (điểm đi theo học sinh) | class = QA-K1 Star | QA-K1 Star |
-| ✅ | Thầy Minh xem học sinh: không thấy liên hệ phụ huynh | parent = null | null |
-| ✅ | Cô Lan (nhóm chủ nhiệm) xem được liên hệ phụ huynh | có parent | Nguyễn Văn Ba |
-| ✅ | Linh bị khoá tài khoản → đăng nhập | 403 ACCOUNT_DISABLED | 403 ACCOUNT_DISABLED — Tài khoản đã bị khoá |
-| ✅ | Mạnh đăng nhập bằng mật khẩu cũ sau khi admin reset | 401 INVALID_CREDENTIALS | 401 INVALID_CREDENTIALS — Sai email hoặc mật khẩu |
-| ✅ | Mạnh đăng nhập bằng mật khẩu mới | OK | OK |
+| ✅ | Cô Lan (GV lớp, quyền mặc định students.viewParentContact) xem được phụ huynh | có phụ huynh | Nguyễn Văn Ba |
+| ✅ | Linh bị khoá hồ sơ → phụ huynh không mở hồ sơ bé được | 403 PROFILE_NOT_ACCESSIBLE | 403 PROFILE_NOT_ACCESSIBLE — Bạn không được vào hồ sơ này |
+| ✅ | Phiên phụ huynh đã mở cho Linh hết hiệu lực khi bị khoá | 401 | 401 UNAUTHORIZED — Cần đăng nhập |
 
 ### 7. Câu hỏi và phiếu bài tập
 
@@ -208,7 +212,8 @@ Ngoài ra seed demo (`SEED_DEMO=true`) có sẵn `teacher1@demo.local`, `teacher
 | ✅ | Bài Letter Ss (showAnswersAfterSubmit=false): học sinh không thấy đáp án | 0 câu có answerKey | 0 |
 | ✅ | Cô Lan chấm An 3/3 câu nói và chốt | 4/4 GRADED | 4/4 GRADED |
 | ✅ | Cô Lan chấm Chi 1.5/3 (điểm lẻ 0.25) | 2.5/4 GRADED | 2.5/4 |
-| ✅ | Học sinh tạo nhận xét gốc (không có parentId) | 400 | 400 VALIDATION_ERROR — Dữ liệu không hợp lệ |
+| ✅ | Chi (phiên phụ huynh mở) xem được nhận xét của cô | 1 nhận xét | 1 |
+| ✅ | Bé / phụ huynh không trả lời nhận xét (chỉ xem) | 404 | 404 NOT_FOUND — Không tìm thấy |
 | ✅ | Bình (SUBMITTED) để lại chờ chấm → hiện ở "chờ chấm" | SUBMITTED | SUBMITTED |
 
 ### 11. Bài trễ hạn / đã đóng
@@ -219,14 +224,11 @@ Ngoài ra seed demo (`SEED_DEMO=true`) có sẵn `teacher1@demo.local`, `teacher
 | ✅ | Hà làm bài đã quá hạn (allowLate=false) | 409 ASSIGNMENT_NOT_OPEN | 409 ASSIGNMENT_NOT_OPEN — Bài tập chưa mở hoặc đã đóng |
 | ✅ | Xoá bài giao đã có bài nộp | 409 CONFLICT | 409 CONFLICT — Đã có bài nộp — hãy đóng bài thay vì xoá |
 
-### 12. Thông báo, báo cáo, thống kê
+### 12. Báo cáo, thống kê
 
 | | Kịch bản | Mong đợi | Thực tế |
 | --- | --- | --- | --- |
-| ✅ | Thông báo của Chi | có ASSIGNMENT_NEW, SUBMISSION_GRADED, COMMENT_REPLY, BONUS_AWARDED (không có GAME_UNLOCKED vì Chi tự mở khoá trước) | ["ASSIGNMENT_NEW","BONUS_AWARDED","COMMENT_REPLY","RANK_CHANGED","SUBMISSION_GRADED"] |
-| ✅ | Thông báo của Phúc | có CLASS_CHANGED | ["BONUS_AWARDED","CLASS_CHANGED","GAME_UNLOCKED","RANK_CHANGED"] |
-| ✅ | Thông báo của Én | có BONUS_AWARDED, RANK_CHANGED | ["ASSIGNMENT_NEW","BONUS_AWARDED","GAME_UNLOCKED","RANK_CHANGED"] |
-| ✅ | Cô Lan xuất bảng xếp hạng xlsx | 200 + file | 200 7082 bytes |
+| ✅ | Cô Lan xuất bảng xếp hạng xlsx | 200 + file | 200 7083 bytes |
 | ✅ | Thầy Minh xuất báo cáo (bị REVOKE reports.export) | 403 | 403 FORBIDDEN_PERMISSION — Thiếu quyền thực hiện thao tác này |
 | ✅ | Dashboard bài tập của Cô Lan | openCount 2, pendingGrading 1 (bài của Bình) | openCount 2, pendingGrading 1 |
 | ✅ | Scheduler đóng bài quá hạn không cho trễ; bài cho trễ vẫn mở | closed=CLOSED, late=OPEN | closed=CLOSED, late=OPEN |

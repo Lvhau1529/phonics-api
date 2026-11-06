@@ -7,26 +7,21 @@ import {
 } from '@phonics/contracts';
 import { AppError } from '@/common/errors/app-error';
 import { AccessService } from '@/core/access/access.service';
-import { type Tx } from '@/database/types';
 import { AuditService } from '@/modules/audit/services/audit.service';
 import { type AuthUser } from '@/modules/auth/types/auth.types';
-import { NotificationsService } from '@/modules/notifications/services/notifications.service';
-import { bonusTitle, toEntryView } from '@/modules/points/dto/responses/point-entry.view';
+import { toEntryView } from '@/modules/points/dto/responses/point-entry.view';
 import { PointRepository } from '@/modules/points/repositories/point.repository';
 import { type PointEntryRow } from '@/modules/points/types/point.types';
-import { RankingService } from '@/modules/points/services/ranking.service';
 
 /** Trừ điểm cần quyền riêng (points.revoke) — kiểm tra ở service vì guard không biết dấu của points */
 const revokeForbidden = () =>
   new AppError('FORBIDDEN_PERMISSION', 403, { details: { permission: ['points.revoke'] } });
 
-/** GV / admin cộng (hoặc trừ) điểm thưởng: tạo point_entries + thông báo + tính lại hạng */
+/** GV / admin cộng (hoặc trừ) điểm thưởng: tạo point_entries + audit */
 @Injectable()
 export class PointBonusService {
   constructor(
     private readonly repo: PointRepository,
-    private readonly ranking: RankingService,
-    private readonly notifications: NotificationsService,
     private readonly access: AccessService,
     private readonly audit: AuditService,
   ) {}
@@ -49,31 +44,13 @@ export class PointBonusService {
         note: body.note,
         createdById: actor.id,
       });
-      const actorName = await this.actorName(tx, actor);
-      await this.notifications.create(
-        {
-          userId: body.studentId,
-          type: 'BONUS_AWARDED',
-          title: bonusTitle(body.points, actorName),
-          body: body.note,
-          data: {
-            pointEntryId: row.id,
-            classId,
-            points: body.points,
-            byUserId: actor.id,
-            gameId: body.gameId ?? null,
-          },
-        },
-        tx,
-      );
-      const rank = await this.ranking.recomputeAndNotify(tx, classId, body.studentId);
-      return { entry: toEntryView(row), rank };
+      return { entry: toEntryView(row) };
     });
     await this.audit.record(actor, 'points.bonus', 'PointEntry', result.entry.id, null, body);
     return result;
   }
 
-  /** Nhiều học sinh một lần: một transaction, một lần tính lại hạng */
+  /** Nhiều học sinh một lần: một transaction */
   async awardBonusBatch(
     actor: AuthUser,
     classId: string,
@@ -90,7 +67,6 @@ export class PointBonusService {
     }
 
     const entries = await this.repo.transaction(async (tx) => {
-      const actorName = await this.actorName(tx, actor);
       const rows: PointEntryRow[] = [];
       for (const e of body.entries) {
         rows.push(
@@ -104,17 +80,6 @@ export class PointBonusService {
           }),
         );
       }
-      await this.notifications.createMany(
-        rows.map((row) => ({
-          userId: row.studentId,
-          type: 'BONUS_AWARDED' as const,
-          title: bonusTitle(row.points, actorName),
-          body: row.note ?? '',
-          data: { pointEntryId: row.id, classId, points: row.points, byUserId: actor.id, gameId: row.gameId },
-        })),
-        tx,
-      );
-      await this.ranking.recomputeAndNotify(tx, classId);
       return rows.map(toEntryView);
     });
     await this.audit.record(actor, 'points.bonus', 'Class', classId, null, {
@@ -122,9 +87,5 @@ export class PointBonusService {
       entries: body.entries,
     });
     return entries;
-  }
-
-  private async actorName(tx: Tx, actor: AuthUser): Promise<string> {
-    return (await this.repo.displayName(tx, actor.id)) ?? 'your teacher';
   }
 }

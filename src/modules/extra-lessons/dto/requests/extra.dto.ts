@@ -5,6 +5,7 @@ import {
   CancelDigestBody,
   ConfirmDigestBody,
   ResendDigestBody,
+  TuitionNoticeQuery,
   TuitionQuery,
   TuitionStatementQuery,
   CreateAttendanceSessionBody,
@@ -46,3 +47,5 @@ export class StudentAttendanceQueryDto extends createZodDto(StudentAttendanceQue
 export class TuitionQueryDto extends createZodDto(TuitionQuery) {}
 export class ResendDigestDto extends createZodDto(ResendDigestBody) {}
 export class TuitionStatementQueryDto extends createZodDto(TuitionStatementQuery) {}
+
+export class TuitionNoticeQueryDto extends createZodDto(TuitionNoticeQuery) {}

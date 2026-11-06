@@ -46,7 +46,7 @@ export const MAIL_TEMPLATES: Record<MailTemplateKey, MailTemplateDef> = {
     sample: {
       parentName: 'Nguyễn Thị Lan',
       childrenText: 'Nguyễn Văn An (Andy), Nguyễn Thị Bình',
-      link: 'https://game.example.vn/set-password?token=abc',
+      link: 'https://game.example.vn/#/set-password?token=abc',
       expiresHours: 72,
       email: 'lan@example.vn',
     },
