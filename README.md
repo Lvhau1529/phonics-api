@@ -205,6 +205,9 @@ Sau đó đặt `VITE_API_URL=https://api.example.vn` cho game / admin trên Ver
   `src/database/seeds/` thành `dist/database/seeds/`; `prisma.config.ts` chọn lệnh seed theo `NODE_ENV` (production →
   `node dist/database/seeds/seed.js`, còn lại → `tsx src/database/seeds/seed.ts`). Chạy trong container đang chạy (đọc biến từ `.env.production`):
   `docker compose exec api node_modules/.bin/prisma db seed`.
+- Chuẩn hoá lại số điện thoại phụ huynh đã lưu (`src/database/maintenance/normalize-phones.ts`, cũng được biên dịch
+  vào `dist/`): chạy không có `--apply` để xem trước số sẽ đổi và số không hợp lệ (sửa tay ở admin), rồi mới ghi:
+  `docker compose exec api node dist/database/maintenance/normalize-phones.js [--apply]` (dev: `pnpm phones:normalize`).
 
 
 ### Cảnh báo & backup ngoài VPS
