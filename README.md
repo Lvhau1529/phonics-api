@@ -173,8 +173,8 @@ Sau đó đặt `VITE_API_URL=https://api.example.vn` cho game / admin trên Ver
 - Dữ liệu nằm trong volume `pgdata` (Postgres) và `media` (ảnh / audio) — `docker compose down` giữ volume,
   **`down -v` xoá sạch**. psql: `docker compose exec db psql -U phonics`.
 - Backup (service `backup`, `deploy/backup.sh`): khi khởi động và mỗi 24 giờ ghi `./backups/db-<thời điểm>.dump`
-  (pg_dump) + `./backups/media-<thời điểm>.tar.gz`, giữ `BACKUP_KEEP_DAYS` ngày (mặc định 7). Nên chép `./backups`
-  ra ngoài VPS định kỳ (rsync / rclone lên máy khác hoặc cloud). Khôi phục:
+  (pg_dump) + `./backups/media-<thời điểm>.tar.gz`, giữ `BACKUP_KEEP_DAYS` ngày (mặc định 7). Chép ra kho ngoài VPS + báo lỗi qua Telegram: xem
+  [Cảnh báo & backup ngoài VPS](#cảnh-báo--backup-ngoài-vps). Khôi phục:
 
   ```bash
   docker compose stop api
@@ -205,6 +205,48 @@ Sau đó đặt `VITE_API_URL=https://api.example.vn` cho game / admin trên Ver
   `src/database/seeds/` thành `dist/database/seeds/`; `prisma.config.ts` chọn lệnh seed theo `NODE_ENV` (production →
   `node dist/database/seeds/seed.js`, còn lại → `tsx src/database/seeds/seed.ts`). Chạy trong container đang chạy (đọc biến từ `.env.production`):
   `docker compose exec api node_modules/.bin/prisma db seed`.
+- Chuẩn hoá lại số điện thoại phụ huynh đã lưu (`src/database/maintenance/normalize-phones.ts`, cũng được biên dịch
+  vào `dist/`): chạy không có `--apply` để xem trước số sẽ đổi và số không hợp lệ (sửa tay ở admin), rồi mới ghi:
+  `docker compose exec api node dist/database/maintenance/normalize-phones.js [--apply]` (dev: `pnpm phones:normalize`).
+
+
+### Cảnh báo & backup ngoài VPS
+
+Tất cả gửi về **một nhóm / chat Telegram**. Chưa cấu hình thì mọi thứ chạy như cũ (bước gửi tự bỏ qua).
+
+1. **Bot Telegram**: nhắn `@BotFather` → `/newbot` → lấy **bot token**. Thêm bot vào nhóm (hoặc nhắn riêng cho bot
+   một tin), mở `https://api.telegram.org/bot<TOKEN>/getUpdates` → lấy `chat.id` (nhóm là số âm, vd `-100…`).
+2. **Báo deploy**: thêm secret `TELEGRAM_BOT_TOKEN` + `TELEGRAM_CHAT_ID` (repo > Settings > Secrets and variables >
+   Actions) ở cả 3 repo:
+   - phonics-api: job `notify` cuối `ci.yml` — mỗi lần push `main`: ✅ đã deploy / ❌ lỗi ở bước nào / ⚠️ bị huỷ.
+   - phonics-admin, phonics-game: workflow `deploy-notify.yml` nghe `deployment_status` mà Vercel gửi về GitHub —
+     deploy Production xong hoặc lỗi (Preview không báo).
+3. **Backup + ổ đĩa** (service `backup`): thêm vào file `.env` cạnh `docker-compose.yml` trên VPS rồi
+   `docker compose up -d backup`:
+
+   ```bash
+   TELEGRAM_BOT_TOKEN=123456:ABC...
+   TELEGRAM_CHAT_ID=-100123456789
+   # Kho ngoài VPS (tạo bucket riêng + API token chỉ có quyền Object Read & Write trên bucket đó)
+   BACKUP_S3_BUCKET=phonics-backups
+   BACKUP_S3_ENDPOINT=https://<account_id>.r2.cloudflarestorage.com   # Backblaze B2: https://s3.<region>.backblazeb2.com
+   BACKUP_S3_ACCESS_KEY_ID=...
+   BACKUP_S3_SECRET_ACCESS_KEY=...
+   # BACKUP_S3_PROVIDER=Cloudflare        # B2 / nhà cung cấp khác: Other
+   # BACKUP_OFFSITE_KEEP_DAYS=30          # số ngày giữ ở kho ngoài
+   # BACKUP_NOTIFY_SUCCESS=false          # tắt tin "✅ backup xong" hằng ngày (mặc định bật — không thấy tin = có vấn đề)
+   # BACKUP_DISK_ALERT_PCT=85             # báo khi ổ đĩa VPS dùng ≥ 85%
+   ```
+
+   Kiểm tra ngay: `docker compose restart backup && docker compose logs -f backup` (khởi động lại = chạy một lần
+   backup, Telegram nhận ✅). Thử khôi phục từ kho ngoài ít nhất mỗi tháng một lần (tải bản `db-*.dump` về, làm theo
+   bước Khôi phục ở trên trên một máy khác).
+4. **API / web sập** (theo dõi từ bên ngoài, gói free của [UptimeRobot](https://uptimerobot.com)): My Settings >
+   Alert Contacts > thêm Telegram; tạo monitor HTTP(s) 5 phút / lần:
+   - `https://<API_DOMAIN>/api/health/db` (API + DB; chết khi VPS mất mạng / API crash / DB lỗi)
+   - URL production của game và admin trên Vercel
+
+   UptimeRobot báo khi sập và khi hồi phục; có thể bật thêm Status page công khai cho giáo viên xem.
 
 ## Biến môi trường
 
