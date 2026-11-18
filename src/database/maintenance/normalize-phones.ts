@@ -1,31 +1,32 @@
 /**
  * Chuẩn hoá lại số điện thoại phụ huynh đã lưu (bảng `guardians`) theo luật mới của contracts (`normalizePhone`:
  * đầu số 11 số cũ → mới, `+84 0…`, `0084…`, quên số 0) và liệt kê số không hợp lệ để sửa tay ở admin.
- *   pnpm phones:normalize           # chỉ xem (không ghi)
- *   pnpm phones:normalize --apply   # ghi thay đổi
- * Dùng DATABASE_URL trong .env (chạy trong container API trên VPS: `docker compose exec api pnpm phones:normalize`).
+ *   pnpm phones:normalize           # dev: chỉ xem (không ghi)
+ *   pnpm phones:normalize --apply   # dev: ghi thay đổi
+ * Production: ảnh Docker không có pnpm / tsx / src — chạy bản đã build (nest build biên dịch cả thư mục này):
+ *   docker compose exec api node dist/database/maintenance/normalize-phones.js [--apply]
+ * Kết nối: DIRECT_URL / DATABASE_URL (dev đọc .env, container API có sẵn biến).
  */
 import 'dotenv/config';
-import { isValidPhone, normalizePhone } from '@phonics/contracts';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '@/generated/prisma/client';
+import { planPhoneChanges } from '@/database/maintenance/phone-changes';
+import { connectionString } from '@/database/seeds/seed-helpers';
 
 async function main(): Promise<void> {
   const apply = process.argv.includes('--apply');
-  const url = process.env.DATABASE_URL;
-  if (!url) throw new Error('Thiếu DATABASE_URL');
-  const prisma = new PrismaClient({ adapter: new PrismaPg({ connectionString: url, max: 1 }) });
+  const prisma = new PrismaClient({
+    adapter: new PrismaPg({ connectionString: connectionString(), max: 1 }),
+  });
   try {
     const rows = await prisma.guardian.findMany({
       where: { deletedAt: null, phone: { not: null } },
       select: { id: true, fullName: true, phone: true },
       orderBy: { fullName: 'asc' },
     });
-    const changes = rows.flatMap((g) => {
-      const next = normalizePhone(g.phone!);
-      return next && next !== g.phone ? [{ ...g, next }] : [];
-    });
-    const invalid = rows.filter((g) => !isValidPhone(g.phone!));
+    const { changes, invalid } = planPhoneChanges(
+      rows.flatMap((g) => (g.phone ? [{ id: g.id, fullName: g.fullName, phone: g.phone }] : [])),
+    );
 
     for (const c of changes) console.log(`  ${c.fullName}: ${c.phone} → ${c.next}`);
     console.log(`[phones] ${rows.length} số, ${changes.length} số cần chuẩn hoá`);
