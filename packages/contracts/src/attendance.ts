@@ -366,3 +366,61 @@ export const StudentAttendanceResponse = z.object({
   chargedTotal: z.int().nullable(),
 });
 export type StudentAttendanceResponse = z.infer<typeof StudentAttendanceResponse>;
+
+// ---------- Lịch buổi học (từ 2.1.0, docs/attendance-calendar-design.md) ----------
+
+/** Số ngày tối đa của một lần xem lịch (lưới tháng 6 tuần) */
+export const CALENDAR_MAX_DAYS = 42;
+
+/** Khoảng [from, to] gồm cả hai đầu; `status` có giá trị → chỉ buổi thật */
+export const AttendanceCalendarQuery = z
+  .object({
+    from: IsoDate,
+    to: IsoDate,
+    slotId: Id.optional(),
+    teacherId: Id.optional(),
+    status: AttendanceSessionStatus.optional(),
+  })
+  .superRefine((q, ctx) => {
+    if (q.to < q.from || dayCount(q.from, q.to) > CALENDAR_MAX_DAYS)
+      addValidationIssue(ctx, ['to'], 'calendarRange');
+  });
+export type AttendanceCalendarQuery = z.infer<typeof AttendanceCalendarQuery>;
+
+/** Buổi thật (đã tạo: chờ xác nhận / đã xác nhận / đã huỷ) */
+export const CalendarSessionItem = z.object({
+  type: z.literal('SESSION'),
+  date: IsoDate,
+  startTime: TimeOfDay,
+  endTime: TimeOfDay,
+  session: AttendanceSessionSummary,
+});
+export type CalendarSessionItem = z.infer<typeof CalendarSessionItem>;
+
+/** Buổi dự kiến: ngày ≥ hôm nay, ca có học sinh theo lịch nhưng buổi chưa được tạo (00:05 ngày đó mới tạo) */
+export const CalendarPlannedItem = z.object({
+  type: z.literal('PLANNED'),
+  date: IsoDate,
+  startTime: TimeOfDay,
+  endTime: TimeOfDay,
+  slot: ExtraSlotRef,
+  teachers: z.array(TeacherRef),
+  /** Học sinh ACTIVE có lịch hiệu lực ngày đó */
+  studentCount: z.int().min(1),
+  /** Trong đó: học có thời hạn (lịch có ngày kết thúc — vd học tăng cường) */
+  limitedCount: z.int().min(0),
+});
+export type CalendarPlannedItem = z.infer<typeof CalendarPlannedItem>;
+
+export const CalendarItem = z.discriminatedUnion('type', [CalendarSessionItem, CalendarPlannedItem]);
+export type CalendarItem = z.infer<typeof CalendarItem>;
+
+export const AttendanceCalendarResponse = z.object({
+  from: IsoDate,
+  to: IsoDate,
+  /** Hôm nay theo múi giờ trung tâm */
+  today: IsoDate,
+  /** Sắp theo ngày, giờ bắt đầu */
+  items: z.array(CalendarItem),
+});
+export type AttendanceCalendarResponse = z.infer<typeof AttendanceCalendarResponse>;

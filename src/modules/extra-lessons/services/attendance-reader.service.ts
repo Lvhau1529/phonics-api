@@ -135,13 +135,14 @@ export class AttendanceReaderService {
     };
   }
 
-  private async scopeWhere(user: AuthUser): Promise<Prisma.AttendanceSessionWhereInput> {
+  /** Phạm vi buổi: ADMIN mọi buổi; GV buổi mình phụ trách hoặc thuộc ca mình dạy */
+  async scopeWhere(user: AuthUser): Promise<Prisma.AttendanceSessionWhereInput> {
     const slots = await this.access.slotScope(user);
     if (!slots) return {};
     return { OR: [{ teacherIds: { has: user.id } }, { slotId: { in: slots } }] };
   }
 
-  private async toSummaries(rows: readonly SessionSummaryRow[]): Promise<AttendanceSessionSummary[]> {
+  async toSummaries(rows: readonly SessionSummaryRow[]): Promise<AttendanceSessionSummary[]> {
     const [teachers, missing] = await Promise.all([
       this.repo.teachers(rows.flatMap((r) => r.teacherIds)),
       this.repo.missingRateCounts(rows.map((r) => r.id)),
