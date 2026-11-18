@@ -92,6 +92,7 @@ Tài khoản `PENDING` (phụ huynh chờ duyệt) chỉ gọi được `auth/me
 | --- | --- | --- | --- |
 | GET | `/attendance/sessions` | A, T | `AttendanceSessionListQuery { from?, to?, slotId?, teacherId?, status? }` → `Paginated<AttendanceSessionSummary>` |
 | GET | `/attendance/sessions/pending/count` | A, T | → `{ count }` (buổi PENDING đã bắt đầu — badge menu) |
+| GET | `/attendance/sessions/calendar` | A, T | `AttendanceCalendarQuery { from, to (≤ 42 ngày, gồm cả hai đầu), slotId?, teacherId?, status? }` → `AttendanceCalendarResponse { today, items: (SESSION \| PLANNED)[] }` — buổi dự kiến: ngày ≥ hôm nay, ca có học sinh nhưng chưa tạo buổi (docs/attendance-calendar-design.md) |
 | GET | `/attendance/sessions/:id` | A, T | → `AttendanceSessionDetail` (`unitPrice` cần perm:`extra.viewPricing`) |
 | PUT | `/attendance/sessions/:id/records` | A, T (perm:`attendance.confirm`) | `UpdateAttendanceRecordsBody` → detail. Học sinh chưa có → thêm MANUAL; `charged` / `unitPrice` chỉ A. 409 `ATTENDANCE_SESSION_CANCELLED` |
 | POST | `/attendance/sessions/:id/confirm` | A, T (perm:`attendance.confirm`) | `{}` → detail (đã xác nhận → ghi lại người / lúc) |

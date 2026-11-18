@@ -11,6 +11,7 @@ import { AttendanceRepository } from '@/modules/extra-lessons/repositories/atten
 import { ExtraScheduleRepository } from '@/modules/extra-lessons/repositories/extra-schedule.repository';
 import { ExtraSlotRepository } from '@/modules/extra-lessons/repositories/extra-slot.repository';
 import { TuitionRepository } from '@/modules/extra-lessons/repositories/tuition.repository';
+import { AttendanceCalendarService } from '@/modules/extra-lessons/services/attendance-calendar.service';
 import { AttendanceDigestService } from '@/modules/extra-lessons/services/attendance-digest.service';
 import { AttendanceReaderService } from '@/modules/extra-lessons/services/attendance-reader.service';
 import { AttendanceWriterService } from '@/modules/extra-lessons/services/attendance-writer.service';
@@ -54,6 +55,7 @@ import { SettingsModule } from '@/modules/settings/settings.module';
     AttendanceRepository,
     SessionSyncService,
     AttendanceReaderService,
+    AttendanceCalendarService,
     AttendanceWriterService,
     AttendanceDigestService,
     ExtraLessonsScheduler,

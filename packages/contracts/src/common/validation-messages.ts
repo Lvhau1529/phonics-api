@@ -80,6 +80,7 @@ const vi = {
   rateEndsAfterStart: 'Ngày hết ưu đãi phải sau ngày bắt đầu',
   cancelRange: 'Khoảng ngày nghỉ không hợp lệ (từ ≤ đến, tối đa 62 ngày)',
   slotsNeedDate: 'Chọn ca chỉ dùng khi huỷ theo ngày',
+  calendarRange: 'Khoảng ngày xem lịch không hợp lệ (từ ≤ đến, tối đa 42 ngày)',
 
   // ---------- Phiếu học phí ----------
   bankBinFormat: 'Mã BIN ngân hàng gồm 6 chữ số',
@@ -157,6 +158,7 @@ const en: ValidationCatalog = {
   rateEndsAfterStart: 'The end date must be after the start date',
   cancelRange: 'Invalid day-off range (from ≤ to, at most 62 days)',
   slotsNeedDate: 'Choosing slots only works when cancelling by date',
+  calendarRange: 'Invalid calendar range (from ≤ to, at most 42 days)',
 
   bankBinFormat: 'The bank BIN must be 6 digits',
   bankAccountFormat: 'The account number may only contain letters and digits (4-30 characters)',

@@ -5,12 +5,14 @@ import { RequirePermission, Roles } from '@/common/decorators/roles.decorator';
 import { API_V1 } from '@/config/api-version';
 import { type AuthUser } from '@/modules/auth/types/auth.types';
 import {
+  AttendanceCalendarQueryDto,
   AttendanceSessionListQueryDto,
   CancelAttendanceSessionsDto,
   CreateAttendanceSessionDto,
   ResendDigestDto,
   UpdateAttendanceRecordsDto,
 } from '@/modules/extra-lessons/dto/requests/extra.dto';
+import { AttendanceCalendarService } from '@/modules/extra-lessons/services/attendance-calendar.service';
 import { AttendanceDigestService } from '@/modules/extra-lessons/services/attendance-digest.service';
 import { AttendanceReaderService } from '@/modules/extra-lessons/services/attendance-reader.service';
 import { AttendanceWriterService } from '@/modules/extra-lessons/services/attendance-writer.service';
@@ -25,6 +27,7 @@ export class AttendanceController {
     private readonly reader: AttendanceReaderService,
     private readonly writer: AttendanceWriterService,
     private readonly digests: AttendanceDigestService,
+    private readonly calendarService: AttendanceCalendarService,
   ) {}
 
   @Get()
@@ -35,6 +38,12 @@ export class AttendanceController {
   @Get('pending/count')
   pendingCount(@CurrentUser() user: AuthUser) {
     return this.reader.pendingCount(user);
+  }
+
+  /** Lịch: buổi thật + buổi dự kiến trong [from, to] (khai báo trước `:id`) */
+  @Get('calendar')
+  calendar(@CurrentUser() user: AuthUser, @Query() query: AttendanceCalendarQueryDto) {
+    return this.calendarService.calendar(user, query);
   }
 
   @Get(':id')
