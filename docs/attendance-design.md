@@ -1010,6 +1010,8 @@ trang duyệt nhanh `/a/attendance/:token`, đồng bộ buổi khi sửa lịch
 `apply`), buổi bù, huỷ hàng loạt, điểm danh theo tháng. Chưa làm: khoá theo kỳ học phí (PR 6), notification cho admin
 khi buổi quá 3 lần nhắc vẫn PENDING (xem bằng bộ lọc trạng thái). Env mới `ADMIN_APP_URL`.
 
+**Lịch buổi + học tăng cường có thời hạn** (contracts 2.1.0): xem [attendance-calendar-design.md](attendance-calendar-design.md).
+
 ## 15. Câu hỏi còn lại
 
 Không còn câu hỏi nghiệp vụ mở. Mặc định đang áp (đổi được ở trang Phân quyền / template, không cần sửa code):
