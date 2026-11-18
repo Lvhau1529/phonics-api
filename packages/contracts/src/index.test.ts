@@ -20,6 +20,8 @@ import {
   AvatarKey,
   AwardBonusBody,
   BILLING_POLICY,
+  AttendanceCalendarQuery,
+  CalendarItem,
   CancelAttendanceSessionsBody,
   CancelDigestBody,
   CreateExtraSlotBody,
@@ -649,6 +651,39 @@ describe('điểm danh', () => {
 
   it('vắng không tính phí', () => {
     expect(BILLING_POLICY).toEqual({ PRESENT: true, ABSENT: false, EXCUSED: false });
+  });
+
+  it('lịch buổi: from ≤ to, tối đa 42 ngày (gồm cả hai đầu)', () => {
+    expect(AttendanceCalendarQuery.safeParse({ from: '2026-11-01', to: '2026-12-12' }).success).toBe(true);
+    expect(
+      AttendanceCalendarQuery.safeParse({ from: '2026-11-01', to: '2026-12-13' }).error?.issues[0]?.message,
+    ).toBe('calendarRange');
+    expect(
+      AttendanceCalendarQuery.safeParse({ from: '2026-11-10', to: '2026-11-09' }).error?.issues[0]?.message,
+    ).toBe('calendarRange');
+    const planned = {
+      type: 'PLANNED',
+      date: '2026-11-20',
+      startTime: '18:00',
+      endTime: '19:30',
+      slot: {
+        id,
+        name: 'Ca T6',
+        kind: 'EXTRA_CLASS',
+        weekday: 5,
+        startTime: '18:00',
+        endTime: '19:30',
+        startsOn: null,
+        endsOn: null,
+        archivedAt: null,
+      },
+      teachers: [],
+      studentCount: 3,
+      limitedCount: 1,
+    };
+    expect(CalendarItem.safeParse(planned).success).toBe(true);
+    expect(CalendarItem.safeParse({ ...planned, studentCount: 0 }).success).toBe(false);
+    expect(CalendarItem.safeParse({ ...planned, type: 'SESSION' }).success).toBe(false);
   });
 
   it('huỷ buổi: danh sách buổi hoặc một ngày, không cả hai', () => {

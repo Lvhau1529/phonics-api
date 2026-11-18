@@ -8,6 +8,7 @@ import {
   type SessionDetailRow,
   sessionSummaryInclude,
   type SessionSummaryRow,
+  slotRefSelect,
   type TeacherRow,
 } from '@/modules/extra-lessons/types/extra.types';
 
@@ -39,6 +40,52 @@ export class AttendanceRepository {
 
   count(where: Prisma.AttendanceSessionWhereInput): Promise<number> {
     return this.prisma.attendanceSession.count({ where });
+  }
+
+  // ---------- Lịch ----------
+
+  /** Mọi buổi thật khớp `where` (khoảng lịch ≤ 42 ngày nên không phân trang) */
+  calendarSessions(where: Prisma.AttendanceSessionWhereInput): Promise<SessionSummaryRow[]> {
+    return this.prisma.attendanceSession.findMany({
+      where,
+      orderBy: [{ date: 'asc' }, { startsAt: 'asc' }, { id: 'asc' }],
+      include: sessionSummaryInclude,
+    });
+  }
+
+  /** Ca chưa ngừng (lọc theo phạm vi / ca / GV) kèm GV — để tính buổi dự kiến */
+  calendarSlots(filter: { slotIds?: readonly string[]; slotId?: string; teacherId?: string }) {
+    return this.prisma.extraSlot.findMany({
+      where: {
+        archivedAt: null,
+        AND: [
+          filter.slotIds ? { id: { in: [...filter.slotIds] } } : {},
+          filter.slotId ? { id: filter.slotId } : {},
+        ],
+        teachers: filter.teacherId ? { some: { teacherId: filter.teacherId } } : undefined,
+      },
+      select: {
+        ...slotRefSelect,
+        teachers: {
+          orderBy: { teacher: { displayName: 'asc' } },
+          select: { teacher: { select: { id: true, displayName: true, email: true, avatarKey: true } } },
+        },
+      },
+    });
+  }
+
+  /** Dòng lịch của học sinh ACTIVE trên các ca, có hiệu lực trong [from, to] (gồm cả hai đầu) */
+  calendarAssignments(slotIds: readonly string[], from: string, to: string) {
+    if (!slotIds.length) return Promise.resolve([]);
+    return this.prisma.studentSlotAssignment.findMany({
+      where: {
+        slotId: { in: [...slotIds] },
+        effectiveFrom: { lte: to },
+        OR: [{ effectiveTo: null }, { effectiveTo: { gt: from } }],
+        student: { user: { status: 'ACTIVE' } },
+      },
+      select: { slotId: true, studentId: true, effectiveFrom: true, effectiveTo: true },
+    });
   }
 
   findById(id: string, db: Db = this.prisma): Promise<SessionDetailRow | null> {

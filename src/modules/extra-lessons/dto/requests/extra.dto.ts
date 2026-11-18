@@ -1,5 +1,6 @@
 import {
   ApplyToSessionsBody,
+  AttendanceCalendarQuery,
   AttendanceSessionListQuery,
   CancelAttendanceSessionsBody,
   CancelDigestBody,
@@ -37,6 +38,7 @@ export class UpdateSlotAssignmentDto extends createZodDto(UpdateSlotAssignmentBo
 export class UpdateExtraRateDto extends createZodDto(UpdateExtraRateBody) {}
 export class MoveSlotAssignmentDto extends createZodDto(MoveSlotAssignmentBody) {}
 export class AttendanceSessionListQueryDto extends createZodDto(AttendanceSessionListQuery) {}
+export class AttendanceCalendarQueryDto extends createZodDto(AttendanceCalendarQuery) {}
 export class UpdateAttendanceRecordsDto extends createZodDto(UpdateAttendanceRecordsBody) {}
 export class CreateAttendanceSessionDto extends createZodDto(CreateAttendanceSessionBody) {}
 export class CancelAttendanceSessionsDto extends createZodDto(CancelAttendanceSessionsBody) {}

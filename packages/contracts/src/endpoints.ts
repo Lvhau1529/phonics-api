@@ -158,6 +158,8 @@ export const ENDPOINTS = {
     /** POST: khôi phục buổi đã huỷ về chờ xác nhận (từ 1.18.0) */
     restore: (id: string) => `/attendance/sessions/${id}/restore`,
     pendingCount: '/attendance/sessions/pending/count',
+    /** GET: lịch buổi (buổi thật + buổi dự kiến) trong [from, to] (từ 1.21.0) */
+    calendar: '/attendance/sessions/calendar',
     /** POST ADMIN: gửi lại mail xác nhận cho GV các buổi đã chọn (từ 1.13.0) */
     resendDigest: '/attendance/sessions/resend-digest',
     /** GET ADMIN: thống kê học phí tổng quát theo tháng (từ 1.13.0) */
